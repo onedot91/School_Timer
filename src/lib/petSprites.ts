@@ -1,3 +1,4 @@
+import type { PetHop } from './petBehavior';
 import type { StudentPetKind } from './studentPet.js';
 
 export const PET_ANIMATION_IDS = [
@@ -151,7 +152,7 @@ export const PET_CARRY_GRIPS: Readonly<Record<StudentPetKind, PetGrip>> = {
   turtle: { x: 90, y: 58 },
   duck: { x: 89, y: 53 },
   frog: { x: 91, y: 62 },
-  giraffe: { x: 89, y: 59 },
+  giraffe: { x: 88, y: 64 },
   zebra: { x: 91, y: 51 },
 };
 
@@ -192,6 +193,8 @@ export interface PetGait {
   fleeRuns: boolean;
   /** Stride length relative to body size: hoppers cover more ground per cycle, scurriers less. */
   stride: number;
+  /** Airborne part of the drawn hop (rabbit, frog): the pet only moves forward during it. */
+  hop?: PetHop;
 }
 
 /** How each animal gets around, matched to the walk and run rows drawn for it. */
@@ -199,7 +202,7 @@ export const PET_GAITS: Readonly<Record<StudentPetKind, PetGait>> = {
   cat: { speed: 1, runChance: .3, fleeRuns: true, stride: 1 },
   dog: { speed: 1.1, runChance: .45, fleeRuns: true, stride: 1 },
   fox: { speed: 1.05, runChance: .35, fleeRuns: true, stride: 1 },
-  rabbit: { speed: 1, runChance: .4, fleeRuns: true, stride: 1.4 },
+  rabbit: { speed: 1, runChance: .4, fleeRuns: true, stride: 1.4, hop: { start: .125, length: .5 } },
   chick: { speed: 1.1, runChance: .2, fleeRuns: true, stride: .6 },
   hamster: { speed: 1.15, runChance: .35, fleeRuns: true, stride: .55 },
   squirrel: { speed: 1.2, runChance: .6, fleeRuns: true, stride: 1.1 },
@@ -217,7 +220,7 @@ export const PET_GAITS: Readonly<Record<StudentPetKind, PetGait>> = {
   elephant: { speed: .55, runChance: 0, fleeRuns: false, stride: 1.2 },
   turtle: { speed: .4, runChance: 0, fleeRuns: false, stride: 1 },
   duck: { speed: .85, runChance: .2, fleeRuns: true, stride: .6 },
-  frog: { speed: .95, runChance: .35, fleeRuns: true, stride: 1.5 },
+  frog: { speed: .95, runChance: .35, fleeRuns: true, stride: 1.5, hop: { start: .25, length: .45 } },
   giraffe: { speed: .8, runChance: .15, fleeRuns: true, stride: 1.3 },
   zebra: { speed: 1.05, runChance: .4, fleeRuns: true, stride: 1.15 },
 };
@@ -245,8 +248,8 @@ export const PET_HEAD_TOPS: Readonly<Record<StudentPetKind, number>> = {
   elephant: 23,
   turtle: 57,
   duck: 31,
-  frog: 41,
-  giraffe: 14,
+  frog: 33,
+  giraffe: 10,
   zebra: 14,
 };
 

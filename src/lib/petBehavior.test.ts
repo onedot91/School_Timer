@@ -19,6 +19,7 @@ import {
   type PetBehaviorConfig,
   type PetBehaviorState,
   type PetMode,
+  getPetHopPush,
 } from './petBehavior';
 import {
   PET_ANIMATIONS,
@@ -322,6 +323,32 @@ test('a touch sometimes startles the pet into fleeing away from it, then it look
   assert.ok(seen.has('run'));
   assert.equal(state.mode, 'lookAround');
   assert.equal(state.fleeing, false);
+});
+
+test('a hopper stays put while crouched and moves only in the air, at its usual average pace', () => {
+  const hop = { start: .25, length: .45 };
+  const samples = Array.from({ length: 1000 }, (_, i) => getPetHopPush(hop, i / 1000));
+  assert.ok(Math.abs(samples.reduce((sum, value) => sum + value, 0) / samples.length - 1) < .01);
+  assert.equal(getPetHopPush(hop, .1), 0);
+  assert.equal(getPetHopPush(hop, .8), 0);
+  assert.ok(getPetHopPush(hop, .45) > 1);
+  const hopper = { ...config, hop };
+  const random = seeded(97);
+  let state: PetBehaviorState = {
+    ...createPetBehaviorState({ x: .2, y: .88 }, hopper, random),
+    mode: 'walk', target: { x: .8, y: .88 }, modeDurationMs: Infinity, heading: 0, pace: 1, pauseAt: null, speed: hopper.walkSpeed, gaitPhase: 0,
+  };
+  let crouchedMoves = 0;
+  let airborneMoves = 0;
+  for (let i = 0; i < 400 && state.mode === 'walk'; i += 1) {
+    const next = stepPetBehavior(state, 20, hopper, random);
+    const moved = Math.abs(next.position.x - state.position.x) > 1e-9;
+    if (getPetHopPush(hop, state.gaitPhase) === 0 && moved) crouchedMoves += 1;
+    if (getPetHopPush(hop, state.gaitPhase) > 0 && moved) airborneMoves += 1;
+    state = next;
+  }
+  assert.equal(crouchedMoves, 0);
+  assert.ok(airborneMoves > 0);
 });
 
 test('a pet that never runs walks everywhere, and walks off briskly when startled', () => {

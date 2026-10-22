@@ -193,16 +193,16 @@ const SPECIES = {
     shape: { body: [1.02, .9], lift: 7, head: 1.04, headShift: [-6, 7] }, legWidth: 14,
     fur: '#7cc36b', furFar: '#62a956', belly: '#e6f4c4', muzzle: null, pattern: '#4f9447',
     bodyPattern: 'frogSpots', forehead: 'none', ears: 'frog', earIn: '#7cc36b',
-    eyesAt: [[105, 40], [128, 38]], eyeRing: true, wideMouth: true,
+    eyesAt: [[105, 40], [128, 38]], eyeRing: true, wideMouth: true, crouch: true,
     nose: '#4f9447', noseType: 'nostrils', whiskers: false,
     tail: { type: 'none' },
   },
   giraffe: {
-    shape: { body: [.92, .86], lift: 0, head: .72, headShift: [14, -22] }, legWidth: 12,
+    shape: { body: [.8, .74], lift: 0, head: .64, headShift: [20, -34] }, legWidth: 11,
     fur: '#f3c45e', furFar: '#dcab48', belly: '#fbe7b6', muzzle: '#f7ddb0', pattern: '#b9732f',
     bodyPattern: 'giraffeSpots', forehead: 'none', ears: 'sheep', earFur: '#f3c45e', earIn: '#f0b79a',
-    ossicones: '#b9732f', nose: '#8a5527', noseType: 'triangle', whiskers: false,
-    neck: { from: [102, 72], width: 16, spots: '#b9732f' },
+    ossicones: '#b9732f', nose: '#8a5527', noseType: 'triangle', whiskers: false, liesDown: true,
+    neck: { from: [104, 76], width: 15, spots: '#b9732f' },
     tail: { type: 'tuft', outer: 6.4, inner: 3, tuft: '#7a4a24', scale: .55 },
   },
   zebra: {
@@ -718,6 +718,9 @@ const HEAD_SPIKES = { center: [116, 57], points: [[94, 44], [99, 38], [105, 34],
 // Birds stand on two thin legs under a round body; the far legs are hidden.
 const BIRD_LEG_PIVOTS = { near: [92, 98], back: [76, 98] };
 
+// Frog hind foot: long and webbed, with three spread toes pointing forward along the ground.
+const drawWebbedFoot = ([x, y], fill) => `<path d="M${r(x - 9)} ${r(y + 1)} C${r(x - 6)} ${r(y - 4)} ${r(x + 4)} ${r(y - 4)} ${r(x + 8)} ${r(y - 3)} L${r(x + 14)} ${r(y - 5)} L${r(x + 11)} ${r(y - 1)} L${r(x + 16)} ${r(y)} L${r(x + 11)} ${r(y + 2)} L${r(x + 14)} ${r(y + 4.4)} L${r(x + 6)} ${r(y + 3.4)} C${r(x)} ${r(y + 4.4)} ${r(x - 8)} ${r(y + 4.4)} ${r(x - 9)} ${r(y + 1)} Z" fill="${fill}" ${outline}/>`;
+
 const drawCat = (pose, sp, id) => {
   const p = shapePose(pose, sp);
   const shape = shapeOf(sp);
@@ -783,10 +786,11 @@ const drawCat = (pose, sp, id) => {
       ${CLIPPED_PATTERNS.has(sp.bodyPattern) ? '' : drawBodyPattern(sp, clipId, body)}
       ${wing}
     </g>
-    ${showHindPaw ? `<ellipse cx="${r(hindPaw[0])}" cy="${r(hindPaw[1])}" rx="8.5" ry="4.4" fill="${legFur}" ${outline}/>
+    ${showHindPaw && !sp.crouch ? `<ellipse cx="${r(hindPaw[0])}" cy="${r(hindPaw[1])}" rx="8.5" ry="4.4" fill="${legFur}" ${outline}/>
       <path d="M${r(hindPaw[0] + 3)} ${r(hindPaw[1] + 1.5)} v-2.6 M${r(hindPaw[0] + 6)} ${r(hindPaw[1] + 1)} v-2.4" stroke="${C.line}" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>` : ''}
     ${showHaunch ? `<ellipse cx="${r(haunch[0])}" cy="${r(haunch[1])}" rx="${r(haunchRx)}" ry="${r(haunchRy)}" fill="${haunchFur}" ${outline}/>
       ${striped ? `<path d="M${r(haunch[0] - 8)} ${r(haunch[1] - haunchRy * .55)} q5 3 4 ${r(haunchRy * .65)} M${r(haunch[0] - 1)} ${r(haunch[1] - haunchRy * .7)} q4 3 3 ${r(haunchRy * .55)}" fill="none" stroke="${sp.pattern}" stroke-width="3.4" stroke-linecap="round"/>` : ''}` : ''}
+    ${showHindPaw && sp.crouch ? drawWebbedFoot(hindPaw, legFur) : ''}
     ${showChest && sp.belly !== sp.fur ? `<ellipse cx="${r(shoulderNear[0] + 3)}" cy="${r(shoulderNear[1] - 5)}" rx="7.5" ry="11" fill="${sp.belly}"/>` : ''}
     ${p.tailFront ? drawTail(p, sp) : ''}
     ${p.headBehind ? '' : head}
@@ -1223,17 +1227,8 @@ const TRICK_FRAMES = {
     trot: at([0, 8, -8, 8, -8, 8, -4, 0], i),
     eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .75,
   })),
-  // A big leap straight up, legs flung out, and a soft landing.
-  frog: () => [
-    pose(STAND, { bdy: 4, ...legs({ a: 0, len: 18 }), eyes: 'open' }),
-    pose(STAND, { bdy: 6, ...legs({ a: 0, len: 14 }), eyes: 'squeeze' }),
-    pose(STAND, { bdy: -10, nf: { a: -24 }, ff: { a: -20 }, nb: { a: 34 }, fb: { a: 30 }, eyes: 'wide' }),
-    pose(STAND, { bdy: -16, nf: { a: -30, lift: 4 }, ff: { a: -26, lift: 4 }, nb: { a: 40, lift: 4 }, fb: { a: 36, lift: 4 }, ...HAPPY_FACE }),
-    pose(STAND, { bdy: -12, nf: { a: -14 }, ff: { a: -10 }, nb: { a: 22 }, fb: { a: 18 }, ...HAPPY_FACE }),
-    pose(STAND, { bdy: -3, nf: { a: -4 }, ff: { a: -4 }, nb: { a: 6 }, fb: { a: 6 }, ...HAPPY_FACE }),
-    pose(STAND, { bdy: 4, ...legs({ a: 0, len: 18 }), ...HAPPY_FACE }),
-    pose(STAND, { bdy: 1, yawn: .35, eyes: 'open' }),
-  ],
+  // A big leap out of the crouch, all four legs flung out, cheering in the air.
+  frog: () => frogHop(1.5, true),
   // Swinging the long neck from side to side, then a lick of the long tongue.
   giraffe: () => eight((i) => pose(STAND, {
     hdx: at([0, -3, -6, -3, 0, 2, 0, 0], i),
@@ -1363,6 +1358,54 @@ const penguinWaddle = gait({ swing: 10, lift: 2, bob: 1.6, roll: 6, headBob: .8,
 const elephantStomp = gait({ swing: 16, lift: 5, bob: .9, pairs: 'lateral', roll: 1.2, nod: 1, headBob: .8, tail: 7, wag: 4, ears: 5, squash: .02, extra: (i, phase) => ({ trunk: .12 + .1 * Math.sin(phase * 2 + 1) }) });
 const koalaClamber = gait({ swing: 16, lift: 3, bob: 1.6, roll: 2, headBob: 1.2, low: 2, tail: 0 });
 
+// A frog never stands on four straight legs: at rest it crouches with the hind legs folded beside
+// the body, the body sloping up to the head, and short front legs propping up the chest.
+const FROG_HIND = { a: 0, len: 4, reach: 0, lift: 0 };
+const frogify = (p) => {
+  const standing = 1 - Math.min(1, p.fold);
+  return pose(p, {
+    fold: 1, lw: 15,
+    brot: p.brot - 14 * standing,
+    bdy: p.bdy + 6 * standing,
+    nb: standing > .5 ? FROG_HIND : p.nb, fb: standing > .5 ? FROG_HIND : p.fb,
+    nf: { len: Math.min(p.nf.len, 20) }, ff: { len: Math.min(p.ff.len, 20) },
+  });
+};
+const FROG_CROUCH = frogify(STAND);
+// One hop: gather, push off with the hind legs straightening out behind, sail, land on the front
+// paws, and fold back into the crouch. `height` scales the jump; `cheer` adds a happy face in the air.
+const frogHop = (height, cheer = false) => {
+  const air = cheer ? HAPPY_FACE : {};
+  const kick = (a, len, lift = 0) => ({ a, len, reach: 0, lift });
+  return [
+    FROG_CROUCH,
+    pose(FROG_CROUCH, { bdy: FROG_CROUCH.bdy + 2, brot: FROG_CROUCH.brot + 3 }),
+    pose(STAND, { fold: .15, lw: 15, brot: -20, bdy: -4 * height, nf: { a: -26, len: 20, reach: 0 }, ff: { a: -22, len: 20, reach: 0 }, nb: kick(52, 30), fb: kick(48, 30), ...air }),
+    pose(STAND, { fold: 0, lw: 15, brot: -8, bdy: -11 * height, nf: { a: -38, len: 20, reach: 0, lift: 3 }, ff: { a: -34, len: 20, reach: 0, lift: 3 }, nb: kick(64, 30, 2), fb: kick(60, 30, 2), ...air }),
+    pose(STAND, { fold: 0, lw: 15, brot: 6, bdy: -8 * height, nf: { a: -18, len: 20, reach: 0 }, ff: { a: -14, len: 20, reach: 0 }, nb: kick(40, 26, 3), fb: kick(36, 26, 3), ...air }),
+    pose(STAND, { fold: .5, lw: 15, brot: 8, bdy: 0, nf: { a: 4, len: 20 }, ff: { a: 6, len: 20 }, nb: kick(18, 14), fb: kick(14, 14) }),
+    pose(FROG_CROUCH, { brot: FROG_CROUCH.brot + 4, bdy: FROG_CROUCH.bdy + 1 }),
+    FROG_CROUCH,
+  ];
+};
+
+// A giraffe never sits up like a cat: it folds its legs under its body and lies down with the long
+// neck still upright. Shared sitting and lying frames blend into that pose by how far they fold,
+// keeping their face (eyes, mouth, head tilt, sleep marks).
+const GIRAFFE_REST = pose(STAND, {
+  bdy: 19, ...legs({ a: 0, len: 4, reach: 0 }),
+  nf: { a: -78, len: 15, reach: 0 }, ff: { a: 70, len: 8, reach: 0 },
+  hdy: -16, hdx: -2, wUp: 0, wGround: 1,
+});
+const FACE_KEYS = ['eyes', 'yawn', 'tongue', 'blush', 'hrot', 'earL', 'earR', 'faceTurn', 'zStep'];
+const giraffeRest = (p) => {
+  const settled = Math.min(1, p.fold / .5);
+  if (settled === 0) return p;
+  const face = Object.fromEntries(FACE_KEYS.map((key) => [key, p[key]]));
+  const lying = pose(GIRAFFE_REST, { ...face, hdy: GIRAFFE_REST.hdy + (p.zStep >= 0 || p.eyes === 'closed' ? 8 : 0) });
+  return lerpPose(pose(p, { fold: 0, pawOverHead: false, hindOverHead: false, tailFront: false }), lying, settled);
+};
+
 const lowHop = ANIMATION_POSES.happy.map((p) => pose(p, { bdy: p.bdy < 0 ? p.bdy * .45 : p.bdy }));
 const SPECIES_POSES = {
   cat: {},
@@ -1396,16 +1439,16 @@ const SPECIES_POSES = {
     walk: gait({ swing: 14, lift: 3, bob: 1.6, roll: 5, nod: 2, headBob: 1, tail: 6, wag: 8, extra: (i, phase) => ({ wing: .08 + .08 * Math.sin(phase) }) }),
     run: gait({ swing: 18, lift: 4, bob: 2, roll: 7, nod: 2.5, headBob: 1.2, tail: 6, wag: 10, extra: (i, phase) => ({ wing: .45 + .4 * Math.sin(phase * 2) }) }),
   },
-  // Frogs hop low and long; the eye bumps do not swing like rabbit ears.
-  frog: {
-    walk: rabbitHop(.8).map((p) => pose(p, { earL: 0, earR: 0 })),
-    run: rabbitHop(1.4).map((p) => pose(p, { earL: 0, earR: 0 })),
-  },
+  // Frogs hop out of their crouch: the folded hind legs kick out long behind, the front paws land first.
+  frog: { walk: frogHop(.7), run: frogHop(1.15) },
   // Giraffes pace: both legs on one side move together, and the long neck nods with each step.
   // Tall heads get a lower happy hop; carried, the giraffe's tail stays half up off the frame edge.
   giraffe: {
     walk: gait({ swing: 18, lift: 5, bob: .8, pairs: 'lateral', nod: 2, headBob: 1.4, roll: 1, tail: 6, wag: 4 }),
     happy: lowHop,
+    // A rocking gallop with the neck swinging, low enough that the head stays in the frame.
+    run: gait({ swing: 28, lift: 6, bob: 1.2, pairs: 'bound', nod: 2.5, headBob: 1.2, tail: 8, wag: 6 }),
+    startle: ANIMATION_POSES.startle.map((p) => pose(p, { bdy: p.bdy < 0 ? p.bdy * .4 : p.bdy })),
     carried: ANIMATION_POSES.carried.map((p) => pose(p, { wDown: .5, wUp: .5 })),
   },
   // Zebra: a springy horse trot with the head bobbing and the tail swishing.
@@ -1442,12 +1485,21 @@ const SPECIES_POSES = {
   },
 };
 
-const framesFor = (kind, name) => {
-  const replaced = SPECIES_POSES[kind]?.[name];
-  if (replaced) return replaced;
+const sharedFramesFor = (kind, name) => {
   if (name !== 'trick' && name !== 'trickSit') return ANIMATION_POSES[name];
   if (PET_TRICKS[kind] === name) return TRICK_FRAMES[kind]();
   return name === 'trick' ? ANIMATION_POSES.idle : eight(() => pose(SIT));
+};
+const framesFor = (kind, name) => {
+  const replaced = SPECIES_POSES[kind]?.[name];
+  if (replaced) return replaced;
+  const frames = sharedFramesFor(kind, name);
+  if (name === 'carried') return frames;
+  // Crouching animals (frog) fold every shared standing pose into their crouch.
+  if (SPECIES[kind].crouch) return frames.map(frogify);
+  // Lying-down animals (giraffe) turn every sit into lying with folded legs.
+  if (SPECIES[kind].liesDown) return frames.map(giraffeRest);
+  return frames;
 };
 
 // ---- Sheets ---------------------------------------------------------------------------------

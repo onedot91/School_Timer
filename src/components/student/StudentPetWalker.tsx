@@ -207,6 +207,7 @@ export default function StudentPetWalker({
         walkSpeed: DEFAULT_PET_BEHAVIOR_CONFIG.walkSpeed * (.55 + .45 * size) * gait.speed,
         runChance: gait.runChance,
         fleeRuns: gait.fleeRuns,
+        hop: gait.hop ?? null,
       };
     };
     updateInterestsRef.current = updateConfig;

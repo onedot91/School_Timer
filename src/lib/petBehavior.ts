@@ -43,6 +43,14 @@ export interface PetBehaviorConfig {
   runChance: number;
   /** Startled pets dash off; the others (turtle, elephant) get away at a brisk walk. */
   fleeRuns: boolean;
+  /** Hoppers (rabbit, frog) cover ground only in the airborne part of each hop cycle. */
+  hop: PetHop | null;
+}
+
+/** Part of the gait cycle (0..1) in which a hopper is off the ground and moving forward. */
+export interface PetHop {
+  start: number;
+  length: number;
 }
 
 export interface PetBehaviorState {
@@ -94,6 +102,7 @@ export const DEFAULT_PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
   trick: null,
   runChance: .3,
   fleeRuns: true,
+  hop: null,
 };
 
 const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, number]>>> = {
@@ -104,6 +113,15 @@ const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, numbe
 const WALK_PACE: readonly [number, number] = [.75, 1.2];
 const RUN_PACE = 2.3;
 const RUN_STRIDE = 1.7;
+
+/**
+ * Share of the average speed used at this point of a hop: zero while crouched, a smooth push through
+ * the airborne part. It averages to 1 over the cycle, so a hopper keeps its usual pace overall.
+ */
+export const getPetHopPush = (hop: PetHop, phase: number) => {
+  const into = (phase - hop.start + 1) % 1;
+  return into >= hop.length ? 0 : (Math.PI / (2 * hop.length)) * Math.sin((Math.PI * into) / hop.length);
+};
 const RUN_MIN_DISTANCE = .3;
 const PAUSE_CHANCE = .45;
 const PAUSE_MIN_DISTANCE = .25;
@@ -326,7 +344,10 @@ const stepWalk = (state: PetBehaviorState, dtMs: number, config: PetBehaviorConf
   const topSpeed = config.walkSpeed * state.pace;
   const desiredSpeed = topSpeed * Math.min(1, distance / (running ? .09 : .05));
   const speed = state.speed + (desiredSpeed - state.speed) * Math.min(1, dtMs / (running ? 400 : 300));
-  const travel = Math.min(distance, Math.max(speed, topSpeed * .15) * (dtMs / 1000));
+  const nominal = Math.max(speed, topSpeed * .15) * (dtMs / 1000);
+  // Hoppers keep their hop going with time and only move while in the air, so they never slide.
+  const travel = Math.min(distance, config.hop ? nominal * getPetHopPush(config.hop, state.gaitPhase) : nominal);
+  const stride = config.strideLength * (running ? RUN_STRIDE : 1);
   // Steer toward the target with a gentle meander; close in, head straight so the pet always arrives.
   const toTarget = Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x);
   const meander = Math.sin(state.modeElapsedMs / 700) * MEANDER_RADIANS * Math.min(1, distance / .15);
@@ -346,7 +367,7 @@ const stepWalk = (state: PetBehaviorState, dtMs: number, config: PetBehaviorConf
     speed,
     // Facing follows the target side, not the curve, so the sprite never flips mid-stride.
     facing: Math.abs(dx) > .01 ? (dx > 0 ? 1 : -1) : state.facing,
-    gaitPhase: (state.gaitPhase + travel / (config.strideLength * (running ? RUN_STRIDE : 1))) % 1,
+    gaitPhase: (state.gaitPhase + (config.hop ? nominal : travel) / stride) % 1,
   };
 };
 
