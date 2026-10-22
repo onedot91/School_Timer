@@ -39,6 +39,10 @@ export interface PetBehaviorConfig {
   calm: boolean;
   /** Row holding this species' signature move; null for pets without one. */
   trick: PetTrick | null;
+  /** Chance that a long trip becomes a run; 0 for animals that never run. */
+  runChance: number;
+  /** Startled pets dash off; the others (turtle, elephant) get away at a brisk walk. */
+  fleeRuns: boolean;
 }
 
 export interface PetBehaviorState {
@@ -88,6 +92,8 @@ export const DEFAULT_PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
   gravity: 4,
   calm: false,
   trick: null,
+  runChance: .3,
+  fleeRuns: true,
 };
 
 const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, number]>>> = {
@@ -98,7 +104,6 @@ const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, numbe
 const WALK_PACE: readonly [number, number] = [.75, 1.2];
 const RUN_PACE = 2.3;
 const RUN_STRIDE = 1.7;
-const RUN_CHANCE = .3;
 const RUN_MIN_DISTANCE = .3;
 const PAUSE_CHANCE = .45;
 const PAUSE_MIN_DISTANCE = .25;
@@ -107,6 +112,8 @@ const START_DEVIATION_RADIANS = .6;
 const STRAIGHT_IN_DISTANCE = .03;
 const FLEE_CHANCE = .25;
 const FLEE_PACE = 4;
+/** A walker's getaway is only a little quicker than its usual walk. */
+const WALK_FLEE_PACE = 1.5;
 const FLEE_DISTANCE: readonly [number, number] = [.3, .45];
 const LANDING_PAUSE_MS = 700;
 const MIN_WALK_DISTANCE = .1;
@@ -234,7 +241,7 @@ const walkTo = (
   const needsTurn = Math.abs(target.x - state.position.x) > .002 && direction !== state.facing;
   const distance = visualDistance(state.position, target, config.aspectRatio);
   // Long trips are sometimes a run; walks each get their own pace and may stop halfway.
-  const running = !arrival && distance >= RUN_MIN_DISTANCE && random() < RUN_CHANCE;
+  const running = !arrival && distance >= RUN_MIN_DISTANCE && random() < config.runChance;
   const pause = !running && distance >= PAUSE_MIN_DISTANCE && random() < PAUSE_CHANCE;
   const straight = Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x);
   const moving = {
@@ -404,11 +411,11 @@ const flee = (state: PetBehaviorState, target: PetPoint, config: PetBehaviorConf
     arrival: null,
     turnTo: null,
     facing: target.x >= state.position.x ? 1 : -1,
-    pace: FLEE_PACE,
+    pace: config.fleeRuns ? FLEE_PACE : WALK_FLEE_PACE,
     pauseAt: null,
     heading: Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x),
     fleeing: true,
-  }, ['startle', 'run'], random)
+  }, ['startle', config.fleeRuns ? 'run' : 'walk'], random)
 );
 
 /**

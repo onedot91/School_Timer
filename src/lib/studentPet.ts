@@ -243,6 +243,14 @@ export const getStudentPetKind = (kind: StudentPetKind | null) => (
   STUDENT_PET_KINDS.find((pet) => pet.id === kind) ?? STUDENT_PET_KINDS[0]
 );
 
+/** "고양이가 태어났어요" / "펭귄이 태어났어요" for the hatch dialog, with the right subject particle. */
+export const getStudentPetHatchMessage = (kind: StudentPetKind | null) => {
+  const { label } = getStudentPetKind(kind);
+  const code = (label.at(-1) ?? '').charCodeAt(0);
+  const particle = code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 !== 0 ? '이' : '가';
+  return `${label}${particle} 태어났어요`;
+};
+
 export const getStudentPetEggStage = (fedAmount: number) => (
   Math.min(5, Math.floor(Math.max(0, fedAmount) / 20))
 );

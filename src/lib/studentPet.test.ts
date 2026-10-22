@@ -9,6 +9,7 @@ import {
   STUDENT_PET_STORAGE_KEY,
   applyStudentPetPositionOverrides,
   feedStudentPetEgg,
+  getStudentPetHatchMessage,
   getStudentPetState,
   loadStoredStudentPetSnapshot,
   moveStudentPet,
@@ -271,4 +272,11 @@ test('역할 차감의 잔액·결과·우편은 저장 실패와 재진입에�
     if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
     else Reflect.deleteProperty(globalThis, 'localStorage');
   }
+});
+
+test('the hatch message names the animal with the right subject particle', () => {
+  assert.equal(getStudentPetHatchMessage('cat'), '고양이가 태어났어요');
+  assert.equal(getStudentPetHatchMessage('penguin'), '펭귄이 태어났어요');
+  assert.equal(getStudentPetHatchMessage('sheep'), '양이 태어났어요');
+  assert.equal(getStudentPetHatchMessage('cow'), '소가 태어났어요');
 });

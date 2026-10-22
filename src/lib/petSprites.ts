@@ -171,6 +171,65 @@ export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
   elephant: 1.4,
 };
 
+export interface PetGait {
+  /** Walking speed relative to other pets of the same size. */
+  speed: number;
+  /** Chance that a long trip becomes a run; 0 for animals that never run. */
+  runChance: number;
+  /** Startled pets dash off; the others get away at a brisk walk. */
+  fleeRuns: boolean;
+  /** Stride length relative to body size: hoppers cover more ground per cycle, scurriers less. */
+  stride: number;
+}
+
+/** How each animal gets around, matched to the walk and run rows drawn for it. */
+export const PET_GAITS: Readonly<Record<StudentPetKind, PetGait>> = {
+  cat: { speed: 1, runChance: .3, fleeRuns: true, stride: 1 },
+  dog: { speed: 1.1, runChance: .45, fleeRuns: true, stride: 1 },
+  fox: { speed: 1.05, runChance: .35, fleeRuns: true, stride: 1 },
+  rabbit: { speed: 1, runChance: .4, fleeRuns: true, stride: 1.4 },
+  chick: { speed: 1.1, runChance: .2, fleeRuns: true, stride: .6 },
+  hamster: { speed: 1.15, runChance: .35, fleeRuns: true, stride: .55 },
+  squirrel: { speed: 1.2, runChance: .6, fleeRuns: true, stride: 1.1 },
+  raccoon: { speed: .85, runChance: .2, fleeRuns: true, stride: .9 },
+  panda: { speed: .7, runChance: .1, fleeRuns: true, stride: 1 },
+  koala: { speed: .55, runChance: 0, fleeRuns: false, stride: .9 },
+  pig: { speed: .95, runChance: .25, fleeRuns: true, stride: .8 },
+  sheep: { speed: .95, runChance: .3, fleeRuns: true, stride: .9 },
+  tiger: { speed: .9, runChance: .3, fleeRuns: true, stride: 1.15 },
+  lion: { speed: .85, runChance: .25, fleeRuns: true, stride: 1.15 },
+  penguin: { speed: .6, runChance: 0, fleeRuns: false, stride: .5 },
+  cow: { speed: .6, runChance: 0, fleeRuns: true, stride: 1 },
+  monkey: { speed: 1.15, runChance: .5, fleeRuns: true, stride: 1 },
+  hedgehog: { speed: 1, runChance: .3, fleeRuns: true, stride: .5 },
+  elephant: { speed: .55, runChance: 0, fleeRuns: false, stride: 1.2 },
+  turtle: { speed: .4, runChance: 0, fleeRuns: false, stride: 1 },
+};
+
+/** Top of the walking pet in its frame (y, of the 128-pixel frame height); the name tag sits just above. */
+export const PET_HEAD_TOPS: Readonly<Record<StudentPetKind, number>> = {
+  cat: 14,
+  dog: 22,
+  rabbit: 18,
+  chick: 20,
+  fox: 16,
+  hamster: 34,
+  squirrel: 20,
+  raccoon: 14,
+  panda: 18,
+  koala: 24,
+  pig: 31,
+  sheep: 18,
+  tiger: 20,
+  lion: 16,
+  penguin: 19,
+  cow: 14,
+  monkey: 20,
+  hedgehog: 39,
+  elephant: 21,
+  turtle: 55,
+};
+
 /** Kinds drawn by dev/generatePetSprites.mjs; any other kind falls back to its emoji. */
 export const PET_SPRITE_KINDS: ReadonlySet<StudentPetKind> = new Set<StudentPetKind>([
   'cat',

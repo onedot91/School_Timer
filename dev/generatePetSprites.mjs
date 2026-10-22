@@ -1169,8 +1169,118 @@ const peekAndHide = (middle) => [
   ...middle,
   lerpPose(turtlePeek, turtleRest, .5), turtleRest,
 ];
+// Crawl: diagonal legs step together in short, low strokes; the shell barely rocks while the head
+// nods forward with each step. Used for the walk and for the slow getaway after a fright.
+const turtleCrawl = Array.from({ length: 8 }, (_, i) => {
+  const phase = (i / 8) * tau;
+  const leg = (offset) => ({ a: -14 * Math.sin(phase + offset), lift: Math.max(0, Math.cos(phase + offset)) * 2.5, reach: 0 });
+  return pose(STAND, {
+    bdy: 1 + .5 * Math.cos(phase * 2),
+    brot: .8 * Math.sin(phase),
+    nf: leg(0), fb: leg(0), ff: leg(Math.PI), nb: leg(Math.PI),
+    hdx: 1.5 * Math.cos(phase * 2),
+    hdy: .6 * Math.cos(phase * 2 + .5),
+  });
+});
+// ---- Gaits ----------------------------------------------------------------------------------
+// One walk cycle of 8 frames, tuned per animal. Same stance rule as the shared walk: a paw lifts
+// only while it swings forward. `pairs`: diagonal (trot), lateral (same-side legs together, the
+// heavy amble of an elephant) or bound (fronts together, backs together, as squirrels move).
+const gait = ({
+  swing = 24, lift = 5, bob = 1.2, pairs = 'diagonal', roll = 0, nod = 0, headBob = 1, low = 0,
+  tail = 6, wag = 0, ears = 0, squash = 0, extra = () => ({}),
+} = {}) => Array.from({ length: 8 }, (_, i) => {
+  const phase = (i / 8) * tau;
+  const leg = (offset) => ({ a: -swing * Math.sin(phase + offset), lift: Math.max(0, Math.cos(phase + offset)) * lift });
+  const [nf, ff, nb, fb] = {
+    diagonal: [0, Math.PI, Math.PI, 0],
+    lateral: [0, Math.PI, 0, Math.PI],
+    bound: [0, .45, Math.PI, Math.PI + .45],
+  }[pairs].map(leg);
+  const beat = Math.cos(phase * 2);
+  return pose(STAND, {
+    bdy: low + (pairs === 'bound' ? -bob * Math.abs(Math.sin(phase)) : bob * beat),
+    brot: roll * Math.sin(phase),
+    bsx: 1 + squash * beat, bsy: 1 - squash * beat,
+    nf, ff, nb, fb,
+    hdx: nod * beat,
+    hdy: low * .6 + headBob * Math.cos(phase * 2 + .5),
+    trot: tail * Math.sin(phase), tflick: wag * Math.sin(phase * 2),
+    earL: -ears * beat, earR: ears * beat,
+    ...extra(i, phase),
+  });
+});
+
+// Rabbit: gathers, pushes off with both hind legs, sails, lands on the front paws and brings the
+// hind legs up under itself again. `height` scales the hop (the run hops higher and longer).
+const rabbitHop = (height) => [
+  { bdy: 3, brot: 0, f: 6, b: -10, bLen: 20, lf: 0, lb: 0, ear: 0 },
+  { bdy: -2, brot: -10, f: -20, b: 30, bLen: 26, lf: 2, lb: 0, ear: -4 },
+  { bdy: -8, brot: -5, f: -30, b: 36, bLen: 26, lf: 4, lb: 2, ear: -8 },
+  { bdy: -10, brot: 2, f: -22, b: 24, bLen: 24, lf: 4, lb: 4, ear: -8 },
+  { bdy: -5, brot: 9, f: -6, b: 12, bLen: 24, lf: 0, lb: 6, ear: -4 },
+  { bdy: 1, brot: 4, f: 6, b: -14, bLen: 22, lf: 0, lb: 5, ear: 2 },
+  { bdy: 4, brot: 0, f: 8, b: -14, bLen: 20, lf: 0, lb: 0, ear: 3 },
+  { bdy: 3, brot: 0, f: 7, b: -12, bLen: 20, lf: 0, lb: 0, ear: 1 },
+].map(({ bdy, brot, f, b, bLen, lf, lb, ear }, i) => pose(STAND, {
+  bdy: bdy > 0 ? bdy : bdy * height, brot,
+  nf: { a: f, lift: lf }, ff: { a: f + 4, lift: lf },
+  nb: { a: b, len: bLen, lift: lb }, fb: { a: b - 4, len: bLen, lift: lb },
+  earL: ear * height, earR: -ear * height,
+  trot: 4 * Math.sin((i / 8) * tau),
+}));
+
+// Sheep run: a stiff-legged pronk, all four legs straight as it springs up together.
+const sheepPronk = Array.from({ length: 8 }, (_, i) => {
+  const up = Math.sin((i / 8) * Math.PI);
+  return pose(STAND, {
+    bdy: 3 - 13 * up, brot: 3 * Math.sin((i / 8) * tau),
+    nf: { a: -8 - 6 * up, lift: 6 * up }, ff: { a: -4 - 6 * up, lift: 6 * up },
+    nb: { a: 8 + 6 * up, lift: 6 * up }, fb: { a: 4 + 6 * up, lift: 6 * up },
+    bsx: 1 - .03 * up, bsy: 1 + .03 * up,
+    earL: -6 * up, earR: 6 * up,
+  });
+});
+
+// The turtle, koala, penguin and elephant never break into a run: they get away at a brisk
+// version of their own walk, so the run row repeats it with a little more effort.
+const penguinWaddle = gait({ swing: 10, lift: 2, bob: 1.6, roll: 6, headBob: .8, tail: 2, extra: (i, phase) => ({ wing: .18 + .14 * Math.sin(phase) }) });
+const elephantStomp = gait({ swing: 16, lift: 5, bob: .9, pairs: 'lateral', roll: 1.2, nod: 1, headBob: .8, tail: 7, wag: 4, ears: 5, squash: .02, extra: (i, phase) => ({ trunk: .12 + .1 * Math.sin(phase * 2 + 1) }) });
+const koalaClamber = gait({ swing: 16, lift: 3, bob: 1.6, roll: 2, headBob: 1.2, low: 2, tail: 0 });
+
 const SPECIES_POSES = {
+  cat: {},
+  dog: {
+    walk: gait({ swing: 26, lift: 6, bob: 1.8, tail: 4, wag: 12, extra: () => ({ tongue: 1 }) }),
+  },
+  fox: {
+    walk: gait({ swing: 22, lift: 8, bob: 1.6, tail: 3, wag: 3, headBob: .6 }),
+  },
+  rabbit: { walk: rabbitHop(.7), run: rabbitHop(1.3) },
+  chick: {
+    walk: gait({ swing: 16, lift: 4, bob: 2, nod: 3, headBob: 1.4, tail: 4, extra: (i, phase) => ({ wing: .12 + .12 * Math.sin(phase * 2) }) }),
+  },
+  hamster: { walk: gait({ swing: 18, lift: 3, bob: .6, headBob: .5, tail: 0, extra: (i) => ({ cheek: .25 }) }) },
+  squirrel: {
+    walk: gait({ swing: 22, lift: 6, bob: 3, pairs: 'bound', headBob: 1, tail: 10, wag: 6 }),
+  },
+  raccoon: { walk: gait({ swing: 18, lift: 4, bob: 1, roll: 2, low: 2, headBob: .8, tail: 7 }) },
+  panda: { walk: gait({ swing: 20, lift: 4, bob: 1.2, roll: 3, nod: 1.5, squash: .02, tail: 2 }) },
+  koala: { walk: koalaClamber, run: koalaClamber },
+  pig: { walk: gait({ swing: 20, lift: 5, bob: 2.4, tail: 4, wag: 8, ears: 4 }) },
+  sheep: { walk: gait({ swing: 20, lift: 6, bob: 2.2, tail: 4, wag: 6, ears: 3 }), run: sheepPronk },
+  tiger: { walk: gait({ swing: 28, lift: 4, bob: .6, low: 3, nod: 1, headBob: .5, tail: 9, wag: 4 }) },
+  lion: { walk: gait({ swing: 26, lift: 5, bob: 1, low: -1, headBob: .6, tail: 6, wag: 8 }) },
+  penguin: { walk: penguinWaddle, run: gait({ swing: 12, lift: 3, bob: 2, roll: 8, headBob: 1, tail: 2, extra: (i, phase) => ({ wing: .3 + .25 * Math.sin(phase * 2) }) }) },
+  cow: { walk: gait({ swing: 18, lift: 4, bob: 1, nod: 2.5, headBob: 1, tail: 8, wag: 5 }) },
+  monkey: { walk: gait({ swing: 24, lift: 7, bob: 3.4, pairs: 'bound', headBob: 1.2, tail: 8 }) },
+  hedgehog: { walk: gait({ swing: 16, lift: 2.5, bob: .5, headBob: .6, tail: 0 }) },
+  elephant: { walk: elephantStomp, run: elephantStomp },
   turtle: {
+    walk: turtleCrawl,
+    run: turtleCrawl,
+    // Startled: ducks into the shell for a moment instead of jumping.
+    startle: [lerpPose(STAND, turtleRest, .6), pose(turtleRest, { eyes: 'squeeze' }), pose(turtleRest, { eyes: 'squeeze' }), lerpPose(turtleRest, turtlePeek, .6)],
     sit: restBreath(4),
     sitDown: steps(5, STAND, turtleRest),
     standUp: steps(5, turtleRest, STAND),
@@ -1254,3 +1364,67 @@ const drifted = Object.entries(grips).filter(([kind, grip]) => (
   PET_CARRY_GRIPS[kind]?.x !== grip.x || PET_CARRY_GRIPS[kind]?.y !== grip.y
 ));
 if (drifted.length > 0) throw new Error(`update PET_CARRY_GRIPS: ${JSON.stringify(Object.fromEntries(drifted))}`);
+
+// ---- Egg ------------------------------------------------------------------------------------
+// public/pets/egg-stages.svg: six frames left to right, from a whole egg to a cracked-open one
+// with eyes peeking out, sitting down in a twig nest like the egg in the home scene.
+const EGG_W = 120;
+const EGG_H = 110;
+const EGG_PATH = 'M60 14 C78 14 89 42 89 62 C89 84 76 96 60 96 C44 96 31 84 31 62 C31 42 42 14 60 14 Z';
+const EGG_FILL = '#fbf8f1';
+// The crack that finally splits the egg, running across it a little above the middle.
+const ZIGZAG = [[26, 52], [35, 45], [42, 53], [50, 44], [57, 52], [64, 43], [71, 51], [78, 44], [85, 52], [94, 46]];
+const zig = ZIGZAG.map(([x, y]) => `${x} ${y}`).join(' L');
+const zigBack = [...ZIGZAG].reverse().map(([x, y]) => `${x} ${y}`).join(' L');
+const crack = (d, width = 2) => `<path d="${d}" fill="none" stroke="${C.line}" stroke-width="${width}" stroke-linejoin="round" stroke-linecap="round"/>`;
+const speckles = `<g fill="#d3cabb"><circle cx="68" cy="66" r="1.8"/><circle cx="52" cy="76" r="1.4"/><circle cx="74" cy="80" r="1.3"/><circle cx="45" cy="60" r="1.2"/><circle cx="64" cy="30" r="1.3"/><circle cx="56" cy="88" r="1.1"/></g>`;
+// Shell with everything drawn on it clipped to the egg, so no crack runs past the outline.
+const shell = (stage, marks = '') => `
+  <clipPath id="egg-${stage}"><path d="${EGG_PATH}"/></clipPath>
+  <path d="${EGG_PATH}" fill="${EGG_FILL}"/>
+  <g clip-path="url(#egg-${stage})">
+    <path d="M44 86 C54 94 74 93 84 78 C82 90 72 98 58 97 C48 96 42 92 44 86 Z" fill="#ece4d4"/>
+    <ellipse cx="48" cy="36" rx="5.5" ry="11" transform="rotate(-22 48 36)" fill="#fff"/>
+    ${speckles}${marks}
+  </g>
+  <path d="${EGG_PATH}" fill="none" ${outline}/>`;
+const nestBack = `
+  <path d="M14 80 C16 66 38 62 60 62 C82 62 104 66 106 80 Z" fill="#7a4e25" ${outline}/>
+  <path d="M22 76 C34 68 86 68 98 76" fill="none" stroke="#5c3818" stroke-width="2" stroke-linecap="round"/>`;
+const nestFront = `
+  <path d="M12 78 C24 88 44 90 60 90 C76 90 96 88 108 78 C108 96 88 106 60 106 C32 106 12 96 12 78 Z" fill="#b9773a" ${outline}/>
+  <path d="M18 88 C34 97 86 98 102 88 M24 96 C40 102 80 103 96 96" fill="none" stroke="#8a5526" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M20 84 C38 92 60 93 78 91 M34 101 C50 104 70 104 86 100" fill="none" stroke="#dca25e" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M13 80 l-8 -5 M14 86 l-9 1 M107 80 l8 -6 M106 86 l9 0 M30 88 l-4 6 M88 89 l5 5" stroke="#7a4e25" stroke-width="2.6" stroke-linecap="round"/>`;
+// A curved scrap of shell that has flown off.
+const chip = (x, y, angle) => `<path d="M${x} ${y} q4 -4 9 -1 q-1 5 -5 7 q-3 -2 -4 -6 Z" fill="${EGG_FILL}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round" transform="rotate(${angle} ${x} ${y})"/>`;
+// Dark inside showing through the gap under a lifted top.
+const opening = `<path d="M26 52 C40 68 80 68 94 52 L${zigBack.split(' L').slice(1).join(' L')} Z" fill="#2a2018"/>`;
+const peekingEyes = `
+  <circle cx="51" cy="57" r="3.8" fill="#fff"/><circle cx="52" cy="57.8" r="2" fill="${C.eye}"/>
+  <circle cx="69" cy="57" r="3.8" fill="#fff"/><circle cx="70" cy="57.8" r="2" fill="${C.eye}"/>`;
+// The egg broken along the zigzag: the bottom stays in the nest, the top lifts or comes off.
+const splitEgg = (stage, topTransform, inside) => `
+  <clipPath id="egg-bottom-${stage}"><path d="M0 ${EGG_H} L0 52 L${zig} L${EGG_W} 46 L${EGG_W} ${EGG_H} Z"/></clipPath>
+  <clipPath id="egg-top-${stage}"><path d="M0 0 L${EGG_W} 0 L${EGG_W} 46 L${zigBack} L0 52 Z"/></clipPath>
+  <clipPath id="egg-in-${stage}"><path d="${EGG_PATH}"/></clipPath>
+  <g clip-path="url(#egg-bottom-${stage})">${shell(`${stage}b`)}<g clip-path="url(#egg-in-${stage})">${opening}${inside}${crack(`M${zig}`, 2.4)}</g></g>
+  <g transform="${topTransform}"><g clip-path="url(#egg-top-${stage})">${shell(`${stage}t`)}</g><g clip-path="url(#egg-in-${stage})">${crack(`M${zig}`, 2.4)}</g></g>`;
+const EGG_STAGES = [
+  shell(0),
+  shell(1, crack('M66 22 l3 6 l-4 4 l5 6')),
+  shell(2, crack('M36 54 l6 -6 l5 6 l6 -7 l6 6 l5 -5') + crack('M66 22 l3 6 l-4 4 l5 6 l-3 5')),
+  shell(3, crack(`M${zig}`) + crack('M57 52 l-2 7 l3 5 M71 51 l2 6 M64 43 l1 -8 l-4 -5')) + chip(86, 30, 20) + chip(24, 34, -30),
+  splitEgg(4, 'translate(1 -6) rotate(-8 60 48)', '') + chip(92, 26, 35) + chip(18, 32, -40),
+  splitEgg(5, 'translate(22 -5) rotate(30 70 46)', peekingEyes) + chip(16, 30, -50),
+];
+const eggFrames = EGG_STAGES.map((art, i) => (
+  `<g transform="translate(${i * EGG_W} 0)"><g filter="url(#crayon-egg)">${nestBack}${art}${nestFront}</g></g>`
+)).join('\n');
+const eggSheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${EGG_W * EGG_STAGES.length}" height="${EGG_H}" viewBox="0 0 ${EGG_W * EGG_STAGES.length} ${EGG_H}">
+<defs>${CRAYON_FILTER.replace('id="crayon"', 'id="crayon-egg"').replace(`width="${W}" height="${H}"`, `width="${EGG_W}" height="${EGG_H}"`)}</defs>
+${eggFrames}
+</svg>
+`;
+writeFileSync(new URL('egg-stages.svg', outputDir), minify(eggSheet));
+console.log('wrote egg stages');

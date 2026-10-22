@@ -324,6 +324,25 @@ test('a touch sometimes startles the pet into fleeing away from it, then it look
   assert.equal(state.fleeing, false);
 });
 
+test('a pet that never runs walks everywhere, and walks off briskly when startled', () => {
+  const crawler = { ...config, runChance: 0, fleeRuns: false };
+  const random = seeded(91);
+  const modes = new Set<string>();
+  run(createPetBehaviorState({ x: .5, y: .88 }, crawler, random), 600_000, random, (state) => modes.add(state.mode), crawler);
+  assert.ok(modes.has('walk'));
+  assert.ok(!modes.has('run'), 'a crawler ran');
+  const standing: PetBehaviorState = { ...createPetBehaviorState({ x: .35, y: .92 }, crawler, random), facing: -1 };
+  let state = reactToPetTap(standing, crawler, (() => { let first = true; return () => (first ? ((first = false), .05) : random()); })(), { x: .3, y: .9 });
+  assert.equal(state.mode, 'startle');
+  assert.deepEqual(state.queue, ['walk']);
+  assert.ok(state.pace < 2);
+  for (let i = 0; i < 2000 && state.fleeing; i += 1) {
+    state = stepPetBehavior(state, 50, crawler, random);
+    assert.notEqual(state.mode, 'run');
+  }
+  assert.equal(state.fleeing, false);
+});
+
 test('a cornered pet flees the other way, and never flees without a touch or in calm mode', () => {
   const nearRightEdge = createPetBehaviorState({ x: .9, y: .9 }, config, seeded(83));
   const cornered = reactToPetTap(nearRightEdge, config, () => .05, { x: .85, y: .9 });

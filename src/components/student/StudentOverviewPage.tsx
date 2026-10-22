@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Check, ClipboardCheck, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ClipboardCheck, Sparkles, X } from 'lucide-react';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import {
   STUDENT_PET_FEED_AMOUNT,
   STUDENT_PET_HATCH_AMOUNT,
   STUDENT_PET_NAME_MAX_LENGTH,
   getStudentPetEggStage,
+  getStudentPetHatchMessage,
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import { EGG_HATCH_SCENE_MS, EGG_HATCH_SCENE_REDUCED_MS, StudentPetEggFeed, StudentPetEggHatch } from './StudentPetEgg';
 import StudentPetPortrait from './StudentPetPortrait';
 import StudentPetStage from './StudentPetStage';
 import {
@@ -101,7 +103,10 @@ export default function StudentOverviewPage({
   onOpenLibrary,
 }: StudentOverviewPageProps) {
   const isClassPrepBlocking = useIsClassPrepBlocking();
-  const [activePetDialog, setActivePetDialog] = useState<'feed' | 'name' | 'picker' | null>(null);
+  const [activePetDialog, setActivePetDialog] = useState<'feed' | 'hatching' | 'name' | 'picker' | null>(null);
+  const [eggFeedCount, setEggFeedCount] = useState(0);
+  const [eggCracked, setEggCracked] = useState(false);
+  const hatchTimerRef = useRef(0);
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
   const [isFeedConfirmationOpen, setIsFeedConfirmationOpen] = useState(false);
@@ -113,10 +118,15 @@ export default function StudentOverviewPage({
   const skinDialogRef = useRef<HTMLElement>(null);
   const houseDialogRef = useRef<HTMLElement>(null);
   const feedButtonRef = useRef<HTMLButtonElement>(null);
+  const petNameInputRef = useRef<HTMLInputElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
+  // The hatch scene and naming the hatched pet are required steps, so they cannot be dismissed.
+  const isNamingPet = activePetDialog === 'name' || activePetDialog === 'hatching';
   const eggStage = getStudentPetEggStage(pet.fedAmount);
   const ownedCharacters = STUDENT_CHARACTER_PRIZES.filter((character) => ownedCharacterIds.includes(character.id));
   const ownedHouses = STUDENT_HOUSE_DESIGNS.filter((house) => ownedHouseIds.includes(house.id));
+
+  useEffect(() => () => window.clearTimeout(hatchTimerRef.current), []);
 
   useEffect(() => {
     setPetNameDraft(pet.name);
@@ -126,10 +136,11 @@ export default function StudentOverviewPage({
   useModalFocus({
     dialogRef: petDialogRef,
     isOpen: activePetDialog !== null,
+    initialFocusRef: activePetDialog === 'name' ? petNameInputRef : undefined,
     onDismiss: () => {
-      if (!isPetSaving) setActivePetDialog(null);
+      if (!isPetSaving && !isNamingPet) setActivePetDialog(null);
     },
-    isDismissible: !isPetSaving,
+    isDismissible: !isPetSaving && !isNamingPet,
   });
 
   useModalFocus({
@@ -166,6 +177,14 @@ export default function StudentOverviewPage({
     if (isHouseSaving) return;
     setHouseError('');
     setIsHouseDialogOpen(false);
+  };
+
+  const savePetName = () => {
+    if (isPetSaving || petNameDraft.trim().length === 0) return;
+    void onNamePet(petNameDraft).then((saved) => {
+      if (saved) closePetDialog();
+      else setPetError('이름을 저장하지 못했습니다.');
+    });
   };
 
   const selectHouse = (houseId: StudentHouseDesignId | 'custom' | null) => {
@@ -362,7 +381,7 @@ export default function StudentOverviewPage({
       ) : null}
 
       {activePetDialog ? (
-        <div className="student-pet-dialog-backdrop" role="presentation" onClick={closePetDialog}>
+        <div className="student-pet-dialog-backdrop" role="presentation" onClick={isNamingPet ? undefined : closePetDialog}>
           <section
             ref={petDialogRef}
             className="student-pet-dialog"
@@ -371,66 +390,70 @@ export default function StudentOverviewPage({
             aria-labelledby="student-pet-dialog-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="student-pet-dialog-close"
-              onClick={closePetDialog}
-              disabled={isPetSaving}
-              aria-label="펫 창 닫기"
-            >
-              <X size={22} aria-hidden="true" />
-            </button>
+            {isNamingPet ? null : (
+              <button
+                type="button"
+                className="student-pet-dialog-close"
+                onClick={closePetDialog}
+                disabled={isPetSaving}
+                aria-label="펫 창 닫기"
+              >
+                <X size={22} aria-hidden="true" />
+              </button>
+            )}
 
             {activePetDialog === 'feed' ? (
-              <>
-                <span
-                  className="student-pet-dialog-egg-art"
-                  style={{ '--student-pet-egg-stage': eggStage } as CSSProperties}
-                  aria-hidden="true"
-                />
-                <div className="student-pet-dialog-copy">
-                  <h2 id="student-pet-dialog-title">알 성장</h2>
-                  <div className="student-pet-dialog-progress" aria-label={`알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마`}>
-                    <div className="student-pet-dialog-progress-track" aria-hidden="true">
-                      <span style={{ width: `${(pet.fedAmount / STUDENT_PET_HATCH_AMOUNT) * 100}%` }} />
-                    </div>
-                    <strong>{pet.fedAmount} / {STUDENT_PET_HATCH_AMOUNT}</strong>
-                  </div>
-                  <p>부화까지 {STUDENT_PET_HATCH_AMOUNT - pet.fedAmount} 고마</p>
-                </div>
-                <button
-                  ref={feedButtonRef}
-                  type="button"
-                  className="student-pet-dialog-primary"
-                  disabled={isPetSaving || availableBalance < 5}
-                  onClick={() => {
-                    setPetError('');
-                    setIsFeedConfirmationOpen(true);
-                  }}
-                >
-                  <Check size={20} aria-hidden="true" />
-                  {isPetSaving ? '먹이는 중' : '5 고마 먹이기'}
-                </button>
-              </>
+              <StudentPetEggFeed
+                fedAmount={pet.fedAmount}
+                hatchAmount={STUDENT_PET_HATCH_AMOUNT}
+                feedAmount={STUDENT_PET_FEED_AMOUNT}
+                stage={eggStage}
+                availableBalance={availableBalance}
+                isSaving={isPetSaving}
+                feedCount={eggFeedCount}
+                cracked={eggCracked}
+                feedButtonRef={feedButtonRef}
+                onRequestFeed={() => {
+                  setPetError('');
+                  setIsFeedConfirmationOpen(true);
+                }}
+              />
             ) : null}
+
+            {activePetDialog === 'hatching' ? <StudentPetEggHatch /> : null}
 
             {activePetDialog === 'name' ? (
               <>
-                <StudentPetPortrait kind={pet.petKind} className="student-pet-dialog-visual" />
+                <div className="student-pet-hatch" aria-hidden="true">
+                  <svg className="student-pet-hatch-shell student-pet-hatch-shell-left" viewBox="0 0 40 28">
+                    <path d="M3 6 L9 12 L15 4 L21 11 L27 4 L33 12 L37 6 C39 18 31 26 20 26 C9 26 1 18 3 6 Z" />
+                  </svg>
+                  <StudentPetPortrait kind={pet.petKind} className="student-pet-dialog-visual student-pet-hatch-pet" />
+                  <svg className="student-pet-hatch-shell student-pet-hatch-shell-right" viewBox="0 0 40 28">
+                    <path d="M3 6 L9 12 L15 4 L21 11 L27 4 L33 12 L37 6 C39 18 31 26 20 26 C9 26 1 18 3 6 Z" />
+                  </svg>
+                  <Sparkles className="student-pet-hatch-sparkle student-pet-hatch-sparkle-left" />
+                  <Sparkles className="student-pet-hatch-sparkle student-pet-hatch-sparkle-right" />
+                  {petNameDraft.trim() ? <strong className="student-pet-hatch-name">{petNameDraft.trim()}</strong> : null}
+                </div>
                 <div className="student-pet-dialog-copy">
-                  <span>알이 부화했어요</span>
-                  <h2 id="student-pet-dialog-title">펫 이름을 지어 주세요</h2>
+                  <h2 id="student-pet-dialog-title">{getStudentPetHatchMessage(pet.petKind)}</h2>
                 </div>
                 <label className="student-pet-name-field">
-                  <span>펫 이름</span>
+                  <span className="sr-only">펫 이름</span>
                   <input
-                    autoFocus
+                    ref={petNameInputRef}
                     value={petNameDraft}
                     maxLength={STUDENT_PET_NAME_MAX_LENGTH}
-                    placeholder="이름 입력"
+                    placeholder="이름을 지어 주세요"
                     onChange={(event) => {
                       setPetNameDraft(event.target.value);
                       setPetError('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                      event.preventDefault();
+                      savePetName();
                     }}
                   />
                   <small>{petNameDraft.length}/{STUDENT_PET_NAME_MAX_LENGTH}</small>
@@ -439,15 +462,10 @@ export default function StudentOverviewPage({
                   type="button"
                   className="student-pet-dialog-primary"
                   disabled={isPetSaving || petNameDraft.trim().length === 0}
-                  onClick={() => {
-                    void onNamePet(petNameDraft).then((saved) => {
-                      if (saved) closePetDialog();
-                      else setPetError('이름을 저장하지 못했습니다.');
-                    });
-                  }}
+                  onClick={savePetName}
                 >
                   <Check size={20} aria-hidden="true" />
-                  <StableLabel busy={isPetSaving} busyLabel="저장 중" label={'이름 저장'} />
+                  <StableLabel busy={isPetSaving} busyLabel="저장 중" label="이름 짓기" />
                 </button>
               </>
             ) : null}
@@ -488,10 +506,10 @@ export default function StudentOverviewPage({
       ) : null}
       <StudentConfirmDialog
         isOpen={isFeedConfirmationOpen}
-        kicker="알 먹이기"
-        title={`${STUDENT_PET_FEED_AMOUNT} 고마를 사용할까요?`}
-        description="먹이를 주면 사용 가능한 고마가 줄어요."
-        confirmLabel="먹이기"
+        kicker="알 키우기"
+        title={`${STUDENT_PET_FEED_AMOUNT} 고마를 줄까요?`}
+        description="준 고마는 돌려받을 수 없어요."
+        confirmLabel="주기"
         isPending={isPetSaving}
         returnFocusRef={feedButtonRef}
         onCancel={() => setIsFeedConfirmationOpen(false)}
@@ -508,9 +526,20 @@ export default function StudentOverviewPage({
               return;
             }
             setIsFeedConfirmationOpen(false);
-            if (pet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT) {
-              setActivePetDialog('name');
+            const nextFed = pet.fedAmount + STUDENT_PET_FEED_AMOUNT;
+            if (nextFed >= STUDENT_PET_HATCH_AMOUNT) {
+              // Play the hatch scene, then ask for the new pet's name.
+              setActivePetDialog('hatching');
+              const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              window.clearTimeout(hatchTimerRef.current);
+              hatchTimerRef.current = window.setTimeout(() => {
+                setEggFeedCount(0);
+                setActivePetDialog('name');
+              }, reduced ? EGG_HATCH_SCENE_REDUCED_MS : EGG_HATCH_SCENE_MS);
+              return;
             }
+            setEggCracked(getStudentPetEggStage(nextFed) > eggStage);
+            setEggFeedCount((count) => count + 1);
           });
         }}
       />

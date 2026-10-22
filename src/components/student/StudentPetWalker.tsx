@@ -23,6 +23,8 @@ import {
 import {
   PET_ANIMATIONS,
   PET_CARRY_GRIPS,
+  PET_GAITS,
+  PET_HEAD_TOPS,
   PET_SIZES,
   PET_SPRITE_BACKGROUND_SIZE,
   PET_SPRITE_FRAME,
@@ -105,6 +107,7 @@ export default function StudentPetWalker({
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const [hearts, setHearts] = useState<readonly { id: number; left: number }[]>([]);
   const size = PET_SIZES[kind];
+  const gait = PET_GAITS[kind];
   const grip = PET_CARRY_GRIPS[kind];
   const gripX = (grip.x / PET_SPRITE_FRAME.width) * 100;
   const gripY = (grip.y / PET_SPRITE_FRAME.height) * 100;
@@ -198,9 +201,12 @@ export default function StudentPetWalker({
         interests: computeInterests(),
         calm: reducedMotion.matches,
         trick: PET_TRICKS[kind],
-        // Smaller animals take shorter steps and walk a little slower, so paws never slide.
-        strideLength: DEFAULT_PET_BEHAVIOR_CONFIG.strideLength * size,
-        walkSpeed: DEFAULT_PET_BEHAVIOR_CONFIG.walkSpeed * (.55 + .45 * size),
+        // Smaller animals take shorter steps and walk a little slower, so paws never slide;
+        // each species then moves at its own pace and stride.
+        strideLength: DEFAULT_PET_BEHAVIOR_CONFIG.strideLength * size * gait.stride,
+        walkSpeed: DEFAULT_PET_BEHAVIOR_CONFIG.walkSpeed * (.55 + .45 * size) * gait.speed,
+        runChance: gait.runChance,
+        fleeRuns: gait.fleeRuns,
       };
     };
     updateInterestsRef.current = updateConfig;
@@ -449,7 +455,14 @@ export default function StudentPetWalker({
             style={{ backgroundImage: `url(${sheetUrl})`, backgroundSize: PET_SPRITE_BACKGROUND_SIZE }}
           />
         </span>
-        {name ? <strong className="student-pet-walker-name">{name}</strong> : null}
+        {name ? (
+          <strong
+            className="student-pet-walker-name"
+            style={{ bottom: `${100 - (PET_HEAD_TOPS[kind] / PET_SPRITE_FRAME.height) * 100}%` }}
+          >
+            {name}
+          </strong>
+        ) : null}
         {hearts.map((heart) => (
           <Heart key={heart.id} className="student-pet-walker-heart" style={{ left: `${heart.left}%` }} aria-hidden="true" />
         ))}
