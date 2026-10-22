@@ -4,6 +4,7 @@ import { normalizeStudentLifeState } from './studentLife.js';
 import { normalizeStudentEconomyState } from './studentEconomy.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   STUDENT_PET_HATCH_AMOUNT,
   STUDENT_PET_STORAGE_KEY,
@@ -19,6 +20,9 @@ import {
   selectStudentPet,
   storeStudentPetSnapshot,
   storeStudentPetPositionOverride,
+  getStudentPetEggStage,
+  STUDENT_PET_EGG_HATCHED_STAGE,
+  STUDENT_PET_EGG_STAGE_COUNT,
 } from './studentPet';
 
 test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
@@ -279,4 +283,15 @@ test('the hatch message names the animal with the right subject particle', () =>
   assert.equal(getStudentPetHatchMessage('penguin'), '펭귄이 태어났어요');
   assert.equal(getStudentPetHatchMessage('sheep'), '양이 태어났어요');
   assert.equal(getStudentPetHatchMessage('cow'), '소가 태어났어요');
+});
+
+test('알은 고마를 줄 때마다 한 단계씩 더 갈라지고, 열린 알은 부화 장면에만 쓴다', () => {
+  assert.equal(STUDENT_PET_EGG_STAGE_COUNT, 21);
+  assert.equal(getStudentPetEggStage(0), 0);
+  assert.equal(getStudentPetEggStage(4), 0);
+  assert.equal(getStudentPetEggStage(5), 1);
+  assert.equal(getStudentPetEggStage(95), 19);
+  assert.equal(getStudentPetEggStage(100), STUDENT_PET_EGG_HATCHED_STAGE - 1);
+  const sheet = readFileSync(new URL('../../public/pets/egg-stages.svg', import.meta.url), 'utf8');
+  assert.match(sheet, new RegExp(`viewBox="0 0 ${120 * STUDENT_PET_EGG_STAGE_COUNT} 110"`));
 });

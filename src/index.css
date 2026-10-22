@@ -26288,8 +26288,9 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   border-radius: .75rem;
   background-image: url('/pets/egg-stages.svg');
   background-repeat: no-repeat;
-  background-position: calc(var(--student-pet-egg-stage) * 20%) center;
-  background-size: 600% auto;
+  /* 21 frames side by side (STUDENT_PET_EGG_STAGE_COUNT): each step is 100% / 20. */
+  background-position: calc(var(--student-pet-egg-stage) * 5%) center;
+  background-size: 2100% auto;
   cursor: pointer;
 }
 
@@ -26621,8 +26622,9 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   aspect-ratio: 120 / 110;
   background-image: url('/pets/egg-stages.svg');
   background-repeat: no-repeat;
-  background-position: calc(var(--student-pet-egg-stage) * 20%) center;
-  background-size: 600% auto;
+  /* 21 frames side by side (STUDENT_PET_EGG_STAGE_COUNT): each step is 100% / 20. */
+  background-position: calc(var(--student-pet-egg-stage) * 5%) center;
+  background-size: 2100% auto;
   transform-origin: 50% 80%;
 }
 .student-egg-art.is-fed { animation: student-egg-wobble 620ms ease-out 380ms both; }

@@ -1399,27 +1399,77 @@ const nestFront = `
 // A curved scrap of shell that has flown off.
 const chip = (x, y, angle) => `<path d="M${x} ${y} q4 -4 9 -1 q-1 5 -5 7 q-3 -2 -4 -6 Z" fill="${EGG_FILL}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round" transform="rotate(${angle} ${x} ${y})"/>`;
 // Dark inside showing through the gap under a lifted top.
-const opening = `<path d="M26 52 C40 68 80 68 94 52 L${zigBack.split(' L').slice(1).join(' L')} Z" fill="#2a2018"/>`;
+// `depth` grows as the top lifts higher and more of the inside shows.
+const opening = (depth = 16) => `<path d="M26 52 C40 ${52 + depth} 80 ${52 + depth} 94 52 L${zigBack.split(' L').slice(1).join(' L')} Z" fill="#2a2018"/>`;
 const peekingEyes = `
   <circle cx="51" cy="57" r="3.8" fill="#fff"/><circle cx="52" cy="57.8" r="2" fill="${C.eye}"/>
   <circle cx="69" cy="57" r="3.8" fill="#fff"/><circle cx="70" cy="57.8" r="2" fill="${C.eye}"/>`;
 // The egg broken along the zigzag: the bottom stays in the nest, the top lifts or comes off.
-const splitEgg = (stage, topTransform, inside) => `
+// `marks` are the cracks and holes drawn so far; each half keeps its own share of them.
+const splitEgg = (stage, topTransform, inside, marks = '', depth = 16) => `
   <clipPath id="egg-bottom-${stage}"><path d="M0 ${EGG_H} L0 52 L${zig} L${EGG_W} 46 L${EGG_W} ${EGG_H} Z"/></clipPath>
   <clipPath id="egg-top-${stage}"><path d="M0 0 L${EGG_W} 0 L${EGG_W} 46 L${zigBack} L0 52 Z"/></clipPath>
   <clipPath id="egg-in-${stage}"><path d="${EGG_PATH}"/></clipPath>
-  <g clip-path="url(#egg-bottom-${stage})">${shell(`${stage}b`)}<g clip-path="url(#egg-in-${stage})">${opening}${inside}${crack(`M${zig}`, 2.4)}</g></g>
-  <g transform="${topTransform}"><g clip-path="url(#egg-top-${stage})">${shell(`${stage}t`)}</g><g clip-path="url(#egg-in-${stage})">${crack(`M${zig}`, 2.4)}</g></g>`;
-const EGG_STAGES = [
-  shell(0),
-  shell(1, crack('M66 22 l3 6 l-4 4 l5 6')),
-  shell(2, crack('M36 54 l6 -6 l5 6 l6 -7 l6 6 l5 -5') + crack('M66 22 l3 6 l-4 4 l5 6 l-3 5')),
-  shell(3, crack(`M${zig}`) + crack('M57 52 l-2 7 l3 5 M71 51 l2 6 M64 43 l1 -8 l-4 -5')) + chip(86, 30, 20) + chip(24, 34, -30),
-  splitEgg(4, 'translate(1 -6) rotate(-8 60 48)', '') + chip(92, 26, 35) + chip(18, 32, -40),
-  splitEgg(5, 'translate(22 -5) rotate(30 70 46)', peekingEyes) + chip(16, 30, -50),
+  <g clip-path="url(#egg-bottom-${stage})">${shell(`${stage}b`, marks)}<g clip-path="url(#egg-in-${stage})">${opening(depth)}${inside}${crack(`M${zig}`, 2.4)}</g></g>
+  <g transform="${topTransform}"><g clip-path="url(#egg-top-${stage})">${shell(`${stage}t`, marks)}</g><g clip-path="url(#egg-in-${stage})">${crack(`M${zig}`, 2.4)}</g></g>`;
+
+// Cracks grow a little with every feed, so each stage keeps all earlier ones and adds a piece.
+const CRACKS = {
+  top: [[62, 14], [66, 21], [63, 26], [68, 31], [65, 37]],
+  left: [[31, 60], [37, 56], [35, 50], [41, 46], [39, 40]],
+  ring: ZIGZAG,
+  down: [[57, 52], [55, 59], [59, 65], [57, 71]],
+  right: [[78, 44], [82, 37], [80, 31]],
+  join: [[64, 43], [65, 38]],
+};
+const partial = (points, segments) => (segments > 0 ? crack(`M${points.slice(0, segments + 1).map(([x, y]) => `${x} ${y}`).join(' L')}`) : '');
+// Little dark holes where a flake of shell has already fallen out.
+const HOLES = [
+  'M62 25 l5 -2 l3 4 l-3 4 l-5 -1 Z',
+  'M36 49 l5 -3 l4 4 l-3 4 l-5 -1 Z',
+  'M77 38 l5 -1 l1 5 l-5 2 Z',
 ];
-const eggFrames = EGG_STAGES.map((art, i) => (
-  `<g transform="translate(${i * EGG_W} 0)"><g filter="url(#crayon-egg)">${nestBack}${art}${nestFront}</g></g>`
+const hole = (d) => `<path d="${d}" fill="#2a2018" stroke="${C.line}" stroke-width="1.4" stroke-linejoin="round"/>`;
+// Flakes that have dropped into the nest, drawn over its front rim.
+const FALLEN = [[28, 84, -20], [86, 85, 30], [46, 93, 70], [72, 94, -40], [18, 90, 10]];
+
+// Per stage: how many segments of each crack show, how many holes and fallen flakes, and how
+// far the top has lifted (0 = whole). Stage 20 is the open egg with eyes peeking out.
+const EGG_PLAN = [
+  {},
+  { top: 1 }, { top: 2 }, { top: 4 },
+  { top: 4, left: 1 }, { top: 4, left: 2 }, { top: 4, left: 4 },
+  { top: 4, left: 4, ring: 3 }, { top: 4, left: 4, ring: 5 }, { top: 4, left: 4, ring: 7 }, { top: 4, left: 4, ring: 9 },
+  { top: 4, left: 4, ring: 9, down: 2 }, { top: 4, left: 4, ring: 9, down: 3, right: 1, join: 1 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 1 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 1, fallen: 1 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 2, fallen: 2 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 3, fallen: 3 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 3, fallen: 3, lift: 1 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 3, fallen: 4, lift: 2 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 3, fallen: 4, lift: 3 },
+  { top: 4, left: 4, ring: 9, down: 3, right: 2, join: 1, holes: 3, fallen: 5, lift: 4 },
+];
+const LIFTS = [
+  null,
+  'translate(0 -2) rotate(-2 60 48)',
+  'translate(1 -4) rotate(-5 60 48)',
+  'translate(1 -7) rotate(-9 60 48)',
+  'translate(22 -5) rotate(30 70 46)',
+];
+const EGG_STAGES = EGG_PLAN.map((plan, stage) => {
+  const marks = Object.entries(CRACKS).map(([name, points]) => partial(points, plan[name] ?? 0)).join('')
+    + HOLES.slice(0, plan.holes ?? 0).map(hole).join('');
+  const lift = plan.lift ?? 0;
+  const art = lift === 0
+    ? shell(stage, marks)
+    // Once the top is up far enough, eyes peek out from the dark gap.
+    : splitEgg(stage, LIFTS[lift], lift >= 2 ? peekingEyes : '', marks, [0, 3, 10, 13, 16][lift]);
+  const fallen = FALLEN.slice(0, plan.fallen ?? 0).map(([x, y, angle]) => chip(x, y, angle)).join('');
+  return { art, fallen };
+});
+const eggFrames = EGG_STAGES.map(({ art, fallen }, i) => (
+  `<g transform="translate(${i * EGG_W} 0)"><g filter="url(#crayon-egg)">${nestBack}${art}${nestFront}${fallen}</g></g>`
 )).join('\n');
 const eggSheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${EGG_W * EGG_STAGES.length}" height="${EGG_H}" viewBox="0 0 ${EGG_W * EGG_STAGES.length} ${EGG_H}">
 <defs>${CRAYON_FILTER.replace('id="crayon"', 'id="crayon-egg"').replace(`width="${W}" height="${H}"`, `width="${EGG_W}" height="${EGG_H}"`)}</defs>

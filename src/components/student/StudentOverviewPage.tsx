@@ -12,7 +12,6 @@ import {
 } from '../../lib/studentPet';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
-import StudentConfirmDialog from './StudentConfirmDialog';
 import { EGG_HATCH_SCENE_MS, EGG_HATCH_SCENE_REDUCED_MS, StudentPetEggFeed, StudentPetEggHatch } from './StudentPetEgg';
 import StudentPetPortrait from './StudentPetPortrait';
 import StudentPetStage from './StudentPetStage';
@@ -28,7 +27,7 @@ import {
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
-import { STUDENT_FEATURE_RELEASES } from '../../lib/studentFeatureRelease';
+import { isStudentFeatureOpen } from '../../lib/studentFeatureRelease';
 import StableLabel from '../StableLabel';
 import { CLASS_PREP_BLOCKED_MESSAGE } from '../../lib/classPrepGuard';
 import { useIsClassPrepBlocking } from '../../lib/classPrepGuardContext';
@@ -109,7 +108,6 @@ export default function StudentOverviewPage({
   const hatchTimerRef = useRef(0);
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
-  const [isFeedConfirmationOpen, setIsFeedConfirmationOpen] = useState(false);
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
   const [skinError, setSkinError] = useState('');
   const [isHouseDialogOpen, setIsHouseDialogOpen] = useState(false);
@@ -127,6 +125,35 @@ export default function StudentOverviewPage({
   const ownedHouses = STUDENT_HOUSE_DESIGNS.filter((house) => ownedHouseIds.includes(house.id));
 
   useEffect(() => () => window.clearTimeout(hatchTimerRef.current), []);
+
+  // Each tap feeds right away; the button shows the cost and is disabled while a feed is saving.
+  const feedEgg = () => {
+    setPetError('');
+    if (isClassPrepBlocking) {
+      setPetError(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
+    void onFeedPet().then((saved) => {
+      if (!saved) {
+        setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
+        return;
+      }
+      const nextFed = pet.fedAmount + STUDENT_PET_FEED_AMOUNT;
+      if (nextFed >= STUDENT_PET_HATCH_AMOUNT) {
+        // Play the hatch scene, then ask for the new pet's name.
+        setActivePetDialog('hatching');
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.clearTimeout(hatchTimerRef.current);
+        hatchTimerRef.current = window.setTimeout(() => {
+          setEggFeedCount(0);
+          setActivePetDialog('name');
+        }, reduced ? EGG_HATCH_SCENE_REDUCED_MS : EGG_HATCH_SCENE_MS);
+        return;
+      }
+      setEggCracked(getStudentPetEggStage(nextFed) > eggStage);
+      setEggFeedCount((count) => count + 1);
+    });
+  };
 
   useEffect(() => {
     setPetNameDraft(pet.name);
@@ -211,7 +238,7 @@ export default function StudentOverviewPage({
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
           onOpenEmotions={onOpenEmotions}
-          onOpenEgg={STUDENT_FEATURE_RELEASES.petEgg ? () => {
+          onOpenEgg={isStudentFeatureOpen('petEgg') ? () => {
             setPetError('');
             setActivePetDialog('feed');
           } : undefined}
@@ -386,7 +413,7 @@ export default function StudentOverviewPage({
             ref={petDialogRef}
             className="student-pet-dialog"
             role="dialog"
-            aria-modal={isFeedConfirmationOpen ? undefined : 'true'}
+            aria-modal="true"
             aria-labelledby="student-pet-dialog-title"
             onClick={(event) => event.stopPropagation()}
           >
@@ -413,10 +440,7 @@ export default function StudentOverviewPage({
                 feedCount={eggFeedCount}
                 cracked={eggCracked}
                 feedButtonRef={feedButtonRef}
-                onRequestFeed={() => {
-                  setPetError('');
-                  setIsFeedConfirmationOpen(true);
-                }}
+                onRequestFeed={feedEgg}
               />
             ) : null}
 
@@ -504,45 +528,6 @@ export default function StudentOverviewPage({
           </section>
         </div>
       ) : null}
-      <StudentConfirmDialog
-        isOpen={isFeedConfirmationOpen}
-        kicker="알 키우기"
-        title={`${STUDENT_PET_FEED_AMOUNT} 고마를 줄까요?`}
-        description="준 고마는 돌려받을 수 없어요."
-        confirmLabel="주기"
-        isPending={isPetSaving}
-        returnFocusRef={feedButtonRef}
-        onCancel={() => setIsFeedConfirmationOpen(false)}
-        onConfirm={() => {
-          if (isClassPrepBlocking) {
-            setPetError(CLASS_PREP_BLOCKED_MESSAGE);
-            setIsFeedConfirmationOpen(false);
-            return;
-          }
-          void onFeedPet().then((saved) => {
-            if (!saved) {
-              setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
-              setIsFeedConfirmationOpen(false);
-              return;
-            }
-            setIsFeedConfirmationOpen(false);
-            const nextFed = pet.fedAmount + STUDENT_PET_FEED_AMOUNT;
-            if (nextFed >= STUDENT_PET_HATCH_AMOUNT) {
-              // Play the hatch scene, then ask for the new pet's name.
-              setActivePetDialog('hatching');
-              const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-              window.clearTimeout(hatchTimerRef.current);
-              hatchTimerRef.current = window.setTimeout(() => {
-                setEggFeedCount(0);
-                setActivePetDialog('name');
-              }, reduced ? EGG_HATCH_SCENE_REDUCED_MS : EGG_HATCH_SCENE_MS);
-              return;
-            }
-            setEggCracked(getStudentPetEggStage(nextFed) > eggStage);
-            setEggFeedCount((count) => count + 1);
-          });
-        }}
-      />
     </div>
   );
 }

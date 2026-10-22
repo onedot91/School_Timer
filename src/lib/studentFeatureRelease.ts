@@ -9,6 +9,14 @@ export const STUDENT_FEATURE_RELEASES: Readonly<Record<StudentFeatureReleaseId, 
   petEgg: false,
 };
 
+/** Features already open on the test (development) server while they stay closed in production. */
+export const STUDENT_TEST_SERVER_FEATURES: ReadonlySet<StudentFeatureReleaseId> = new Set<StudentFeatureReleaseId>(['petEgg']);
+
+export const isStudentFeatureOpen = (
+  feature: StudentFeatureReleaseId,
+  isTestServer = import.meta.env?.DEV === true,
+): boolean => STUDENT_FEATURE_RELEASES[feature] || (isTestServer && STUDENT_TEST_SERVER_FEATURES.has(feature));
+
 export const STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL = '?? ???';
 
 export const STUDENT_FAILURE_EXHIBITION_HINTS = [

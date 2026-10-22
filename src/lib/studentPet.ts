@@ -251,8 +251,13 @@ export const getStudentPetHatchMessage = (kind: StudentPetKind | null) => {
   return `${label}${particle} 태어났어요`;
 };
 
+/** Frames in public/pets/egg-stages.svg: one per feed until hatching, then the open egg. */
+export const STUDENT_PET_EGG_STAGE_COUNT = STUDENT_PET_HATCH_AMOUNT / STUDENT_PET_FEED_AMOUNT + 1;
+export const STUDENT_PET_EGG_HATCHED_STAGE = STUDENT_PET_EGG_STAGE_COUNT - 1;
+
+/** Every feed cracks the egg a little further; the open egg is kept for the hatch scene. */
 export const getStudentPetEggStage = (fedAmount: number) => (
-  Math.min(5, Math.floor(Math.max(0, fedAmount) / 20))
+  Math.min(STUDENT_PET_EGG_HATCHED_STAGE - 1, Math.floor(Math.max(0, fedAmount) / STUDENT_PET_FEED_AMOUNT))
 );
 
 export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {

@@ -1,5 +1,6 @@
 import type { CSSProperties, RefObject } from 'react';
 import { Coins, Sparkles } from 'lucide-react';
+import { STUDENT_PET_EGG_HATCHED_STAGE } from '../../lib/studentPet';
 
 const RING_RADIUS = 54;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
@@ -100,7 +101,7 @@ export function StudentPetEggHatch() {
         <span className="student-egg-glow" aria-hidden="true" />
         <span
           className="student-egg-art"
-          style={{ '--student-pet-egg-stage': 5 } as CSSProperties}
+          style={{ '--student-pet-egg-stage': STUDENT_PET_EGG_HATCHED_STAGE } as CSSProperties}
           aria-hidden="true"
         />
         {SHARDS.map(({ dx, dy, rot }, index) => (
