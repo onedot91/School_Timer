@@ -17,6 +17,7 @@ import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../src/lib/stud
 import { createBankMailboxLetters } from '../src/lib/bankMailbox.js';
 import {
   applyStudentEconomyAction,
+  getKoreanDateKey,
   normalizeStudentEconomyState,
   normalizeStudentEconomyStates,
   type StudentEconomyAction,
@@ -65,6 +66,7 @@ const ACTION_TYPES = new Set([
   'draw_character',
   'choose_draw_character',
   'select_character',
+  'claim_halloween_character',
   'buy_house',
   'select_house',
   'buy_custom_house_coupon',
@@ -80,6 +82,8 @@ const ACTION_ERRORS = new Set([
   'ALL_CHARACTERS_OWNED',
   'CHARACTER_NOT_OWNED',
   'CHARACTER_CHOICE_PENDING',
+  'HALLOWEEN_EVENT_CLAIMED',
+  'HALLOWEEN_EVENT_NOT_OPEN',
   'INVALID_CHARACTER_CHOICE',
   'CUSTOM_HOUSE_COUPON_OWNED',
   'CUSTOM_HOUSE_COUPON_REQUIRED',
@@ -156,6 +160,7 @@ const parseBody = (body: unknown) => {
   if (actionType === 'choose_draw_character'
     && (typeof Reflect.get(action as object, 'characterId') !== 'string'
       || typeof Reflect.get(action as object, 'drawRequestId') !== 'string')) return null;
+  if (actionType === 'claim_halloween_character' && typeof Reflect.get(action as object, 'characterId') !== 'string') return null;
   return { studentNumber, requestId, action: action as StudentEconomyApiAction } as const;
 };
 
@@ -273,6 +278,7 @@ const createDomainMutation = (
     shopCatalog: current.studentShopCatalog,
     stockMarket: current.studentStockMarket,
     characterDrawRoll,
+    todayDateKey: getKoreanDateKey(new Date(createdAt)),
   });
 
   let nextBalances = { ...balances, [studentKey]: result.wallet };

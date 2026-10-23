@@ -120,6 +120,7 @@ import {
 } from '../lib/studentPet';
 import {
   applyStudentEconomyAction,
+  getClaimableStudentHalloweenCharacterIds,
   getStudentEconomyState,
   loadStoredStudentStockMarket,
   loadStoredStudentShopCatalog,
@@ -2247,7 +2248,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
+      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'claim_halloween_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
@@ -2261,7 +2262,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         : message === 'CHARACTER_CHOICE_PENDING'
         ? '진행 중인 초성 선택을 먼저 완료해 주세요.'
         : message === 'INVALID_CHARACTER_CHOICE'
-        ? '초성 선택지를 새로 확인한 뒤 선택해 주세요.'
+        ? action.type === 'claim_halloween_character' ? '다른 스킨을 골라 주세요.' : '초성 선택지를 새로 확인한 뒤 선택해 주세요.'
+        : message === 'HALLOWEEN_EVENT_CLAIMED'
+        ? '할로윈 스킨은 이미 받았습니다.'
+        : message === 'HALLOWEEN_EVENT_NOT_OPEN'
+        ? '아직 받을 수 없습니다.'
         : message === 'INVALID_BANK_AMOUNT'
           ? '예금은 10고마부터 맡길 수 있습니다.'
         : message === 'INSUFFICIENT_BANK_BALANCE'
@@ -2358,6 +2363,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             ownedCharacterIds={studentEconomy.ownedCharacterIds}
             activeCharacterId={studentEconomy.activeCharacterId}
             isCharacterSaving={isEconomySaving}
+            halloweenClaimableIds={isLoading ? [] : getClaimableStudentHalloweenCharacterIds(studentEconomy, getKoreanDateKey())}
             ownedHouseIds={studentEconomy.ownedHouseIds}
             activeHouseId={studentEconomy.activeHouseId}
             customHouseDesign={studentEconomy.customHouseDesign}
@@ -2368,6 +2374,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onMovePet={moveCurrentStudentPet}
             onMoveGoma={moveCurrentGomaCharacter}
             onSelectCharacter={(characterId) => runStudentEconomyAction({ type: 'select_character', characterId })}
+            onClaimHalloweenCharacter={(characterId) => runStudentEconomyAction({ type: 'claim_halloween_character', characterId })}
             onSelectHouse={(houseId) => runStudentEconomyAction({ type: 'select_house', houseId })}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}

@@ -16,6 +16,7 @@ import StudentBalanceSummary from './StudentBalanceSummary';
 import { EGG_HATCH_SCENE_MS, EGG_HATCH_SCENE_REDUCED_MS, StudentPetEggFeed, StudentPetEggHatch } from './StudentPetEgg';
 import StudentPetPortrait from './StudentPetPortrait';
 import StudentPetStage from './StudentPetStage';
+import StudentHalloweenSkinEvent from './StudentHalloweenSkinEvent';
 import {
   DEFAULT_STUDENT_CHARACTER,
   STUDENT_CHARACTER_PRIZES,
@@ -49,6 +50,7 @@ interface StudentOverviewPageProps {
   ownedCharacterIds: readonly StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
   isCharacterSaving: boolean;
+  halloweenClaimableIds: readonly string[];
   ownedHouseIds: readonly StudentHouseDesignId[];
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   customHouseDesign: StudentCustomHouseDesign | null;
@@ -59,6 +61,7 @@ interface StudentOverviewPageProps {
   onMovePet: (position: StudentPetState['position']) => Promise<boolean>;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => Promise<boolean>;
   onSelectCharacter: (characterId: StudentCharacterPrizeId | null) => Promise<boolean>;
+  onClaimHalloweenCharacter: (characterId: StudentCharacterPrizeId) => Promise<boolean>;
   onSelectHouse: (houseId: StudentHouseDesignId | 'custom' | null) => Promise<boolean>;
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
@@ -84,6 +87,7 @@ export default function StudentOverviewPage({
   ownedCharacterIds,
   activeCharacterId,
   isCharacterSaving,
+  halloweenClaimableIds,
   ownedHouseIds,
   activeHouseId,
   customHouseDesign,
@@ -94,6 +98,7 @@ export default function StudentOverviewPage({
   onMovePet,
   onMoveGoma,
   onSelectCharacter,
+  onClaimHalloweenCharacter,
   onSelectHouse,
   onOpenEmotions,
   onOpenMissions,
@@ -284,6 +289,13 @@ export default function StudentOverviewPage({
           onOpen={onOpenStore}
         />
       </div>
+
+      <StudentHalloweenSkinEvent
+        claimableIds={halloweenClaimableIds}
+        isBlocked={needsPetName || activePetDialog !== null || isSkinDialogOpen || isHouseDialogOpen}
+        isSaving={isCharacterSaving}
+        onClaim={onClaimHalloweenCharacter}
+      />
 
       {isSkinDialogOpen ? (
         <div className="student-pet-dialog-backdrop" role="presentation" onClick={closeSkinDialog}>

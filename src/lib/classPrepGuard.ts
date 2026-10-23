@@ -25,6 +25,7 @@ const ECONOMY_ACTION_STARTS_NEW_WORK: Record<StudentEconomyAction['type'], boole
   draw_character: true,
   choose_draw_character: false,
   select_character: false,
+  claim_halloween_character: false,
   buy_house: true,
   select_house: false,
   buy_custom_house_coupon: true,

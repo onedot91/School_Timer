@@ -26886,6 +26886,58 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-skin-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.student-halloween-dialog { grid-template-rows: auto minmax(0, 1fr) auto; }
+.student-halloween-dialog .student-pet-dialog-copy > span { color: #b4530f; }
+.student-halloween-picker {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .6rem;
+  overflow-y: auto;
+  padding: .15rem;
+}
+.student-halloween-picker button {
+  position: relative;
+  display: grid;
+  min-height: 8.5rem;
+  justify-items: center;
+  align-content: center;
+  gap: .25rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: 1rem;
+  padding: .5rem;
+  background: var(--apple-surface);
+  color: var(--apple-text-primary);
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.student-halloween-picker img { width: 5.5rem; height: 5.5rem; object-fit: contain; }
+.student-halloween-picker strong { font-size: var(--type-body); font-weight: 900; }
+.student-halloween-picker small { color: var(--apple-text-secondary); font-size: var(--type-caption); font-weight: 850; }
+.student-halloween-picker button[aria-checked='true'] {
+  border-color: #c9661a;
+  background: #fff3e4;
+  box-shadow: inset 0 0 0 2px #c9661a;
+}
+.student-halloween-picker button:disabled:not([aria-checked='true']) { cursor: default; }
+.student-halloween-picker button:disabled img { opacity: .45; }
+.student-halloween-picker button:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 2px; }
+.student-halloween-check { position: absolute; top: .45rem; right: .45rem; color: #c9661a; }
+.student-halloween-actions { display: grid; gap: .45rem; }
+.student-halloween-actions .student-pet-dialog-primary { min-height: 3rem; background: #c9661a; }
+.student-halloween-actions .student-pet-dialog-primary:disabled { color: var(--apple-text-tertiary); background: var(--apple-surface-muted); }
+.student-halloween-done { display: grid; justify-items: center; gap: .75rem; padding: .5rem 0; text-align: center; }
+.student-halloween-done img { width: 12rem; height: 12rem; object-fit: contain; }
+.student-halloween-done h2 { margin: 0; color: var(--apple-text-primary); font-size: var(--type-title); font-weight: 900; }
+.student-halloween-done .student-pet-dialog-primary { min-width: 8rem; min-height: 3rem; }
+@media (max-height: 40rem) {
+  .student-halloween-picker button { min-height: 7rem; }
+  .student-halloween-picker img { width: 4.25rem; height: 4.25rem; }
+  .student-halloween-done img { width: 9rem; height: 9rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-halloween-picker button { transition: none; }
+}
+
 .student-emotion-empty-orb,
 .emotion-status-empty-orb {
   display: inline-flex;

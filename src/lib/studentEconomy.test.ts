@@ -116,7 +116,7 @@ test('음식·학교 17종 고마 스킨은 선택 가능한 카탈로그에 등
   ];
 
   assert.deepEqual(
-    STUDENT_CHARACTER_PRIZES.slice(110).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
+    STUDENT_CHARACTER_PRIZES.slice(110, 127).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
     addedSkins,
   );
 });
@@ -876,12 +876,12 @@ test('미보유 스킨이 하나뿐이면 특별 구간에서도 한 개만 지�
   const remaining = STUDENT_CHARACTER_PRIZES.at(-1);
   const result = applyStudentEconomyAction({
     state: { characterFreeDrawAvailable: false, ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, -1).map((prize) => prize.id) },
-    action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-last-skin', characterDrawRoll: 0,
+    action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-last-skin', characterDrawRoll: 0, todayDateKey: '2026-10-30',
   });
   assert.equal(result.wallet, 150);
   assert.equal(result.state.ownedCharacterIds.length, STUDENT_CHARACTER_PRIZES.length);
   assert.equal(result.state.activeCharacterId, remaining.id);
-  assert.throws(() => applyStudentEconomyAction({ state: result.state, action: { type: 'draw_character' }, wallet: 100, availableWallet: 100, requestId: 'double-all-skins', characterDrawRoll: 0 }), /ALL_CHARACTERS_OWNED/);
+  assert.throws(() => applyStudentEconomyAction({ state: result.state, action: { type: 'draw_character' }, wallet: 100, availableWallet: 100, requestId: 'double-all-skins', characterDrawRoll: 0, todayDateKey: '2026-10-30' }), /ALL_CHARACTERS_OWNED/);
 });
 
 test('예금·투자 원금 이동은 ownAccountAmount로 남기고 이자는 포함하지 않는다', () => {

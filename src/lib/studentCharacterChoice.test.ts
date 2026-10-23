@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyStudentEconomyAction, createStudentEconomyState, getStudentCharacterInitials, hasStudentCharacterInitials, normalizeStudentEconomyState, STUDENT_CHARACTER_PRIZES } from './studentEconomy.js';
+import { applyStudentEconomyAction, createStudentEconomyState, getClaimableStudentHalloweenCharacterIds, getStudentCharacterPrizes, STUDENT_HALLOWEEN_CHARACTER_IDS, getStudentCharacterInitials, hasStudentCharacterInitials, normalizeStudentEconomyState, STUDENT_CHARACTER_PRIZES, type StudentCharacterPrizeId } from './studentEconomy.js';
 
 const draw = (state: unknown = { characterFreeDrawAvailable: false }, roll = 1) => applyStudentEconomyAction({
-  state, action: { type: 'draw_character' }, wallet: 50, availableWallet: 50, requestId: 'initial-choice-draw', characterDrawRoll: roll,
+  state, action: { type: 'draw_character' }, wallet: 50, availableWallet: 50, requestId: 'initial-choice-draw', characterDrawRoll: roll, todayDateKey: '2026-10-30',
 });
 
 test('고마 접미사는 유지하고 한글 이름만 초성으로 표시한다', () => {
@@ -140,4 +140,41 @@ test('기존 상태에는 선택권이 없고 손상된 후보·중복·보유 �
   for (const pendingCharacterChoice of [null, {}, { drawRequestId: 'invalid', characterIds: [candidate.id] }, { drawRequestId: 'valid-draw-request', characterIds: ['invalid'] }]) {
     assert.equal(normalizeStudentEconomyState({ pendingCharacterChoice }).pendingCharacterChoice, null);
   }
+});
+
+test('할로윈 스킨은 10월 30일 전에는 뽑기 후보에서 빠지고 그날부터 나온다', () => {
+  assert.equal(STUDENT_HALLOWEEN_CHARACTER_IDS.length, 6);
+  assert.ok(getStudentCharacterPrizes('2026-10-29').every((prize) => !STUDENT_HALLOWEEN_CHARACTER_IDS.includes(prize.id)));
+  assert.equal(getStudentCharacterPrizes('2026-10-30').length, STUDENT_CHARACTER_PRIZES.length);
+  const allButHalloween = STUDENT_CHARACTER_PRIZES.filter((prize) => !STUDENT_HALLOWEEN_CHARACTER_IDS.includes(prize.id)).map((prize) => prize.id);
+  const drawOn = (todayDateKey: string) => () => applyStudentEconomyAction({
+    state: { characterFreeDrawAvailable: false, ownedCharacterIds: allButHalloween },
+    action: { type: 'draw_character' }, wallet: 50, availableWallet: 50, requestId: 'halloween-pool-draw', characterDrawRoll: 9, todayDateKey,
+  });
+  assert.throws(drawOn('2026-10-29'), /ALL_CHARACTERS_OWNED/);
+  const drawn = drawOn('2026-10-30')();
+  assert.ok(STUDENT_HALLOWEEN_CHARACTER_IDS.includes(drawn.state.activeCharacterId ?? ''));
+});
+
+test('할로윈 스킨은 공개일부터 한 번만 무료로 고르고 보유·초성 후보 스킨은 고를 수 없다', () => {
+  const state = normalizeStudentEconomyState({
+    ownedCharacterIds: ['character-128'],
+    pendingCharacterChoice: { drawRequestId: 'pending-halloween', characterIds: ['character-130', 'character-1'] },
+  });
+  assert.deepEqual(getClaimableStudentHalloweenCharacterIds(state, '2026-10-29'), []);
+  assert.deepEqual(getClaimableStudentHalloweenCharacterIds(state, '2026-11-02'), ['character-129', 'character-131', 'character-132', 'character-133']);
+  const claim = (characterId: StudentCharacterPrizeId, todayDateKey = '2026-10-30', current: unknown = state) => applyStudentEconomyAction({
+    state: current, action: { type: 'claim_halloween_character', characterId }, wallet: 30, availableWallet: 0, requestId: `claim-${characterId}`, todayDateKey,
+  });
+  assert.throws(() => claim('character-129', '2026-10-29'), /HALLOWEEN_EVENT_NOT_OPEN/);
+  for (const characterId of ['character-128', 'character-130', 'character-1'] as const) assert.throws(() => claim(characterId), /INVALID_CHARACTER_CHOICE/);
+  const claimed = claim('character-132');
+  assert.equal(claimed.wallet, 30);
+  assert.equal(claimed.ownAccountAmount, 0);
+  assert.equal(claimed.state.activeCharacterId, 'character-132');
+  assert.deepEqual(claimed.state.ownedCharacterIds, ['character-128', 'character-132']);
+  assert.deepEqual(claimed.state.pendingCharacterChoice?.characterIds, ['character-130', 'character-1']);
+  assert.equal(normalizeStudentEconomyState(JSON.parse(JSON.stringify(claimed.state))).halloweenCharacterClaimed, true);
+  assert.deepEqual(getClaimableStudentHalloweenCharacterIds(claimed.state, '2026-11-02'), []);
+  assert.throws(() => claim('character-133', '2026-11-02', claimed.state), /HALLOWEEN_EVENT_CLAIMED/);
 });
