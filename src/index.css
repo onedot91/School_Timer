@@ -25485,7 +25485,15 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .settings-dialog .teacher-stock-settings .teacher-investment-roster button:hover { background: color-mix(in srgb, currentColor 5%, var(--apple-surface)) !important; }
 .settings-dialog .teacher-stock-settings .teacher-investment-roster button :is(strong, span) { color: inherit !important; }
 .teacher-investment-roster strong { font-size: var(--type-heading); line-height: 1.15; font-variant-numeric: tabular-nums; }
-.teacher-investment-roster span { font-size: var(--type-caption); line-height: 1.3; }
+.teacher-investment-roster span { font-size: var(--type-caption); line-height: 1.3; font-variant-numeric: tabular-nums; }
+.settings-dialog .teacher-stock-settings .teacher-investment-roster button.is-participating { border: 2px solid color-mix(in srgb, currentColor 55%, transparent) !important; background: color-mix(in srgb, currentColor 9%, var(--apple-surface)) !important; font-weight: 750; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard .teacher-investment-roster button.is-idle { border: 1px dashed var(--apple-separator) !important; background: transparent !important; color: var(--apple-text-secondary) !important; }
+.teacher-investment-participation { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; font-size: var(--type-label); }
+.teacher-investment-participation span { display: inline-flex; align-items: baseline; gap: .15rem; border-radius: 999px; padding: .3rem .75rem; }
+.teacher-investment-participation b { font-size: var(--type-heading); font-variant-numeric: tabular-nums; }
+.teacher-investment-participation .is-participating { color: var(--apple-text-primary); background: color-mix(in srgb, var(--teacher-accent, #2f7d4f) 14%, var(--apple-surface)); }
+.teacher-investment-participation .is-idle { color: var(--apple-text-secondary); border: 1px dashed var(--apple-separator); }
+.settings-dialog .teacher-stock-settings .teacher-investment-legend .is-idle { color: var(--apple-text-secondary) !important; border: 1px dashed var(--apple-separator); border-radius: .3rem; padding: 0 .35rem; }
 .teacher-investment-detail { border-top: 1px solid var(--apple-separator); padding-top: 1rem; }
 .settings-dialog .teacher-stock-settings .teacher-investment-dashboard .teacher-investment-detail { border-top: 1px solid var(--apple-separator) !important; }
 .teacher-investment-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 0; border-bottom: 1px solid var(--apple-separator); padding-bottom: .75rem; }

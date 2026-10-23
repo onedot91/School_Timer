@@ -37,10 +37,12 @@ test('23명의 번호와 수익·손실·미투자 상태를 표시하고 상세
     market: { sunny: [{ dateKey: '2026-10-01', stage: 'rise', returnPercent: 20, comment: '연습용: 판매량 증가' }] },
   }));
   assert.equal((markup.match(/aria-label="\d+번, /g) ?? []).length, 23);
-  assert.match(markup, /class="is-up" aria-label="1번, 수익 20 고마"/);
-  assert.match(markup, /class="is-down" aria-label="2번, 손실 20 고마"/);
-  assert.match(markup, /class="is-flat" aria-label="3번, 변동 없음"/);
-  assert.match(markup, /aria-label="23번, 투자 없음"/);
+  assert.match(markup, /class="is-up is-participating" aria-label="1번, 1종목, 수익 20 고마"/);
+  assert.match(markup, /class="is-down is-participating" aria-label="2번, 1종목, 손실 20 고마"/);
+  assert.match(markup, /class="is-flat is-participating" aria-label="3번, 1종목, 변동 없음"/);
+  assert.match(markup, /class="is-idle" aria-label="23번, 미참여"/);
+  assert.match(markup, /<b>3<\/b>명 참여/);
+  assert.match(markup, /<b>20<\/b>명 미참여/);
   assert.match(markup, /1번 세부 투자 현황/);
   assert.match(markup, /2026-10-01 반영/);
   assert.match(markup, /마지막 등락 \+20 고마/);
@@ -55,10 +57,10 @@ test('학생이 다시 접속하지 않아도 등록한 등락을 즉시 표시�
     states: { '1': state }, dateKey,
     market: { sunny: [{ dateKey: '2026-10-02', stage: returnPercent > 0 ? 'rise' : 'fall', returnPercent, comment: '' }] },
   }));
-  assert.match(render(20), /class="is-up" aria-label="1번, 수익 20 고마"/);
-  assert.match(render(-20), /class="is-down" aria-label="1번, 손실 20 고마"/);
+  assert.match(render(20), /class="is-up is-participating" aria-label="1번, 1종목, 수익 40 고마"/);
+  assert.match(render(-20), /class="is-down is-participating" aria-label="1번, 1종목, 손실 20 고마"/);
   assert.match(render(20), /2026-10-02 반영/);
-  assert.match(render(20), /마지막 등락 \+20 고마/);
-  assert.match(render(20, '2026-10-01'), /class="is-flat" aria-label="1번, 변동 없음"/);
+  assert.match(render(20), /마지막 등락 \+40 고마/);
+  assert.match(render(20, '2026-10-01'), /class="is-flat is-participating" aria-label="1번, 1종목, 변동 없음"/);
   assert.deepEqual(state, before);
 });

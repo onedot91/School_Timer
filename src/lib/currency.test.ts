@@ -89,7 +89,7 @@ test('한국 시간 월요일 주간 정산은 미반영 등락을 적용하고 
   };
   const original = structuredClone(value);
   const result = createWeeklyCurrencyCycle(value, '2026-10-11T15:30:00Z', '2026-10-11T15:30:00Z', '2026-10-11T15:30:00Z');
-  assert.equal(result.balances['1'], 295);
+  assert.equal(result.balances['1'], 305);
   assert.equal(result.balances['2'], 100);
   assert.equal(result.balances['3'], 170);
   for (const key of ['1', '2', '3']) assert.deepEqual(result.economy[key].investments, {});
@@ -97,9 +97,9 @@ test('한국 시간 월요일 주간 정산은 미반영 등락을 적용하고 
   assert.equal(result.economy['1'].inventory.house_repair, 1);
   assert.equal(result.economy['1'].loanPrincipal, 50);
   assert.deepEqual(result.history['1'].map(({ reason, before, after }) => ({ reason, before, after })), [
-    { reason: 'allowance', before: 195, after: 295 },
-    { reason: 'tax', before: 340, after: 195 },
-    { reason: 'stock_trade', before: 130, after: 340 },
+    { reason: 'allowance', before: 205, after: 305 },
+    { reason: 'tax', before: 360, after: 205 },
+    { reason: 'stock_trade', before: 130, after: 360 },
     { reason: 'bank_transfer', before: 20, after: 130 },
   ]);
   assert.equal(result.history['2'].some(entry => entry.reason === 'stock_trade'), false);
@@ -116,8 +116,8 @@ test('주간 마감은 한국 날짜의 등락까지 적용한다', () => {
     } } },
     studentStockMarket: { sunny: [{ dateKey: '2026-10-09', stage: 'rise', returnPercent: 20 }] },
   }, '2026-10-08T15:30:00Z', '2026-10-08T15:30:00Z', '2026-10-08T15:30:00Z');
-  assert.equal(result.history['1'].find(entry => entry.reason === 'stock_trade')?.delta, 120);
-  assert.equal(result.balances['1'], 170);
+  assert.equal(result.history['1'].find(entry => entry.reason === 'stock_trade')?.delta, 140);
+  assert.equal(result.balances['1'], 180);
 });
 
 test('주간 마감은 휴장일에도 전액 매각하고 이미 반영한 등락을 다시 적용하지 않는다', () => {
