@@ -149,3 +149,20 @@ test('저장 처리기는 저장 범위 오류의 실제 작업명을 남기며 
   assert.equal(Reflect.get(Object(logs[0][1]), 'stage'), 'command');
   assert.doesNotMatch(JSON.stringify(logs), /private|student content|itemId|payload/);
 });
+
+test('저장 명령 응답은 본문을 보내기 전에 Server-Timing을 붙인다', async t => {
+  const { handleStorageCommand } = await import('../../src/server/storageCommandHandler.js');
+  t.mock.method(console, 'error', () => undefined);
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('UNEXPECTED_FETCH'); });
+  const events: string[] = [];
+  const response = {
+    setHeader(name: string, value: string) { events.push(`${name}: ${value}`); },
+    status() { return this; },
+    json() { events.push('json'); },
+  };
+  await handleStorageCommand({ method: 'POST', headers: { 'x-storage-projection': '1' }, body: {
+    protocolVersion: 2, requestId: 'fixture-server-timing', action: 'teacher.auction.finalize', payload: { itemId: null },
+  } }, response, configuration, { role: 'teacher', expiresAt: 0 }, () => ({}));
+  assert.equal(events.at(-1), 'json');
+  assert.match(events.at(-2) ?? '', /^Server-Timing: app;dur=[\d.]+, storage;dur=[\d.]+;desc="\d+ RPC"/);
+});

@@ -8,6 +8,8 @@ export interface TeacherCurrencyClickBatch {
   readonly key: string;
   readonly studentNumbers: readonly number[];
   readonly delta: number;
+  /** performance.now() of the batch's first click, for save timing. */
+  readonly clickedAt?: number;
 }
 
 export interface PendingTeacherCurrencyAdjustment {
@@ -27,7 +29,7 @@ export const addTeacherCurrencyClick = (
   click: TeacherCurrencyClickBatch,
 ): { readonly batch: TeacherCurrencyClickBatch; readonly flush: TeacherCurrencyClickBatch | null } => (
   batch && batch.target === click.target && batch.key === click.key
-    ? { batch: { ...batch, delta: clampDelta(batch.delta + click.delta) }, flush: null }
+    ? { batch: { ...batch, delta: clampDelta(batch.delta + click.delta), clickedAt: batch.clickedAt ?? click.clickedAt }, flush: null }
     : { batch: { ...click, delta: clampDelta(click.delta) }, flush: batch && batch.delta !== 0 ? batch : null }
 );
 
