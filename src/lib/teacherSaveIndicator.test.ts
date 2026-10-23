@@ -36,12 +36,15 @@ test('an unknown server result stays unconfirmed, never failed or saved', () => 
   assert.equal(deriveTeacherSaveIndicator({ ...idle, pendingRecovery: 1 }).count, 1);
 });
 
-test('teacher-reviewed alerts are neutral and do not read as saved', () => {
+test('teacher-reviewed alerts alone read as saved until a new unconfirmed alert appears', () => {
   const reviewed = deriveTeacherSaveIndicator({ ...idle, pendingRecovery: 2, reviewedIssues: 2 });
-  assert.equal(reviewed.state, 'reviewed');
-  assert.equal(reviewed.tone, 'neutral');
-  assert.equal(reviewed.count, 2);
+  assert.equal(reviewed.state, 'saved');
+  assert.equal(reviewed.count, 0);
+  assert.equal(stateOf({ pendingRecovery: 2, reviewedIssues: 2, sharedBackend: false }), 'local');
   assert.equal(stateOf({ pendingRecovery: 2, reviewedIssues: 2, inFlightSaves: 1 }), 'saving');
+  const withNew = deriveTeacherSaveIndicator({ ...idle, pendingRecovery: 3, activeIssues: 1, reviewedIssues: 2 });
+  assert.equal(withNew.state, 'unconfirmed');
+  assert.equal(withNew.count, 1);
 });
 
 test('save activity counts running and scheduled saves until they settle', async () => {

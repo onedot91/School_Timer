@@ -1,4 +1,4 @@
-import { CircleAlert, CircleDashed, CircleQuestionMark, CloudCheck, Ellipsis, Laptop, LoaderCircle, RefreshCw, RotateCw, TriangleAlert, Wrench, X, type LucideIcon } from 'lucide-react';
+import { CircleAlert, CircleQuestionMark, CloudCheck, Ellipsis, Laptop, LoaderCircle, RefreshCw, RotateCw, TriangleAlert, Wrench, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
@@ -18,7 +18,7 @@ const recoveryReasons = {
 
 const indicatorIcons: Record<TeacherSaveIndicatorState, LucideIcon> = {
   unsafe: TriangleAlert, failed: CircleAlert, unconfirmed: CircleQuestionMark, maintenance: Wrench, update: RotateCw,
-  saving: LoaderCircle, refresh: RefreshCw, loading: Ellipsis, reviewed: CircleDashed, local: Laptop, saved: CloudCheck,
+  saving: LoaderCircle, refresh: RefreshCw, loading: Ellipsis, local: Laptop, saved: CloudCheck,
 };
 const MIN_SAVING_MS = 300;
 const SAVED_FLASH_MS = 1500;
@@ -205,7 +205,9 @@ export function StorageAvailabilityBanner({ actor, compact = false, teacherStatu
     </details> : null}
   </> : null;
   if (compact) {
-    const onlyReviewed = !unsafe && !activeNotice && !recovery?.refreshPending && activeIssues.length === 0 && reviewedIssues.length > 0;
+    // Reviewed alerts stay stored, but alone they need no action; they reappear with the next unconfirmed alert.
+    const onlyReviewed = !recovery?.refreshPending && activeIssues.length === 0 && reviewedIssues.length > 0
+      && (recovery?.pending ?? 0) <= reviewedIssues.length;
     const { indicator } = steady;
     const Icon = indicatorIcons[indicator.state];
     const name = indicator.count > 0 ? `${indicator.label} ${indicator.count}건` : indicator.label;
@@ -217,15 +219,15 @@ export function StorageAvailabilityBanner({ actor, compact = false, teacherStatu
       <span className="sr-only" role="status">{name}</span>
     </>;
     const faceProps = { className: 'teacher-storage-indicator', 'data-state': indicator.state, 'data-tone': indicator.tone, 'data-just-saved': steady.justSaved || undefined };
-    if (!unsafe && !activeNotice && !needsRecovery && !onlyReviewed) {
+    if (!unsafe && !activeNotice && (!needsRecovery || onlyReviewed)) {
       return <span {...faceProps}><span className="teacher-storage-indicator-face" title={name}>{face}</span></span>;
     }
     return <details ref={indicatorRef} {...faceProps}>
       <summary className="teacher-storage-indicator-face" title={name}>{face}</summary>
       <div className="teacher-storage-indicator-content">
-        {!onlyReviewed ? <p>{unsafe ? '화면을 닫기 전에 내용을 복사해 주세요.' : activeNotice?.kind === 'maintenance'
+        <p>{unsafe ? '화면을 닫기 전에 내용을 복사해 주세요.' : activeNotice?.kind === 'maintenance'
           ? '잠시 후 다시 저장해 주세요.' : activeNotice?.kind === 'update'
-            ? '보관된 입력은 새로고침 후 다시 저장해 주세요.' : '이 기기의 저장 결과를 아직 확인하지 못했어요.'}</p> : null}
+            ? '보관된 입력은 새로고침 후 다시 저장해 주세요.' : '이 기기의 저장 결과를 아직 확인하지 못했어요.'}</p>
         {unsafe ? copyButton : activeNotice?.kind === 'update'
           ? <button type="button" onClick={reload}>새로고침</button>
           : <button type="button" disabled={isRetrying || reviewing || recovery?.recovering} onClick={retry}><StableLabel busy={isRetrying} busyLabel="확인 중…" label={'다시 확인'} /></button>}

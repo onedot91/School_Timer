@@ -254,7 +254,7 @@ export const applyClassroomRoleMissionResultInSettings = (
     classroomRoleMission: setClassroomRoleMissionResult(settings, studentNumber, nextResult, dateKey),
     ...(nextResult === 'penalized' && before > after ? {
       studentLife: createTeacherCurrencyDeductionLetter(current.studentLife, {
-        studentNumber, amount: before - after, teacherReason: '1인1역 제대로 하지 않음',
+        studentNumber, amount: Math.min(CLASSROOM_ROLE_MISSION_REWARD, before - after), teacherReason: '1인1역 제대로 하지 않음',
         requestId: `classroom-role-${dateKey}-${studentNumber}`, createdAt,
       }),
     } : {}),

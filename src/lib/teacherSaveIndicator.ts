@@ -1,6 +1,6 @@
 export type TeacherSaveIndicatorState =
   | 'unsafe' | 'failed' | 'unconfirmed' | 'maintenance' | 'update'
-  | 'saving' | 'refresh' | 'loading' | 'reviewed' | 'local' | 'saved';
+  | 'saving' | 'refresh' | 'loading' | 'local' | 'saved';
 
 export interface TeacherSaveIndicatorInput {
   /** Drafts could not be kept on this device. */
@@ -35,12 +35,12 @@ const indicators: Record<TeacherSaveIndicatorState, Omit<TeacherSaveIndicator, '
   saving: { label: '저장 중', tone: 'progress' },
   refresh: { label: '저장됨 · 화면 갱신 필요', tone: 'success' },
   loading: { label: '설정 불러오는 중', tone: 'neutral' },
-  reviewed: { label: '확인 처리한 알림 있음', tone: 'neutral' },
   local: { label: '이 기기에만 저장', tone: 'neutral' },
   saved: { label: '저장됨', tone: 'success' },
 };
 
-// Problems outrank progress so a failure is never hidden behind a later save; "saved" only shows when nothing is pending.
+// Problems outrank progress so a failure is never hidden behind a later save; "saved" only shows when nothing is pending
+// except alerts the teacher already reviewed, which stay stored but no longer need attention.
 export const deriveTeacherSaveIndicator = (input: TeacherSaveIndicatorInput): TeacherSaveIndicator => {
   const unconfirmed = input.activeIssues > 0 || input.pendingRecovery > input.reviewedIssues;
   const state: TeacherSaveIndicatorState = input.unsafe ? 'unsafe'
@@ -51,9 +51,7 @@ export const deriveTeacherSaveIndicator = (input: TeacherSaveIndicatorInput): Te
             : input.inFlightSaves > 0 || input.recovering ? 'saving'
               : input.refreshPending ? 'refresh'
                 : input.loading ? 'loading'
-                  : input.reviewedIssues > 0 ? 'reviewed'
                     : input.sharedBackend ? 'saved' : 'local';
-  const count = state === 'unconfirmed' ? Math.max(input.activeIssues, input.pendingRecovery - input.reviewedIssues, 1)
-    : state === 'reviewed' ? input.reviewedIssues : 0;
+  const count = state === 'unconfirmed' ? Math.max(input.activeIssues, input.pendingRecovery - input.reviewedIssues, 1) : 0;
   return { state, count, ...indicators[state] };
 };
