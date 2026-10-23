@@ -12,8 +12,8 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
     const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
-    // 토네이도 바람이 닿는 거리 안에 같은 방향 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 날아간다.
-    // 뒤처진 캐릭터도, 따라잡기 전에 화면을 벗어날 앞 캐릭터도 놓치지 않도록 겹칠 때까지 기다리지 않는다.
+    // 토네이도 바람이 닿는 거리 안에 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 토네이도가 가는 쪽으로 날아간다.
+    // 같은 방향으로 가던 캐릭터도, 마주 오던 캐릭터도 겹칠 때까지 기다리지 않는다.
     const sweepTornadoes = () => {
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node));
       const isOnScreen = (box: DOMRect) => box.left + box.width / 2 > 0 && box.left + box.width / 2 < innerWidth;
@@ -22,13 +22,14 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
         if (!isOnScreen(tornadoBox)) return;
         const tornadoCenter = tornadoBox.left + tornadoBox.width / 2;
         nodes.forEach(node => {
-          if (node === tornado || isTornado(node) || isBlown(node) || node.dataset.direction !== tornado.dataset.direction) return;
+          if (node === tornado || isTornado(node) || isBlown(node)) return;
           const box = getImageBox(node);
           const pull = tornadoCenter - (box.left + box.width / 2);
           if (!isOnScreen(box) || Math.abs(pull) > innerWidth * .35) return;
           clear(node);
           delete node.dataset.spacingWait;
           node.style.setProperty('--student-character-blow-pull-x', `${Math.round(pull)}px`);
+          node.style.setProperty('--student-character-blow-direction', tornado.dataset.direction === 'left' ? '-1' : '1');
           node.dataset.tornadoBlown = 'true';
         });
       });
