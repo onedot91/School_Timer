@@ -140,7 +140,7 @@ test('역할 차감과 결과, 기록, 기존 양식 우편을 함께 만들고 
   assert.deepEqual(applyClassroomRoleMissionResultInSettings(penalizedAgain, { ...command, dateKey: '2026-09-12', requestId: 'weekend' }), penalizedAgain);
 });
 
-test('지급 취소는 차감 우편을 보내지 않으며 지급에서 미수행으로 바꾸면 실제 차액을 안내한다', () => {
+test('지급 취소는 차감 우편을 보내지 않으며 지급에서 미수행으로 바꾸면 차감분 20고마만 안내한다', () => {
   const initial = { classroomRoleMission: { anchorDateKey: '2026-09-07', anchorStartStudentNumber: 1 }, currencyBalances: { '1': 100 } };
   const command = { studentNumber: 1, dateKey: '2026-09-07', requestId: 'reward', createdAt: '2026-09-07T01:00:00.000Z' };
   const rewarded = applyClassroomRoleMissionResultInSettings(initial, { ...command, nextResult: 'rewarded' });
@@ -148,7 +148,7 @@ test('지급 취소는 차감 우편을 보내지 않으며 지급에서 미수�
   assert.equal(normalizeStudentLifeState(cancelled.studentLife).letters.length, 0);
   const penalized = applyClassroomRoleMissionResultInSettings(rewarded, { ...command, requestId: 'penalty', nextResult: 'penalized' });
   assert.equal(Reflect.get(Object(penalized.currencyBalances), '1'), 80);
-  assert.match(normalizeStudentLifeState(penalized.studentLife).letters[0].content, /40고마/);
+  assert.match(normalizeStudentLifeState(penalized.studentLife).letters[0].content, /^선생님이 20고마를 차감했어요\./);
 });
 
 
