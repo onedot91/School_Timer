@@ -12,6 +12,7 @@ import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { requiresStudentEditRevisions } from './storageClientContract.js';
 import { logStorageFailure } from './storageFailureDiagnostics.js';
 import { StorageScopeError } from './storageScope.js';
+import { countStorageRetry, formatServerTiming, withStorageRequestTiming, type StorageRequestTiming } from './storageRequestTiming.js';
 
 interface CommandRequest {
   readonly headers?: RequestHeaders;
@@ -50,11 +51,29 @@ const businessError = (error: Error): { code: string; status: number } | null =>
   return null;
 };
 
-export const handleStorageCommand = async (
+/** Server-Timing is written when the status is chosen, before the body is sent. */
+const withServerTiming = (response: CommandResponse, startedAt: number, timing: StorageRequestTiming): CommandResponse => ({
+  setHeader: (name, value) => response.setHeader(name, value),
+  status: code => {
+    response.setHeader('Server-Timing', formatServerTiming(Date.now() - startedAt, timing));
+    return response.status(code);
+  },
+  json: body => response.json(body),
+});
+
+export const handleStorageCommand = (
   request: CommandRequest, response: CommandResponse, configuration: StorageConfiguration,
   session: DeviceSession, projectStudentValue: ProjectValue,
 ): Promise<void> => {
   const startedAt = Date.now();
+  return withStorageRequestTiming(timing => runStorageCommand(
+    request, withServerTiming(response, startedAt, timing), configuration, session, projectStudentValue, startedAt));
+};
+
+const runStorageCommand = async (
+  request: CommandRequest, response: CommandResponse, configuration: StorageConfiguration,
+  session: DeviceSession, projectStudentValue: ProjectValue, startedAt: number,
+): Promise<void> => {
   if (!supportsStorageProjection(request.headers)) {
     response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
   }
@@ -165,6 +184,7 @@ export const handleStorageCommand = async (
       } catch (error) {
         if (!(error instanceof StorageRepositoryError) || error.code !== 'STORAGE_SERIALIZATION_RETRY' || attempt === maxAttempts - 1) throw error;
       }
+      if (attempt < maxAttempts - 1) countStorageRetry();
       if (attempt < maxAttempts - 1) await new Promise(resolve => setTimeout(resolve, Math.min(40 * 2 ** attempt, 640) + Math.random() * 80));
     }
     throw new StorageRepositoryError(409, 'RESOURCE_REVISION_CONFLICT');

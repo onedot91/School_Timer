@@ -56,3 +56,12 @@ test('합친 금액은 저장 가능한 최대치를 넘지 않는다', () => {
   const batch = addTeacherCurrencyClick(all(CURRENCY_BALANCE_MAX), all(5)).batch;
   assert.equal(batch.delta, CURRENCY_BALANCE_MAX);
 });
+
+test('묶인 클릭은 첫 클릭 시각을 유지하고 새 묶음은 새 클릭 시각으로 시작한다', () => {
+  const first = addTeacherCurrencyClick(null, { ...all(5), clickedAt: 100 });
+  const merged = addTeacherCurrencyClick(first.batch, { ...all(5), clickedAt: 400 });
+  assert.equal(merged.batch.clickedAt, 100);
+  const other = addTeacherCurrencyClick(merged.batch, { target: 'student', key: '3', studentNumbers: [3], delta: 1, clickedAt: 900 });
+  assert.equal(other.flush?.clickedAt, 100);
+  assert.equal(other.batch.clickedAt, 900);
+});

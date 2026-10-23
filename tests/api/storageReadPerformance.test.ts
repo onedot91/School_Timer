@@ -159,3 +159,19 @@ test('global revision marker merges only in-flight reads and rejects invalid or 
   assert.deepEqual(await recovered, marker);
   assert.equal(calls, 4);
 });
+
+test('저장 재시도 수는 있을 때만 Server-Timing에 붙고 중첩 측정은 바깥 요청과 합쳐진다', async () => {
+  const { countStorageRetry, formatServerTiming } = await import('../../src/server/storageRequestTiming.js');
+  const timing = await withStorageRequestTiming(async outer => {
+    await measureStorageRequest(async () => undefined);
+    await withStorageRequestTiming(async inner => {
+      assert.equal(inner, outer);
+      await measureStorageRequest(async () => undefined);
+      countStorageRetry();
+    });
+    return outer;
+  });
+  assert.equal(timing.calls, 2);
+  assert.match(formatServerTiming(10, timing), /storage;dur=[\d.]+;desc="2 RPC", retry;desc="1"$/);
+  assert.doesNotMatch(formatServerTiming(10, { calls: 1, duration: 1, retries: 0 }), /retry/);
+});

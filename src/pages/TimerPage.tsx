@@ -1,6 +1,7 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_MAIL_SENDERS } from '../lib/studentLife';
+import { recordSaveTiming } from '../lib/saveTiming';
 import { addTeacherCurrencyClick, pendingTeacherCurrencyDelta, TEACHER_CURRENCY_BATCH_DELAY_MS, type PendingTeacherCurrencyAdjustment, type TeacherCurrencyClickBatch } from '../lib/teacherCurrencyBatch';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, syncTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage, teacherCurrencySaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
@@ -4734,8 +4735,13 @@ export default function TimerPage() {
   const [teacherSettingsSaveError, setTeacherSettingsSaveError] = useState('');
   const [teacherRefreshPending, setTeacherRefreshPending] = useState(false);
   const teacherRefreshPendingRef = useRef(false);
-  const executeStorageCommand = async (command: Parameters<typeof executeTeacherStorageCommand>[0]) => {
-    const saved = await executeTeacherStorageCommand(command);
+  const executeStorageCommand = async (command: Parameters<typeof executeTeacherStorageCommand>[0], clickedAt?: number) => {
+    const requestStartedAt = performance.now();
+    const timing = { requestId: command.requestId, action: command.action, clickedAt: clickedAt ?? requestStartedAt, requestStartedAt };
+    let saved: Awaited<ReturnType<typeof executeTeacherStorageCommand>>;
+    try { saved = await executeTeacherStorageCommand(command); }
+    catch (error) { recordSaveTiming({ ...timing, outcome: 'failed' }); throw error; }
+    recordSaveTiming({ ...timing, outcome: 'saved' });
     if (saved.refreshPending) { teacherRefreshPendingRef.current = true; setTeacherRefreshPending(true); markSaveRefreshPending(0); }
     return saved;
   };
@@ -7153,7 +7159,7 @@ export default function TimerPage() {
     ));
   };
 
-  const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0, pendingKey?: string) => {
+  const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0, pendingKey?: string, clickedAt = performance.now()) => {
     const requestId = crypto.randomUUID();
     setPendingCurrencyCommandCount(previous => previous + 1);
     const groupKey = pendingKey ?? currencyGroupKey;
@@ -7163,7 +7169,7 @@ export default function TimerPage() {
     const queued = teacherCommandQueueRef.current.catch(() => undefined).then(async () => {
       isSharedSettingsSavePendingRef.current = true;
       try {
-        const saved = await executeStorageCommand({ requestId, action, payload });
+        const saved = await executeStorageCommand({ requestId, action, payload }, clickedAt);
         if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
         if (saved.value) {
           commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
@@ -7226,7 +7232,7 @@ export default function TimerPage() {
   runTeacherCurrencyCommandRef.current = runTeacherCurrencyCommand;
   const sendCurrencyClickBatch = (batch: TeacherCurrencyClickBatch) => {
     if (batch.delta === 0) return;
-    runTeacherCurrencyCommandRef.current('teacher.currency.adjust', { studentNumbers: [...batch.studentNumbers], amount: batch.delta }, batch.target, batch.delta, batch.key);
+    runTeacherCurrencyCommandRef.current('teacher.currency.adjust', { studentNumbers: [...batch.studentNumbers], amount: batch.delta }, batch.target, batch.delta, batch.key, batch.clickedAt);
   };
   const flushCurrencyClickBatch = () => {
     if (currencyClickBatchTimerRef.current !== null) window.clearTimeout(currencyClickBatchTimerRef.current);
@@ -7240,7 +7246,7 @@ export default function TimerPage() {
   flushCurrencyClickBatchRef.current = flushCurrencyClickBatch;
   // Clicks show at once; the server receives one request after the teacher pauses.
   const queueCurrencyClick = (click: TeacherCurrencyClickBatch) => {
-    const { batch, flush } = addTeacherCurrencyClick(currencyClickBatchRef.current, click);
+    const { batch, flush } = addTeacherCurrencyClick(currencyClickBatchRef.current, { ...click, clickedAt: click.clickedAt ?? performance.now() });
     if (flush) sendCurrencyClickBatch(flush);
     currencyClickBatchRef.current = batch;
     setCurrencyClickBatch(batch);

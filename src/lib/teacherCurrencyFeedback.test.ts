@@ -25,7 +25,7 @@ const harness = () => {
   const queue = { current: Promise.resolve() as Promise<unknown> };
   const group = { current: '16,23' };
   const context = {
-    crypto: { randomUUID: () => String(++id) }, currencyGroupKey: '16,23', currencyGroupKeyRef: group,
+    crypto: { randomUUID: () => String(++id) }, performance, currencyGroupKey: '16,23', currencyGroupKeyRef: group,
     teacherCommandQueueRef: queue, isSharedSettingsSavePendingRef: { current: false }, lastSharedSettingsUpdatedAtRef: { current: '' },
     setPendingCurrencyAdjustments: (update: (previous: Pending[]) => Pending[]) => { pending = update(pending); },
     setPendingCurrencyCommandCount: (update: (previous: number) => number) => { pendingCommands = update(pendingCommands); },
@@ -110,7 +110,7 @@ test('전체 +5 스무 번은 즉시 +100 저장 중으로 보이고 멈춘 뒤 
   const allStudents = Array.from({ length: 23 }, (_, index) => index + 1);
   const context = {
     useRef: (value: unknown) => ({ current: value }),
-    window: { setTimeout, clearTimeout },
+    window: { setTimeout, clearTimeout }, performance,
     runTeacherCurrencyCommand: (_action: string, payload: { studentNumbers: number[]; amount: number }, target: string, delta: number, key: string) => {
       commands.push({ payload, target, delta, key });
     },
@@ -140,7 +140,7 @@ test('차감 클릭도 즉시 표시되고 합친 금액 한 번으로 저장된
   const commands: { amount: number }[] = [];
   let batch: { delta: number } | null = null;
   const context = {
-    useRef: (value: unknown) => ({ current: value }), window: { setTimeout, clearTimeout },
+    useRef: (value: unknown) => ({ current: value }), window: { setTimeout, clearTimeout }, performance,
     runTeacherCurrencyCommand: (_action: string, payload: { amount: number }) => { commands.push(payload); },
     currencyClickBatchTimerRef: { current: null }, currencyClickBatchRef: { current: null },
     setCurrencyClickBatch: (value: { delta: number } | null) => { batch = value; }, setCurrencyDeductionError: () => undefined,

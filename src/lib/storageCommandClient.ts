@@ -7,6 +7,7 @@ import { publishStorageAvailability } from './storageAvailability.js';
 import { parseStorageProjectionPatch, type StorageProjectionPatch } from './storageProjectionPatch.js';
 import { deferSaveRecoveryUntil, getSaveRecoveryDelay } from './saveRecovery.js';
 import { readConfirmedAuctionAward } from './auctionAwardConfirmation.js';
+import { noteSaveNetworkTiming } from './saveTiming.js';
 
 export interface StorageCommand {
   readonly requestId: string;
@@ -121,12 +122,15 @@ export const executeStorageCommand = async (command: StorageCommand, context = c
       const actor = command.studentNumber ?? Number(context.actor);
       const retryAfterMs = getSaveRecoveryDelay(actor, command.requestId);
       if (retryAfterMs > 0) throw new StorageCommandError('TOO_MANY_REQUESTS', 429, false, retryAfterMs);
+      const requestStartedAt = performance.now();
       const response = await fetch('/api/shared-settings', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
         headers: { 'Content-Type': 'application/json', 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(45_000),
         body: JSON.stringify({ protocolVersion: 2, ...command }),
       });
-      return { saved: parseResult(await readResponse(response)) };
+      const body = await readResponse(response).finally(() => noteSaveNetworkTiming(
+        command.requestId, performance.now() - requestStartedAt, response.headers.get('Server-Timing')));
+      return { saved: parseResult(body) };
     } catch (error) {
       if (error instanceof StorageCommandError && error.retryAfterMs) {
         deferSaveRecoveryUntil(command.studentNumber ?? Number(context.actor), command.requestId, error.retryAfterMs);
