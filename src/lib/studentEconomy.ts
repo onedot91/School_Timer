@@ -355,6 +355,12 @@ export const investmentMultiplierToPercent = (multiplier: number) => (
   Math.max(-50, Math.min(50, Math.round((multiplier - 1) * 100)))
 );
 
+export const STUDENT_INVESTMENT_GAIN_BOOST = 2;
+
+export const boostInvestmentGainMultiplier = (multiplier: number) => (
+  multiplier > 1 ? 1 + Math.round((multiplier - 1) * 100 * STUDENT_INVESTMENT_GAIN_BOOST) / 100 : multiplier
+);
+
 export const getInvestmentStageFromPercent = (percent: number): StudentInvestmentStage => {
   const normalizedPercent = Math.max(-50, Math.min(50, Math.round(percent)));
   if (normalizedPercent >= 30) return 'big_rise';
@@ -925,9 +931,9 @@ export const settleStudentInvestments = (state: StudentEconomyState, dateKey: st
         return;
       }
       const stage = entry?.stage ?? 'flat';
-      const multiplier = entry?.returnPercent === undefined
+      const multiplier = boostInvestmentGainMultiplier(entry?.returnPercent === undefined
         ? settings.multipliers[stage]
-        : investmentPercentToMultiplier(entry.returnPercent);
+        : investmentPercentToMultiplier(entry.returnPercent));
       const nextAmount = calculateInvestmentAmount(next.currentAmount, multiplier, settings.rounding);
       next = { ...next, currentAmount: nextAmount, lastChangeAmount: nextAmount - next.currentAmount, lastStage: stage, lastSettledDateKey: pendingDateKey };
     });

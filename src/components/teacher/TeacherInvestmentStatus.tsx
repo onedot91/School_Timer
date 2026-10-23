@@ -43,20 +43,27 @@ export default function TeacherInvestmentStatus({ states, market, dateKey = getK
   )));
   const state = displayStates[String(selectedStudent)];
   const summary = getTeacherInvestmentSummary(state);
+  const studentNumbers = Array.from({ length: 23 }, (_, index) => index + 1);
+  const participantCount = studentNumbers.filter(studentNumber => getTeacherInvestmentSummary(displayStates[String(studentNumber)]).count > 0).length;
 
   return <div className="teacher-investment-dashboard">
     <section className="teacher-investment-overview" aria-labelledby={`${id}-overview`}>
       <header><h4 id={`${id}-overview`}>전체 학생 등락</h4><span>원금 대비 누적 손익</span></header>
+      <p className="teacher-investment-participation">
+        <span className="is-participating"><b>{participantCount}</b>명 참여</span>
+        <span className="is-idle"><b>{studentNumbers.length - participantCount}</b>명 미참여</span>
+      </p>
       <div className="teacher-investment-legend" aria-label="등락 색상 기준">
-        <span className="is-up">▲ 수익</span><span className="is-flat">─ 변동 없음</span><span className="is-down">▼ 손실</span>
+        <span className="is-up">▲ 수익</span><span className="is-flat">─ 변동 없음</span><span className="is-down">▼ 손실</span><span className="is-idle">미참여</span>
       </div>
       <div className="teacher-investment-roster" role="group" aria-label="학생별 누적 손익">
-        {Array.from({ length: 23 }, (_, index) => index + 1).map(studentNumber => {
+        {studentNumbers.map(studentNumber => {
           const student = getTeacherInvestmentSummary(displayStates[String(studentNumber)]);
-          const status = student.count === 0 ? '투자 없음' : student.profit === 0 ? '변동 없음'
-            : `${student.profit > 0 ? '수익' : '손실'} ${formatAmount(Math.abs(student.profit))} 고마`;
-          return <button key={studentNumber} type="button" className={`is-${student.trend}`} aria-label={`${studentNumber}번, ${status}`} title={`${studentNumber}번 · ${status}`} aria-pressed={selectedStudent === studentNumber} aria-controls={`${id}-detail`} data-invested={student.count > 0} onClick={() => setSelectedStudent(studentNumber)}>
-            <strong>{studentNumber}</strong><span aria-hidden="true">{student.count === 0 ? '미투자' : trendSymbol(student.profit)}</span>
+          const isParticipating = student.count > 0;
+          const status = !isParticipating ? '미참여' : student.profit === 0 ? `${student.count}종목, 변동 없음`
+            : `${student.count}종목, ${student.profit > 0 ? '수익' : '손실'} ${formatAmount(Math.abs(student.profit))} 고마`;
+          return <button key={studentNumber} type="button" className={isParticipating ? `is-${student.trend} is-participating` : 'is-idle'} aria-label={`${studentNumber}번, ${status}`} title={`${studentNumber}번 · ${status}`} aria-pressed={selectedStudent === studentNumber} aria-controls={`${id}-detail`} data-invested={isParticipating} onClick={() => setSelectedStudent(studentNumber)}>
+            <strong>{studentNumber}</strong><span aria-hidden="true">{isParticipating ? `${trendSymbol(student.profit)} ${formatSigned(student.profit)}` : '미참여'}</span>
           </button>;
         })}
       </div>

@@ -10612,7 +10612,7 @@ export default function TimerPage() {
               </div>
             </section>
             <section className="teacher-return-guide" aria-labelledby="teacher-return-guide-title">
-              <header><h4 id="teacher-return-guide-title">학생에게 보이는 말</h4></header>
+              <header><h4 id="teacher-return-guide-title">학생에게 보이는 말</h4><span>상승은 학생 수익에 2배로 반영</span></header>
               <div>
                 {[-40, -10, 0, 10, 40].map((percent) => {
                   const presentation = getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));

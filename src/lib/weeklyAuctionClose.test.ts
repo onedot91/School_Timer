@@ -122,7 +122,7 @@ test('로컬 마감 버튼은 시세를 반영해 주식을 매각한 정산 결
   await screen.close();
   const saved = screen.saved();
   assert.ok(isStorageRecord(saved));
-  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['1'], 170);
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['1'], 180);
   assert.deepEqual(normalizeStudentEconomyStates(saved.studentEconomy)['1'].investments, {});
   assert.deepEqual(normalizeCurrencyHistory(saved.currencyHistory)['1'].map(entry => entry.reason), ['allowance', 'tax', 'stock_trade']);
   assert.equal(screen.state.status, 'success');
