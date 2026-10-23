@@ -8,16 +8,16 @@ test('필수 저장 검증은 명시된 PostgreSQL 테스트를 강제 활성화
   const invocation = storageRegressionCommand({ STORAGE_AUCTION_PSQL_TEST: '0' });
   assert.equal(invocation.options.env.STORAGE_AUCTION_PSQL_TEST, '1');
   assert.ok(invocation.args.includes('--test-reporter=tap'));
-  assert.equal(STORAGE_REGRESSION_FILES.length, 4);
+  assert.equal(STORAGE_REGRESSION_FILES.length, 6);
   assert.ok(STORAGE_REGRESSION_FILES.every(file => invocation.args.includes(file)));
 });
 
 test('테스트가 빠지거나 건너뛰거나 실패하면 저장 검증은 통과하지 않는다', () => {
-  const stdout = '# tests 4\n# pass 4\n# fail 0\n# cancelled 0\n# skipped 0\n';
+  const stdout = '# tests 6\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n';
   assert.equal(storageRegressionPassed({ status: 0, stdout }), true);
   assert.equal(storageRegressionPassed({ status: 1, stdout }), false);
   assert.equal(storageRegressionPassed({ status: 0, stdout: '' }), false);
-  assert.equal(storageRegressionPassed({ status: 0, stdout: stdout.replace('# tests 4', '# tests 3').replace('# pass 4', '# pass 3') }), false);
+  assert.equal(storageRegressionPassed({ status: 0, stdout: stdout.replace('# tests 6', '# tests 5').replace('# pass 6', '# pass 5') }), false);
   assert.equal(storageRegressionPassed({ status: 0, stdout: stdout.replace('# skipped 0', '# skipped 1') }), false);
   assert.equal(storageRegressionPassed({ status: 0, stdout: stdout.replace('# fail 0', '# fail 1') }), false);
   const missing = spawnSync(process.execPath, ['dev/verifyStorage.mjs'], { encoding: 'utf8', env: { ...process.env, PATH: '' } });

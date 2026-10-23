@@ -7,6 +7,8 @@ export const STORAGE_REGRESSION_FILES = [
   'tests/storage/settingsAndFailureScopes.integration.test.ts',
   'tests/storage/librarySaveContract.integration.test.ts',
   'tests/storage/auctionBidAtomic.integration.test.ts',
+  'tests/storage/scopeReadBuffers.integration.test.ts',
+  'tests/storage/studentReadGate.integration.test.ts',
 ];
 
 export const storageRegressionCommand = (env = process.env) => ({

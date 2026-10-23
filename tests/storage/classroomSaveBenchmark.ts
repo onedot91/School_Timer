@@ -42,11 +42,11 @@ invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '-
 invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
 try {
   query('create role anon; create role authenticated; create role service_role;');
-  // Same function chain as production: JIT-free scoped reads and shared ancestor locks, then the combined command RPCs.
+  // Same function chain as production: JIT-free scoped reads and shared ancestor locks, the combined command RPCs, then distinct-parent scoped reads.
   for (const file of ['app_settings.sql', 'classword.sql', 'library_competition.sql', 'storage_v2.sql', 'storage_today_friend_v2.sql', 'storage_rewards_v2.sql',
     'newspaper_questions.sql', 'storage_classword_v2.sql', 'storage_audit_v2.sql', 'storage_scoped_v2.sql', 'storage_read_performance.sql',
     'storage_library_placement_v2.sql', 'storage_scoped_polling.sql', 'storage_scope_history_read_performance.sql', 'storage_scoped_read_execution.sql', 'storage_snapshot_execution.sql',
-    'storage_ancestor_locks.sql', 'storage_command_round_trips.sql']) {
+    'storage_ancestor_locks.sql', 'storage_command_round_trips.sql', 'storage_scope_read_buffers.sql']) {
     query(await readFile(new URL(`../../supabase/${file}`, import.meta.url), 'utf8'));
   }
   const students = Array.from({ length: 23 }, (_, index) => index + 1);

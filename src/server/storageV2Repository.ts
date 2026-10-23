@@ -1,4 +1,5 @@
 import { measureStorageRequest } from './storageRequestTiming.js';
+import { StorageReadBusyError } from './storageReadPriority.js';
 import { createHash } from 'node:crypto';
 import { normalizeAuctionItems } from '../lib/currency.js';
 import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
@@ -47,9 +48,9 @@ const request = (configuration: StorageConfiguration, path: string, payload: unk
         const message = isStorageRecord(body) && typeof body.message === 'string' ? body.message : '';
         if (isStorageRecord(body) && ['40001', '40P01', '55P03'].includes(String(body.code)))
             throw new StorageRepositoryError(503, 'STORAGE_SERIALIZATION_RETRY');
-        const allowed = ['STORAGE_MAINTENANCE', 'STORAGE_NOT_ACTIVE', 'STORAGE_REQUEST_REUSED', 'STORAGE_BALANCE_MISMATCH', 'STORAGE_LEDGER_IMMUTABLE', 'STORAGE_INVALID_MUTATION', 'STORAGE_SCOPE_VIOLATION'];
+        const allowed = ['STORAGE_MAINTENANCE', 'STORAGE_NOT_ACTIVE', 'STORAGE_READ_BUSY', 'STORAGE_REQUEST_REUSED', 'STORAGE_BALANCE_MISMATCH', 'STORAGE_LEDGER_IMMUTABLE', 'STORAGE_INVALID_MUTATION', 'STORAGE_SCOPE_VIOLATION'];
         const code = allowed.find((candidate) => message === candidate);
-        throw new StorageRepositoryError(code === 'STORAGE_MAINTENANCE' || code === 'STORAGE_NOT_ACTIVE' ? 503 : code === 'STORAGE_REQUEST_REUSED' ? 409 : code === 'STORAGE_SCOPE_VIOLATION' ? 400 : 502, code ?? `STORAGE_DATABASE_HTTP_${response.status}`);
+        throw new StorageRepositoryError(code === 'STORAGE_MAINTENANCE' || code === 'STORAGE_NOT_ACTIVE' || code === 'STORAGE_READ_BUSY' ? 503 : code === 'STORAGE_REQUEST_REUSED' ? 409 : code === 'STORAGE_SCOPE_VIOLATION' ? 400 : 502, code ?? `STORAGE_DATABASE_HTTP_${response.status}`);
     }
     return body;
 }).catch((error: unknown) => {
@@ -60,6 +61,22 @@ const request = (configuration: StorageConfiguration, path: string, payload: unk
     if (error instanceof TypeError) throw new StorageRepositoryError(502, 'STORAGE_DATABASE_NETWORK');
     throw error;
 });
+const STUDENT_READ_GATE_WAIT_MS = 2000;
+// Student-only reads may pass through the classroom-wide database gate (storage_student_read_gate.sql).
+// A full gate answers at once; retry briefly here so no pooled database connection waits.
+const studentReadRequest = async (configuration: StorageConfiguration, path: string, payload: unknown): Promise<unknown> => {
+    if (process.env.STORAGE_STUDENT_READ_GATE !== '1') return request(configuration, path, payload);
+    const deadline = Date.now() + STUDENT_READ_GATE_WAIT_MS;
+    for (;;) {
+        try { return await request(configuration, `${path}_student`, payload); }
+        catch (error) {
+            if (!(error instanceof StorageRepositoryError) || error.code !== 'STORAGE_READ_BUSY') throw error;
+            const delay = 100 + Math.random() * 200;
+            if (Date.now() + delay >= deadline) throw new StorageReadBusyError();
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+};
 const parseValue = (value: unknown): StorageResourceValue => {
     if (!isStorageRecord(value) || !['value', 'object', 'array'].includes(String(value.kind)) || (value.parentKey !== null && typeof value.parentKey !== 'string') || typeof value.member !== 'string' || (value.order !== undefined && typeof value.order !== 'number'))
         return invalid();
@@ -254,11 +271,12 @@ export const loadScopedStorageSnapshot = async (configuration: StorageConfigurat
     parseScopedStorageSnapshot(await request(configuration, 'storage_load_scope', { p_scope: parseStorageScope(scope) }));
 
 const scopedSnapshotReads = new Map<string, Promise<ScopedStorageSnapshot>>();
+// Student GET projections only; commands and teacher reads use loadScopedStorageSnapshot outside the gate.
 export const loadScopedStorageSnapshotForRead = (configuration: StorageConfiguration, scope: StorageScope): Promise<ScopedStorageSnapshot> => {
     const identity = canonicalStorageJson([configuration.url, configuration.key, parseStorageScope(scope)]);
     const pending = scopedSnapshotReads.get(identity);
     if (pending) return pending;
-    const read = loadScopedStorageSnapshot(configuration, scope).finally(() => {
+    const read = studentReadRequest(configuration, 'storage_load_scope', { p_scope: parseStorageScope(scope) }).then(parseScopedStorageSnapshot).finally(() => {
         if (scopedSnapshotReads.get(identity) === read) scopedSnapshotReads.delete(identity);
     });
     scopedSnapshotReads.set(identity, read);
@@ -293,7 +311,7 @@ export const pollScopedStorageMetadata = async (configuration: StorageConfigurat
     // A global unchanged marker can serve every scope; changed versions remain scope-specific.
     // Bound follower waiting so a slow leader cannot add another full database timeout.
     const read = (shared ? waitForSharedPoll(shared).then(result => result && 'unchanged' in result ? result : loadOwnMetadata())
-        : request(configuration, 'storage_poll_scope', { p_scope: parsedScope, p_known_read_marker: knownReadMarker }).then((body): ScopedStoragePoll => {
+        : studentReadRequest(configuration, 'storage_poll_scope', { p_scope: parsedScope, p_known_read_marker: knownReadMarker }).then((body): ScopedStoragePoll => {
         if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
             || typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker)) return invalid();
         if (body.unchanged === true) {
@@ -318,7 +336,7 @@ export const loadScopedStorageMetadata = async (configuration: StorageConfigurat
     const identity = canonicalStorageJson([configuration.url, configuration.key, parsedScope]);
     const pending = scopedMetadataReads.get(identity);
     if (pending) return pending;
-    const read = request(configuration, 'storage_load_scope_metadata', { p_scope: parsedScope }).then(body => {
+    const read = studentReadRequest(configuration, 'storage_load_scope_metadata', { p_scope: parsedScope }).then(body => {
         if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
             || typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion)) return invalid();
         if (body.readMarker !== undefined && (typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker))) return invalid();
