@@ -29,10 +29,10 @@ function Review() {
     <main className="mx-auto w-full max-w-7xl">
       <StudentOverviewPage studentNumber={14} profileAssignments={{}} balance={balance} availableBalance={balance - reservedAmount} reservedAmount={reservedAmount}
         isLoading={false} pendingDeductions={economy.pendingDeductions} pet={getStudentPetState({}, 14)} isPetSaving={false} todayEmotion={null} hasUnreadMail={false}
-        isHouseRepaired={false} ownedCharacterIds={[]} activeCharacterId={null} isCharacterSaving={false}
+        isHouseRepaired={false} ownedCharacterIds={[]} activeCharacterId={null} isCharacterSaving={false} halloweenClaimableIds={[]}
         ownedHouseIds={[]} activeHouseId={null} customHouseDesign={null} isHouseSaving={false}
         onFeedPet={accept} onNamePet={accept} onChangePet={accept} onMovePet={accept} onMoveGoma={accept}
-        onSelectCharacter={accept} onSelectHouse={accept} onOpenEmotions={noop} onOpenMissions={noop} onOpenStore={noop}
+        onSelectCharacter={accept} onClaimHalloweenCharacter={accept} onSelectHouse={accept} onOpenEmotions={noop} onOpenMissions={noop} onOpenStore={noop}
         onOpenProfileShop={noop} onOpenMailbox={noop} onOpenLibrary={noop} />
     </main>
     <aside className="deduction-review-controls" aria-label="가짜 데이터 테스트">

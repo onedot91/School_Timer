@@ -4,6 +4,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import {
   STUDENT_CHARACTER_DRAW_PRICE,
   STUDENT_CHARACTER_PRIZES,
+  getStudentCharacterPrizes,
   type StudentCharacterPrizeId,
   type StudentCharacterChoice,
   type StudentEconomyAction,
@@ -70,7 +71,9 @@ export default function StudentCharacterGacha({
   const clawCableRef = useRef<HTMLDivElement>(null);
   const caughtCapsuleRef = useRef<HTMLSpanElement>(null);
   const selectedCapsuleRef = useRef<HTMLDivElement>(null);
-  const ownsAll = state.ownedCharacterIds.length >= STUDENT_CHARACTER_PRIZES.length;
+  const remainingCharacterCount = getStudentCharacterPrizes(getKoreanDateKey())
+    .filter((character) => !state.ownedCharacterIds.includes(character.id)).length;
+  const ownsAll = remainingCharacterCount === 0;
   const drawPrice = state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE;
   const canDraw = availableBalance >= drawPrice && !ownsAll && !state.pendingCharacterChoice;
   const visibleChoice = choice ?? state.pendingCharacterChoice;
@@ -254,7 +257,7 @@ export default function StudentCharacterGacha({
           <div className="student-claw-control-heading">
             <span>{stage === 'ready' ? '뽑기 시작' : stage === 'aiming' ? '집게 조작' : '뽑는 중'}</span>
             <strong>{state.pendingCharacterChoice ? '추가 비용 없음' : drawPrice === 0 ? '무료' : `${drawPrice} 고마`}</strong>
-            {STUDENT_CHARACTER_PRIZES.length - state.ownedCharacterIds.length === 1
+            {remainingCharacterCount === 1
               ? <small>마지막 스킨이 기다리고 있어요</small> : null}
           </div>
           {stage === 'ready' ? (

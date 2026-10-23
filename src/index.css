@@ -26886,6 +26886,111 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-skin-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.student-halloween-dialog {
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-color: #5b3a86;
+  background:
+    radial-gradient(circle at 12% 18%, rgb(255 255 255 / .9) 0 1px, transparent 2px),
+    radial-gradient(circle at 34% 8%, rgb(255 255 255 / .7) 0 1px, transparent 2px),
+    radial-gradient(circle at 58% 14%, rgb(255 255 255 / .8) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 6%, rgb(255 255 255 / .6) 0 1px, transparent 2px),
+    radial-gradient(circle at 46% 22%, rgb(255 255 255 / .5) 0 1px, transparent 2px),
+    radial-gradient(ellipse at 50% 120%, #b4531a 0, rgb(180 83 26 / 0) 55%),
+    linear-gradient(180deg, #1f1238 0%, #3a2160 60%, #4b2a63 100%);
+  box-shadow: 0 0 0 1px rgb(255 160 70 / .25), var(--apple-shadow-3);
+}
+.student-halloween-dialog > :not(.student-halloween-night) { position: relative; z-index: 1; }
+.student-halloween-dialog > .student-pet-dialog-close { position: absolute; z-index: 2; color: #f3e6ff; }
+.student-halloween-dialog > .student-pet-dialog-close:hover:not(:disabled) { background: rgb(255 255 255 / .12); }
+.student-halloween-night { position: absolute; inset: 0; pointer-events: none; }
+.student-halloween-moon {
+  position: absolute;
+  top: .9rem;
+  left: 1.2rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff7d1, #ffd66b 70%);
+  box-shadow: 0 0 1.4rem rgb(255 214 107 / .6);
+}
+.student-halloween-bat { position: absolute; fill: #0d0718; stroke: #ffb347; stroke-width: 1.4px; stroke-linejoin: round; filter: drop-shadow(0 0 .35rem rgb(255 160 60 / .55)); animation: student-halloween-bat-float 3.2s ease-in-out infinite; }
+.student-halloween-bat.is-left { top: .55rem; left: 48%; width: 2.8rem; }
+.student-halloween-bat.is-right { top: .9rem; right: 4.5rem; width: 2.3rem; animation-delay: -1.1s; }
+.student-halloween-bat.is-small { top: .35rem; right: 9rem; width: 1.6rem; animation-delay: -2.2s; }
+@keyframes student-halloween-bat-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-.35rem) rotate(4deg); }
+}
+.student-halloween-title {
+  margin: 0;
+  padding: .35rem 3rem 0 3.6rem;
+  color: #ffb347;
+  font-size: var(--type-title);
+  font-weight: 950;
+  text-shadow: 0 2px 0 #5a2a07, 0 0 1rem rgb(255 140 40 / .45);
+}
+.student-halloween-picker {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .6rem;
+  overflow-y: auto;
+  padding: .15rem;
+}
+.student-halloween-picker button {
+  position: relative;
+  display: grid;
+  min-height: 8.5rem;
+  justify-items: center;
+  align-content: center;
+  gap: .25rem;
+  border: 2px solid rgb(255 179 71 / .35);
+  border-radius: 1rem;
+  padding: .5rem;
+  background: #fff8ec;
+  color: #2b1a3d;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.student-halloween-picker img { width: 5.5rem; height: 5.5rem; object-fit: contain; }
+.student-halloween-picker strong { font-size: var(--type-body); font-weight: 900; }
+.student-halloween-picker small { color: #6b5a7a; font-size: var(--type-caption); font-weight: 850; }
+.student-halloween-picker button:hover:not(:disabled) { border-color: #ffb347; transform: translateY(-2px); }
+.student-halloween-picker button[aria-checked='true'] {
+  border-color: #ff8a1f;
+  background: #ffe7c7;
+  box-shadow: 0 0 0 3px rgb(255 138 31 / .45), 0 0 1.2rem rgb(255 138 31 / .55);
+}
+.student-halloween-picker button:disabled:not([aria-checked='true']) { cursor: default; }
+.student-halloween-picker button:disabled img { opacity: .45; }
+.student-halloween-picker button:focus-visible { outline: 3px solid #ffd66b; outline-offset: 2px; }
+.student-halloween-check { position: absolute; top: .4rem; right: .4rem; border-radius: 999px; padding: .15rem; color: #fff; background: #e8710f; }
+.student-halloween-actions { display: grid; gap: .45rem; }
+.student-halloween-actions .student-pet-dialog-error { color: #ffc9a8; }
+.student-halloween-dialog .student-pet-dialog-primary {
+  min-height: 3rem;
+  color: #2b1300;
+  background: linear-gradient(180deg, #ffb347, #f07f12);
+  box-shadow: 0 3px 0 #9c4a06;
+  font-size: var(--type-body);
+}
+.student-halloween-dialog .student-pet-dialog-primary:disabled { color: rgb(255 255 255 / .55); background: rgb(255 255 255 / .12); box-shadow: none; }
+.student-halloween-dialog .student-pet-dialog-primary:focus-visible { outline: 3px solid #ffd66b; outline-offset: 2px; }
+.student-halloween-done { display: grid; justify-items: center; gap: .75rem; padding: .5rem 0; text-align: center; }
+.student-halloween-done img { width: 12rem; height: 12rem; object-fit: contain; filter: drop-shadow(0 0 1.2rem rgb(255 160 60 / .5)); }
+.student-halloween-done h2 { margin: 0; color: #ffb347; font-size: var(--type-title); font-weight: 950; text-shadow: 0 2px 0 #5a2a07; }
+.student-halloween-done .student-pet-dialog-primary { min-width: 8rem; }
+@media (max-height: 40rem) {
+  .student-halloween-picker button { min-height: 7rem; }
+  .student-halloween-picker img { width: 4.25rem; height: 4.25rem; }
+  .student-halloween-done img { width: 9rem; height: 9rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-halloween-picker button { transition: none; }
+  .student-halloween-picker button:hover:not(:disabled) { transform: none; }
+  .student-halloween-bat { animation: none; }
+}
+
 .student-emotion-empty-orb,
 .emotion-status-empty-orb {
   display: inline-flex;

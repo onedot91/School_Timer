@@ -105,7 +105,8 @@ import {
   type StudentPetStates,
 } from '../lib/studentPet';
 import {
-  STUDENT_CHARACTER_PRIZES,
+  getStudentCharacterPrizes,
+  getKoreanDateKey as getStudentEconomyDateKey,
   STUDENT_HOUSE_DESIGNS,
   STUDENT_STOCKS,
   orderTeacherHouseShopCatalog,
@@ -4117,6 +4118,7 @@ export default function TimerPage() {
   }, [stockMarketWeekStartDateKey, studentStockMarket]);
   useEffect(() => { setStockMarketSaveStatus(''); }, [stockMarketWeekStartDateKey]);
   const [teacherShopTab, setTeacherShopTab] = useState<TeacherShopTab>('items');
+  const teacherVisibleCharacterPrizes = getStudentCharacterPrizes(getStudentEconomyDateKey());
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
@@ -10343,7 +10345,7 @@ export default function TimerPage() {
             {teacherShopTab === 'items'
               ? `사용 중 ${teacherUsedProfiles.length} / ${teacherAvailableProfiles.length + teacherUsedProfiles.length}`
               : teacherShopTab === 'skins'
-                ? `${STUDENT_CHARACTER_PRIZES.length}종`
+                ? `${teacherVisibleCharacterPrizes.length}종`
                 : teacherShopTab === 'houses'
                   ? `${STUDENT_HOUSE_DESIGNS.length}채`
                   : '1~23번'}
@@ -10390,7 +10392,7 @@ export default function TimerPage() {
       {teacherShopTab === 'skins' ? (
         <section id="teacher-shop-panel-skins" role="tabpanel" aria-labelledby="teacher-shop-tab-skins" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="teacher-shop-skin-list">
-            {STUDENT_CHARACTER_PRIZES.map((character) => (
+            {teacherVisibleCharacterPrizes.map((character) => (
               <article key={character.id}>
                 <img src={character.imageSrc} alt="" width={192} height={192} loading="lazy" />
                 <span>{character.name}</span>

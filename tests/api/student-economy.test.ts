@@ -3,7 +3,7 @@ import { normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import { applyStudentEconomyAction, normalizeStudentEconomyState } from '../../src/lib/studentEconomy.js';
 import { updateStudentEconomy } from '../../src/lib/studentEconomyClient.js';
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 
 import handler from '../../api/student-economy.js';
 import sharedSettingsHandler from '../../api/shared-settings.js';
@@ -569,3 +569,37 @@ test('새 거래는 사전 GET 없이 저장하고 확인 GET 장애 중 수동 
   assert.equal(hasUnconfirmedStudentEconomyDraft(1), false);
   assert.deepEqual(db.value().currencyBalances, { 1: 115, 2: 222 });
 }));
+
+test('할로윈 스킨은 서버 기준 공개일부터 한 번만 무료로 받고 타인 데이터·지갑·이력을 보존한다', async () => {
+  const initial = { ...previousValue, studentEconomy: { ...previousValue.studentEconomy, 1: { ownedCharacterIds: ['character-129'] } } };
+  await withFixture(async db => {
+    const before = db.value();
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-29T14:59:00Z') });
+    try {
+      const early = await act(1, { type: 'claim_halloween_character', characterId: 'character-128' }, 'halloween-early');
+      assert.deepEqual(early.body, { error: 'HALLOWEEN_EVENT_NOT_OPEN', businessRejected: true });
+      assert.equal(db.writes.length, 0);
+      mock.timers.setTime(Date.parse('2026-10-29T15:00:00Z'));
+      const owned = await act(1, { type: 'claim_halloween_character', characterId: 'character-129' }, 'halloween-owned');
+      assert.deepEqual(owned.body, { error: 'INVALID_CHARACTER_CHOICE', businessRejected: true });
+      const outside = await act(1, { type: 'claim_halloween_character', characterId: 'character-1' }, 'halloween-outside');
+      assert.deepEqual(outside.body, { error: 'INVALID_CHARACTER_CHOICE', businessRejected: true });
+      const malformed = await act(1, { type: 'claim_halloween_character', characterId: null }, 'halloween-malformed');
+      assert.equal(malformed.statusCode, 400);
+      assert.equal(db.writes.length, 0);
+      const claimed = await act(1, { type: 'claim_halloween_character', characterId: 'character-133' }, 'halloween-claim');
+      assert.equal(claimed.statusCode, 200);
+      const economy = normalizeStudentEconomyState(Reflect.get(db.value().studentEconomy as object, '1'));
+      assert.deepEqual(economy.ownedCharacterIds, ['character-129', 'character-133']);
+      assert.equal(economy.activeCharacterId, 'character-133');
+      assert.equal(economy.halloweenCharacterClaimed, true);
+      const again = await act(1, { type: 'claim_halloween_character', characterId: 'character-128' }, 'halloween-again');
+      assert.deepEqual(again.body, { error: 'HALLOWEEN_EVENT_CLAIMED', businessRejected: true });
+      assert.deepEqual(db.value().currencyBalances, before.currencyBalances);
+      assert.deepEqual(db.value().currencyHistory, before.currencyHistory);
+      assert.deepEqual(Reflect.get(db.value().studentEconomy as object, '2'), previousValue.studentEconomy[2]);
+    } finally {
+      mock.timers.reset();
+    }
+  }, initial);
+});

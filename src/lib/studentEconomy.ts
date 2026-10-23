@@ -183,7 +183,37 @@ export const STUDENT_CHARACTER_PRIZES = [
   { id: 'character-125', name: '푸딩 고마', imageSrc: '/goma-skins/pudding-goma.png' },
   { id: 'character-126', name: '피자 고마', imageSrc: '/goma-skins/pizza-goma.png' },
   { id: 'character-127', name: '필통 고마', imageSrc: '/goma-skins/pencil-case-goma.png' },
+  { id: 'character-128', name: '마녀 고마', imageSrc: '/goma-skins/halloween-witch-goma.png' },
+  { id: 'character-129', name: '미라 고마', imageSrc: '/goma-skins/halloween-mummy-goma.png' },
+  { id: 'character-130', name: '박쥐 고마', imageSrc: '/goma-skins/halloween-bat-goma.png' },
+  { id: 'character-131', name: '꼬마 유령 고마', imageSrc: '/goma-skins/halloween-ghost-goma.png' },
+  { id: 'character-132', name: '호박 고마', imageSrc: '/goma-skins/halloween-pumpkin-goma.png' },
+  { id: 'character-133', name: '늑대인간 고마', imageSrc: '/goma-skins/halloween-werewolf-goma.png' },
 ] as const;
+
+// 할로윈 스킨은 공개일(한국 날짜) 전에는 뽑기·도감에 나오지 않는다. 공개일부터 학생마다 한 번 무료로 고를 수 있다.
+export const STUDENT_HALLOWEEN_EVENT_START_DATE_KEY = '2026-10-30';
+export const STUDENT_HALLOWEEN_CHARACTER_IDS: readonly string[] = [
+  'character-128', 'character-129', 'character-130', 'character-131', 'character-132', 'character-133',
+];
+
+export const isStudentHalloweenEventOpen = (dateKey: string) => dateKey >= STUDENT_HALLOWEEN_EVENT_START_DATE_KEY;
+
+export const getStudentCharacterPrizes = (dateKey: string) => (
+  isStudentHalloweenEventOpen(dateKey)
+    ? STUDENT_CHARACTER_PRIZES
+    : STUDENT_CHARACTER_PRIZES.filter((character) => !STUDENT_HALLOWEEN_CHARACTER_IDS.includes(character.id))
+);
+
+export const getClaimableStudentHalloweenCharacterIds = (
+  state: Pick<StudentEconomyState, 'ownedCharacterIds' | 'pendingCharacterChoice' | 'halloweenCharacterClaimed'>,
+  dateKey: string,
+): string[] => (
+  !isStudentHalloweenEventOpen(dateKey) || state.halloweenCharacterClaimed ? [] : STUDENT_HALLOWEEN_CHARACTER_IDS.filter((id) => (
+    !state.ownedCharacterIds.some((ownedId) => ownedId === id)
+    && !state.pendingCharacterChoice?.characterIds.some((choiceId) => choiceId === id)
+  ))
+);
 
 export const DEFAULT_STUDENT_CHARACTER = {
   id: null,
@@ -288,6 +318,7 @@ export interface StudentEconomyState {
   activeCharacterId: StudentCharacterPrizeId | null;
   characterFreeDrawAvailable: boolean;
   pendingCharacterChoice: StudentCharacterChoice | null;
+  halloweenCharacterClaimed: boolean;
   ownedHouseIds: StudentHouseDesignId[];
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   hasCustomHouseCoupon: boolean;
@@ -414,6 +445,7 @@ export type StudentEconomyAction =
   | { type: 'draw_character' }
   | { type: 'choose_draw_character'; drawRequestId: string; characterId: StudentCharacterPrizeId }
   | { type: 'select_character'; characterId: StudentCharacterPrizeId | null }
+  | { type: 'claim_halloween_character'; characterId: StudentCharacterPrizeId }
   | { type: 'buy_house'; houseId: StudentHouseDesignId }
   | { type: 'select_house'; houseId: StudentHouseDesignId | 'custom' | null }
   | { type: 'buy_custom_house_coupon' }
@@ -693,6 +725,7 @@ export const createStudentEconomyState = (): StudentEconomyState => ({
   activeCharacterId: null,
   characterFreeDrawAvailable: true,
   pendingCharacterChoice: null,
+  halloweenCharacterClaimed: false,
   ownedHouseIds: [],
   activeHouseId: null,
   hasCustomHouseCoupon: false,
@@ -748,6 +781,7 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
       && candidate.drawRequestId.length >= 8 && candidate.drawRequestId.length <= 160
       && /^[a-zA-Z0-9-]+$/.test(candidate.drawRequestId) && characterIds.length > 0
       ? { drawRequestId: candidate.drawRequestId, characterIds } : null,
+    halloweenCharacterClaimed: source.halloweenCharacterClaimed === true,
     ownedHouseIds: normalizeIdList<StudentHouseDesignId>(source.ownedHouseIds, HOUSE_IDS),
     activeHouseId: source.activeHouseId === 'custom' || (typeof source.activeHouseId === 'string' && HOUSE_IDS.has(source.activeHouseId))
       ? source.activeHouseId as StudentHouseDesignId | 'custom'
@@ -1045,6 +1079,7 @@ export const applyStudentEconomyAction = ({
   shopCatalog,
   stockMarket,
   characterDrawRoll,
+  todayDateKey = getKoreanDateKey(),
 }: {
   state: unknown;
   action: StudentEconomyAction;
@@ -1055,6 +1090,7 @@ export const applyStudentEconomyAction = ({
   shopCatalog?: unknown;
   stockMarket?: unknown;
   characterDrawRoll?: number;
+  todayDateKey?: string;
 }): StudentEconomyResult => {
   const state = normalizeStudentEconomyState(rawState);
   if (state.processedRequestIds.includes(requestId)) {
@@ -1181,7 +1217,7 @@ export const applyStudentEconomyAction = ({
     message = `${item.name}을(를) 샀습니다.`;
   } else if (action.type === 'draw_character') {
     if (state.pendingCharacterChoice) throw new Error('CHARACTER_CHOICE_PENDING');
-    const remaining = STUDENT_CHARACTER_PRIZES.filter((character) => !state.ownedCharacterIds.includes(character.id));
+    const remaining = getStudentCharacterPrizes(todayDateKey).filter((character) => !state.ownedCharacterIds.includes(character.id));
     if (remaining.length < 1) throw new Error('ALL_CHARACTERS_OWNED');
     spend(state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE);
     const oneTimeCharacterIndex = studentNumber === 12
@@ -1233,6 +1269,20 @@ export const applyStudentEconomyAction = ({
       activeCharacterId: character.id,
     };
     message = `${character.name} 스킨을 뽑았습니다.`;
+  } else if (action.type === 'claim_halloween_character') {
+    if (!isStudentHalloweenEventOpen(todayDateKey)) throw new Error('HALLOWEEN_EVENT_NOT_OPEN');
+    if (state.halloweenCharacterClaimed) throw new Error('HALLOWEEN_EVENT_CLAIMED');
+    const character = STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === action.characterId);
+    if (!character || !STUDENT_HALLOWEEN_CHARACTER_IDS.includes(character.id)
+      || state.ownedCharacterIds.includes(character.id)
+      || state.pendingCharacterChoice?.characterIds.includes(character.id)) throw new Error('INVALID_CHARACTER_CHOICE');
+    nextState = {
+      ...state,
+      halloweenCharacterClaimed: true,
+      ownedCharacterIds: [...state.ownedCharacterIds, character.id],
+      activeCharacterId: character.id,
+    };
+    message = `${character.name} 스킨을 받았습니다.`;
   } else if (action.type === 'select_character') {
     if (action.characterId !== null && !state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
     nextState = { ...state, activeCharacterId: action.characterId };
