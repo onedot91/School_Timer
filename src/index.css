@@ -15538,14 +15538,11 @@ a[href]:active {
   color: var(--bookstore-ink);
   text-align: left;
   box-shadow: .35rem .45rem 0 color-mix(in srgb, var(--bookstore-wood) 18%, transparent), var(--apple-shadow-1);
-  transition: transform var(--student-motion-press) var(--student-ease-out), box-shadow var(--student-motion-press) var(--student-ease-out);
+  transition: transform var(--student-motion-press) var(--student-ease-out), border-color var(--student-motion-state) var(--student-ease-out), box-shadow var(--student-motion-state) var(--student-ease-out);
 }
 .student-featured-writing-card[data-cover="1"] { background: color-mix(in srgb, var(--bookstore-paper) 88%, var(--apple-accent) 12%); }
 .student-featured-writing-card[data-cover="2"] { background: color-mix(in srgb, var(--bookstore-paper) 90%, var(--emotion-yellow) 10%); }
 .student-featured-writing-card[data-cover="3"] { background: color-mix(in srgb, var(--bookstore-paper) 90%, var(--emotion-red) 10%); }
-@media (hover: hover) {
-  .student-featured-writing-card:hover { transform: translateY(-.2rem); box-shadow: .35rem .65rem 0 color-mix(in srgb, var(--bookstore-wood) 18%, transparent), var(--apple-shadow-2); }
-}
 .student-featured-writing-card:active { transform: scale(.98); }
 .student-featured-writing-card:focus-visible,
 .student-bookshelf-entry:focus-visible,
@@ -15588,10 +15585,7 @@ a[href]:active {
   color: white;
   text-align: left;
   box-shadow: var(--apple-shadow-2);
-  transition: transform var(--student-motion-press) var(--student-ease-out), filter var(--student-motion-press) var(--student-ease-out);
-}
-@media (hover: hover) {
-  .student-bookshelf-entry:hover { transform: translateY(-.15rem); filter: brightness(1.04); }
+  transition: transform var(--student-motion-press) var(--student-ease-out), border-color var(--student-motion-state) var(--student-ease-out), box-shadow var(--student-motion-state) var(--student-ease-out);
 }
 .student-bookshelf-entry:active { transform: scale(.98); }
 .student-bookshelf-entry-icon { display: grid; width: 4rem; height: 4rem; place-items: center; border-radius: 1rem; background: color-mix(in srgb, white 14%, transparent); }
@@ -16732,10 +16726,6 @@ a[href]:active {
     opacity 120ms linear;
   transform: translateY(0) scale(1);
   will-change: transform;
-}
-
-.auction-item-card:not(:disabled):hover {
-  transform: translateY(-2px);
 }
 
 .auction-item-card:not(:disabled):active {
@@ -21095,11 +21085,6 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   outline-offset: 3px;
 }
 
-.student-mission-card.is-interactive:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--apple-accent) 38%, var(--apple-separator));
-  box-shadow: 0 .65rem 1.25rem color-mix(in srgb, var(--apple-accent-pressed) 12%, transparent);
-}
 
 .student-mission-card.is-interactive:has(.student-mission-card-action:active) {
   transform: scale(0.985);
@@ -24753,6 +24738,207 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-rapid-click-dialog-timer { animation: none; opacity: .45; }
 }
 
+/* Amount checks: one plain line says why the confirm button is off. The words and a stronger border carry it, not color alone. */
+.student-amount-issue {
+  margin: 0;
+  color: var(--student-warning);
+  font-size: var(--type-body-sm);
+  font-weight: 800;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+.student-amount-issue:empty { display: none; }
+/* The bid panel keeps its line reserved, so typing never makes the panel jump. */
+.auction-bid-amount-issue { min-height: 1.4em; margin-top: .4rem; }
+.auction-bid-amount-issue:empty { display: block; }
+/* The broken rule is already listed in the bank dialog, so it is marked in place instead of repeated. */
+.student-confirm-dialog .student-bank-rule > li[data-invalid="true"]::before { content: '!'; color: var(--student-warning); font-weight: 900; }
+.student-confirm-dialog .student-bank-rule > li[data-invalid="true"] :is(strong, span) { color: var(--student-warning); }
+:is(.student-bank-amount-field, .auction-bid-input)[data-invalid="true"] {
+  border-color: color-mix(in srgb, var(--student-warning) 70%, var(--apple-separator-strong));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--student-warning) 45%, transparent);
+}
+
+/* A changed amount settles into place: transform only, so a paused animation clock still shows the number. */
+.student-amount-settle {
+  display: inline-block;
+  animation: student-amount-settle var(--student-motion-state, 180ms) var(--student-ease-out, ease-out);
+}
+@keyframes student-amount-settle {
+  from { transform: translateY(-.22em); }
+  to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-amount-settle { animation: none; }
+}
+
+/* Student loading placeholders: a static tinted block is the whole message, the light sweep (transform only) is extra. */
+.student-skeleton-block {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--apple-accent) 11%, var(--apple-surface-muted));
+}
+.student-skeleton-block::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .7) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: student-skeleton-sweep 1.4s ease-in-out infinite;
+}
+@keyframes student-skeleton-sweep {
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-skeleton-block::after { display: none; }
+}
+@media (forced-colors: active) {
+  .student-skeleton-block { border: 1px solid CanvasText; }
+}
+
+/* Heights stay within each number's line box (primary 2rem; detail 21px in the compact store header), so the summary does not grow when numbers arrive. */
+.student-balance-skeleton { display: inline-block; vertical-align: top; }
+.student-balance-skeleton--primary { width: 5.5rem; height: 2rem; }
+.student-balance-skeleton--detail { width: 3.5rem; height: 1.25rem; }
+
+/* Confirmed balance change: the +/− badge sits over the label row, out of flow, so the summary never resizes.
+   The label only turns transparent, so screen readers still read it. */
+.student-balance-primary .student-balance-primary-heading { position: relative; }
+.student-balance-primary .student-balance-change {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  left: 0;
+  width: fit-content;
+  height: fit-content;
+  margin-block: auto;
+  padding: 0 .5rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 35%, var(--apple-separator));
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-accent-pressed);
+  background: color-mix(in srgb, var(--apple-accent) 12%, var(--apple-surface));
+  font-family: var(--font-mono);
+  font-size: var(--type-body-sm);
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: student-balance-change-in var(--student-motion-state, 180ms) var(--student-ease-out, ease-out) both;
+}
+.student-balance-summary.has-pending-deduction .student-balance-change { right: 0; margin-inline: auto; }
+.student-balance-primary[data-changing="true"] .student-balance-primary-heading > :not(.student-balance-change) {
+  opacity: 0;
+}
+.student-balance-primary .student-balance-change[data-direction="down"] {
+  border-color: color-mix(in srgb, var(--student-warning) 40%, var(--apple-separator));
+  color: var(--student-warning);
+  background: var(--student-warning-soft);
+}
+/* Transform only: a paused animation clock still leaves the badge readable. */
+@keyframes student-balance-change-in {
+  from { transform: translateY(.35rem) scale(.92); }
+  to { transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-balance-change { animation: none; }
+}
+
+.student-skeleton-back { width: 4.5rem; height: 2.75rem; border-radius: var(--apple-radius-pill); }
+.student-skeleton-title { width: 7rem; height: 1.75rem; }
+.student-skeleton-balance { width: 14rem; height: 2.75rem; }
+
+.student-loading-skeleton-cards,
+.student-loading-skeleton-delayed {
+  min-height: 0;
+}
+.student-loading-skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--student-shell-gap, 1rem);
+}
+.student-loading-skeleton-delayed { display: grid; place-items: center; }
+.student-loading-skeleton-card {
+  display: grid;
+  grid-template-rows: minmax(8rem, 1fr) auto auto auto;
+  gap: .65rem;
+  min-height: 18rem;
+  padding: 1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-1);
+}
+.student-skeleton-scene { width: 100%; height: 100%; }
+.student-skeleton-line { width: 40%; height: .9rem; }
+.student-skeleton-amount { width: 55%; height: 1.75rem; }
+.student-skeleton-action { width: 100%; height: 2.75rem; border-radius: var(--apple-radius-pill); }
+@media (max-width: 47.99rem) {
+  .student-loading-skeleton-cards { grid-template-columns: minmax(0, 1fr); }
+  .student-loading-skeleton-card:nth-child(n + 2) { display: none; }
+  .student-skeleton-balance { width: 8rem; }
+}
+
+/* Confirmed results only; never blocks clicks, so students keep going while it is up.
+   Sits just below the student header so a wide one-line message never hides the goma balance. */
+.student-toast-region {
+  position: fixed;
+  left: 50%;
+  top: max(5.5rem, env(safe-area-inset-top));
+  /* Above student confirm dialogs (110): a shop rejection arrives while its dialog stays open. */
+  z-index: 130;
+  display: flex;
+  justify-content: center;
+  width: calc(100% - 2rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.student-toast {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 28%, var(--apple-separator));
+  border-radius: var(--apple-radius-panel);
+  color: var(--apple-text-primary);
+  background: var(--apple-material-thick);
+  box-shadow: inset 0 1px 0 var(--apple-edge-highlight), var(--apple-shadow-3);
+  font-size: var(--type-title);
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  /* One line whenever it fits; only very long messages or large text zoom wrap, and then into even lines. */
+  text-wrap: balance;
+  animation: student-toast-in .22s ease-out both;
+}
+.student-toast-icon {
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  color: var(--apple-accent-pressed);
+}
+.student-toast[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--student-warning) 45%, var(--apple-separator));
+  background: var(--student-warning-soft);
+}
+.student-toast[data-tone="warning"] .student-toast-icon { color: var(--student-warning); }
+/* Slide only, no fade: a paused or skipped animation still leaves the message readable. */
+@keyframes student-toast-in {
+  from { transform: translateY(-.75rem); }
+  to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-toast { animation: none; }
+}
+@media (forced-colors: active) {
+  .student-toast { border-color: CanvasText; }
+}
+
 .student-confirm-dialog.student-sudoku-settings-dialog {
   width: min(100%, 46rem);
   gap: .75rem;
@@ -28083,11 +28269,6 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   font-weight: 850;
 }
 
-.student-profile-shop-option[data-status="available"]:hover {
-  border-color: color-mix(in srgb, var(--apple-accent) 55%, var(--apple-separator));
-  box-shadow: 0 .45rem 1rem color-mix(in srgb, var(--apple-accent) 13%, transparent);
-  transform: translateY(-2px);
-}
 
 .student-profile-shop-option[data-status="active"] {
   border-color: var(--apple-accent);
@@ -32046,4 +32227,27 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 
 @keyframes teacherLoadingPulse {
   50% { opacity: .55; }
+}
+
+/* STUDENT_CARD_HOVER: one hover language for interactive cards (auction cards also render on the teacher screen).
+   Border tone and shadow only, never transform, so cards never move and the shared press response (`scale`) stays intact.
+   Pointer devices only, so touch never sticks. Defaults resolve at the card, so each screen keeps its own accent. */
+.student-mode-page :is(.student-featured-writing-card, .student-bookshelf-entry) {
+  --student-card-hover-border: color-mix(in srgb, var(--bookstore-wood) 60%, transparent);
+}
+.student-mode-page .student-featured-writing-card {
+  --student-card-hover-shadow: .35rem .55rem 0 color-mix(in srgb, var(--bookstore-wood) 22%, transparent), var(--apple-shadow-2);
+}
+.student-mode-page .student-bookshelf-entry { --student-card-hover-shadow: var(--apple-shadow-3); }
+@media (hover: hover) and (pointer: fine) {
+  :is(
+    .auction-item-card,
+    .student-mission-card.is-interactive,
+    .student-profile-shop-option[data-status="available"],
+    .student-featured-writing-card,
+    .student-bookshelf-entry
+  ):not(:disabled):hover {
+    border-color: var(--student-card-hover-border, color-mix(in srgb, var(--apple-accent) 45%, var(--apple-separator)));
+    box-shadow: var(--student-card-hover-shadow, 0 .55rem 1.2rem color-mix(in srgb, var(--apple-accent-pressed) 13%, transparent));
+  }
 }

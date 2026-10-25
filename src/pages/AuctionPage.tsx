@@ -14,8 +14,13 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
+import { AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
+import StudentToast from '../components/student/StudentToast';
+import StudentLoadingSkeleton, { StudentLoadingPage } from '../components/student/StudentLoadingSkeleton';
+import type { StudentToast as StudentToastValue, StudentToastTone } from '../lib/studentToast';
+import { getAuctionBidAmountIssue } from '../lib/studentAmountIssue';
+import { getStudentEconomyRejectionMessage, isStudentProfileRejection, shouldToastStudentEconomyResult } from '../lib/studentEconomyRejection';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import StudentClassPrep from '../components/student/StudentClassPrep';
@@ -375,6 +380,13 @@ const grantTestServerPets = (studentNumber: number) => {
   storeStudentPetSnapshot({ ...snapshot, studentPets: { ...snapshot.studentPets, [String(studentNumber)]: grantEveryStudentPet(pet) } });
 };
 
+/**
+ * Opacity only, `--student-motion-state` (180ms); reduced motion skips it. No transform: it would make the view
+ * the containing block of its `position: fixed` children (walking pets, dialog backdrops) for the duration.
+ */
+const STUDENT_VIEW_ENTER_KEYFRAMES: Keyframe[] = [{ opacity: 0.3 }, { opacity: 1 }];
+const STUDENT_VIEW_ENTER_TIMING = { duration: 180, easing: 'ease-out' } as const;
+
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [, setDraftRevision] = useState(0);
   useEffect(() => {
@@ -552,6 +564,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const confirmingBidRef = useRef(false);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [studentToast, setStudentToast] = useState<StudentToastValue | null>(null);
+  const studentToastIdRef = useRef(0);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [donationAmountDraft, setDonationAmountDraft] = useState('1');
   const [isDonating, setIsDonating] = useState(false);
@@ -654,6 +668,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     pageScrollRef.current?.scrollTo({ top: 0, left: 0 });
   }, [activeStudentView]);
 
+  // Student screen changes are real navigation: the new view (or its skeleton) settles in without remounting anything.
+  const studentViewMainRef = useRef<HTMLElement>(null);
+  const previousStudentViewRef = useRef(activeStudentView);
+  useLayoutEffect(() => {
+    if (previousStudentViewRef.current === activeStudentView) return undefined;
+    previousStudentViewRef.current = activeStudentView;
+    const view = studentViewMainRef.current?.lastElementChild;
+    if (!(view instanceof HTMLElement) || shouldReduceMotion || typeof view.animate !== 'function') return undefined;
+    const animation = view.animate(STUDENT_VIEW_ENTER_KEYFRAMES, STUDENT_VIEW_ENTER_TIMING);
+    // A paused animation clock (background tab, throttled frame) must never leave the screen half-transparent.
+    const settle = window.setTimeout(() => animation.finish(), STUDENT_VIEW_ENTER_TIMING.duration + 200);
+    return () => {
+      window.clearTimeout(settle);
+      animation.cancel();
+    };
+  }, [activeStudentView, shouldReduceMotion]);
+
   const focusAuctionReturnTarget = useCallback(() => {
     const storedTarget = statusReturnFocusRef.current;
     const bidTarget = document.getElementById('auction-bid-trigger');
@@ -737,6 +768,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setActiveModal('status');
     setStatusMessage(message);
   };
+
+  const showStudentToast = (message: string, tone: StudentToastTone) => {
+    studentToastIdRef.current += 1;
+    setStudentToast({ id: studentToastIdRef.current, message, tone });
+  };
+  const showSuccessToast = (message: string) => showStudentToast(message, 'success');
+  const showWarningToast = (message: string) => showStudentToast(message, 'warning');
+
+  const dismissStudentToast = useCallback((id: number) => {
+    setStudentToast((current) => (current?.id === id ? null : current));
+  }, []);
 
   const dismissStatusMessage = () => {
     if (confirmingBidRef.current) return;
@@ -1013,10 +1055,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         invalidateSharedSettingsCache();
         void refreshAuctionState({ forceFull: true });
         if (!result.applied || !result.profileImage) {
-          if (purchase.type === 'selected') showStatusMessage(result.message);
+          if (purchase.type === 'selected') {
+            if (!result.applied && result.message && isStudentProfileRejection(result.profileReason)) showWarningToast(result.message);
+            else showStatusMessage(result.message);
+          }
           return { ok: false, message: result.message };
         }
-        if (purchase.type === 'selected') showStatusMessage(result.message);
+        if (purchase.type === 'selected') showSuccessToast(result.message);
         return { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 };
       }
 
@@ -1050,14 +1095,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 : reason === 'already_selected'
                   ? '이미 사용 중인 프로필입니다.'
                   : '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
-        if (purchase.type === 'selected') showStatusMessage(message);
+        if (purchase.type === 'selected') {
+          if (isStudentProfileRejection(reason)) showWarningToast(message);
+          else showStatusMessage(message);
+        }
         return { ok: false, message };
       }
 
       setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
-      if (purchase.type === 'selected') showStatusMessage(`${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
+      if (purchase.type === 'selected') showSuccessToast(`${formatCurrency(result.price)}로 프로필을 바꿨어요.`);
       if (result.profileImage === null) {
         return { ok: false, message: '프로필 결과를 확인하지 못했습니다. 새로고침해 주세요.' };
       }
@@ -1947,7 +1995,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
       setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
       void playAuctionSound('bid');
-      showStatusMessage('입찰이 완료되었습니다.');
+      showSuccessToast('입찰했어요.');
     } catch (error) {
       if (!isSupabaseSettingsEnabled && error instanceof Error && error.message === 'AUCTION_BID_LOCAL_SAVE_FAILED') reportSaveFailure('auction', 'storage', studentNumber);
       console.error('Failed to submit auction bid.', error);
@@ -2100,7 +2148,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
       setIsDonationOpen(false);
       donationRequestIdRef.current = '';
-      showStatusMessage(`${formatCurrency(result.donatedAmount)}를 기부했습니다.`);
+      showSuccessToast(`${formatCurrency(result.donatedAmount)}를 기부했어요.`);
       await refreshAuctionState();
     } catch (error) {
       console.error('Failed to donate to class goal.', error);
@@ -2128,7 +2176,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setStudentEconomyStates((previous) => ({ ...previous, [studentKey]: result.studentEconomy }));
         setStudentLifeSnapshot(mergeStudentEconomyLife(studentLife, result.studentLife));
         minimumSettingsUpdatedAtRef.current = result.updatedAt;
-        showStatusMessage(result.message || '저장 결과를 확인했습니다.');
+        showSuccessToast(result.message || '저장 결과를 확인했어요.');
         void refreshAuctionState({ forceFull: true });
       }
     } catch {
@@ -2248,58 +2296,20 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'claim_halloween_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
+      if (resultMessage && shouldToastStudentEconomyResult(action.type)) showSuccessToast(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      const userMessage = storageAvailabilityMessage(error) ?? (message === 'SAVE_DRAFT_PENDING'
+      const storageMessage = storageAvailabilityMessage(error);
+      const rejectionMessage = storageMessage ? null : getStudentEconomyRejectionMessage(message, action.type);
+      if (rejectionMessage && shouldToastStudentEconomyResult(action.type)) {
+        showWarningToast(rejectionMessage);
+        return false;
+      }
+      const userMessage = storageMessage ?? (message === 'SAVE_DRAFT_PENDING'
         ? '이전 고마 처리의 저장 결과를 먼저 확인해 주세요.'
-        : message === 'HOUSE_CREATOR_BALANCE_LIMIT'
-        ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
-        : message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
-        ? '사용 가능한 고마가 부족합니다.'
-        : message === 'CHARACTER_CHOICE_PENDING'
-        ? '진행 중인 초성 선택을 먼저 완료해 주세요.'
-        : message === 'INVALID_CHARACTER_CHOICE'
-        ? action.type === 'claim_halloween_character' ? '다른 스킨을 골라 주세요.' : '초성 선택지를 새로 확인한 뒤 선택해 주세요.'
-        : message === 'HALLOWEEN_EVENT_CLAIMED'
-        ? '할로윈 스킨은 이미 받았습니다.'
-        : message === 'HALLOWEEN_EVENT_NOT_OPEN'
-        ? '아직 받을 수 없습니다.'
-        : message === 'INVALID_BANK_AMOUNT'
-          ? '예금은 10고마부터 맡길 수 있습니다.'
-        : message === 'INSUFFICIENT_BANK_BALANCE'
-          ? '예금 잔액이 부족합니다.'
-          : message === 'EXCESSIVE_LOAN_REPAYMENT'
-            ? '대출 잔액보다 많이 갚을 수 없습니다.'
-            : message === 'DEPOSIT_NOT_AVAILABLE_TODAY'
-              ? '예금은 월요일부터 금요일까지만 들 수 있습니다.'
-              : message === 'DEPOSIT_NOT_MATURED'
-                ? '아직 만기 전입니다. 예금을 깨면 원금만 받을 수 있습니다.'
-                : message === 'LOAN_LIMIT_EXCEEDED'
-                  ? '대출은 한 번에 50고마까지 받을 수 있고, 기존 대출을 먼저 갚아야 합니다.'
-                  : message === 'TRANSFER_DAILY_LIMIT_REACHED'
-                    ? '이체는 하루에 한 번, 한 명에게만 보낼 수 있습니다.'
-                    : message === 'TRANSFER_AMOUNT_LIMIT_EXCEEDED'
-                      ? '한 번에 30고마까지만 보낼 수 있습니다.'
-            : message === 'STOCK_MARKET_CLOSED'
-              ? '오늘은 휴장입니다.'
-              : message === 'INVESTMENT_LIMIT_EXCEEDED'
-                ? '최대 투자 금액을 넘을 수 없습니다.'
-                : message === 'INVALID_INVESTMENT_AMOUNT'
-                  ? '투자할 고마를 다시 확인해 주세요.'
-                  : message === 'INVESTMENT_NOT_FOUND'
-                    ? '찾을 투자금이 없습니다.'
-              : message === 'HOUSE_ALREADY_REPAIRED'
-                ? '이미 집을 고쳤습니다.'
-                : message === 'HOUSE_SHOP_LOCKED'
-                  ? '집을 먼저 고쳐야 합니다.'
-                  : message === 'ALL_CHARACTERS_OWNED'
-                    ? '모든 캐릭터를 모았습니다.'
-                    : message === 'CUSTOM_HOUSE_COUPON_REQUIRED'
-                      ? '집 만들기 쿠폰이 필요합니다.'
-              : '처리하지 못했습니다. 다시 시도해 주세요.');
+        : rejectionMessage ?? '처리하지 못했습니다. 다시 시도해 주세요.');
       showStatusMessage(userMessage);
       return false;
     } finally {
@@ -2322,7 +2332,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && isStudentLifeSaving;
 
   if (!hasLoadedSharedSettingsRef.current && !(hasLoadedOverviewRef.current && activeStudentView === 'overview')) {
-    return isLoading || !hasSettingsLoadError ? <AppLoadingScreen label="학생 기록 불러오는 중" /> : (
+    return isLoading || !hasSettingsLoadError ? <StudentLoadingPage label="학생 기록 불러오는 중" /> : (
       <AppRecoveryScreen
         title="학생 기록을 불러오지 못했어요"
         description="연결을 확인하고 다시 시도해 주세요."
@@ -2336,7 +2346,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
       <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
-      <main className="mx-auto w-full max-w-7xl">
+      <StudentToast toast={studentToast} onDone={dismissStudentToast} />
+      <main ref={studentViewMainRef} className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
           <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" role="status" aria-label="고마 처리 확인">
             <span>확인이 필요한 고마 처리가 있어요.</span>
@@ -2344,7 +2355,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           </section>
         ) : null}
         <Suspense
-          fallback={<AppLoadingScreen embedded />}
+          fallback={<StudentLoadingSkeleton />}
         >
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
@@ -2634,6 +2645,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               !isLoading &&
               isSubmittingItemId === null &&
               (hasPendingBid || (selectedBidAmount >= minimumBid && selectedBidAmount <= maxBid));
+            const bidAmountIssue = isLoading || hasPendingBid
+              ? null
+              : getAuctionBidAmountIssue({ draft: bidAmountDraft, amount: selectedBidAmount, minimumBid, maxBid });
 
             return (
               <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
@@ -2643,7 +2657,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       {selectedItemDisplayName}
                     </h2>
                     <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
-                      최고가 {formatCurrency(currentBid.amount)} · 시작가 {formatCurrency(selectedItem.startPrice)}
+                      최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · 시작가 {formatCurrency(selectedItem.startPrice)}
                     </p>
                   </div>
                   <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
@@ -2651,7 +2665,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                  <label className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
+                  <label data-invalid={bidAmountIssue ? 'true' : undefined} className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
                     <input
                       id="auction-bid-amount-input"
                       type="text"
@@ -2670,6 +2684,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       }}
                       className="h-full min-w-0 bg-transparent text-center font-mono text-[length:var(--type-title)] font-black text-[var(--apple-text-primary)] outline-none"
                       aria-label={`${selectedItemDisplayName} 입찰 금액`}
+                      aria-invalid={bidAmountIssue ? true : undefined}
+                      aria-describedby="auction-bid-amount-issue"
                       placeholder={String(minimumBid)}
                     />
                     <span className="pl-2 font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">고마</span>
@@ -2685,6 +2701,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '입찰'}
                   </button>
                 </div>
+                <p id="auction-bid-amount-issue" className="student-amount-issue auction-bid-amount-issue" aria-live="polite">{bidAmountIssue ?? ''}</p>
               </div>
             );
           })() : null}

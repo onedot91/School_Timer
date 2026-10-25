@@ -3,6 +3,14 @@ import { formatCurrency, formatStudentNumberLabel } from '../../lib/currency';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import type { PendingTeacherDeduction } from '../../lib/studentEconomy';
 import { StudentPendingDeductionBadge } from './StudentPendingDeductionBadge';
+import { useStudentBalanceChange } from '../../lib/useStudentBalanceChange';
+
+const BalanceSkeleton = ({ size }: { readonly size: 'primary' | 'detail' }) => (
+  <>
+    <span className={`student-skeleton-block student-balance-skeleton student-balance-skeleton--${size}`} aria-hidden="true" />
+    <span className="sr-only">확인 중</span>
+  </>
+);
 
 interface StudentBalanceSummaryProps {
   studentNumber?: number;
@@ -25,8 +33,10 @@ export default function StudentBalanceSummary({
   onProfileClick,
   pendingDeductions = [],
 }: StudentBalanceSummaryProps) {
-  const displayedAvailable = isLoading ? '확인 중' : formatCurrency(availableBalance);
-  const displayedReserved = isLoading ? '확인 중' : formatCurrency(reservedAmount);
+  // While loading, a fixed-width block holds the number's place so the header does not shift when the balance arrives.
+  const { displayedValue: countedAvailable, change: availableChange } = useStudentBalanceChange(availableBalance, isLoading);
+  const displayedAvailable = isLoading ? <BalanceSkeleton size="primary" /> : formatCurrency(countedAvailable);
+  const displayedReserved = isLoading ? <BalanceSkeleton size="detail" /> : formatCurrency(reservedAmount);
   const hasPendingDeduction = !isLoading && pendingDeductions.length > 0;
   const showReserved = !hasPendingDeduction || reservedAmount > 0;
   const profileImage = studentNumber !== undefined
@@ -61,10 +71,21 @@ export default function StudentBalanceSummary({
           </strong>
         </div>
       ) : null}
-      <div className="student-balance-primary">
+      <div className="student-balance-primary" data-changing={availableChange ? 'true' : undefined}>
         <div className="student-balance-primary-heading">
           <Coins size={24} aria-hidden="true" />
           <span>사용 가능 고마</span>
+          {availableChange ? (
+            // Visual echo only: the result toast already announces what changed.
+            <span
+              key={availableChange.id}
+              className="student-balance-change"
+              data-direction={availableChange.delta > 0 ? 'up' : 'down'}
+              aria-hidden="true"
+            >
+              {availableChange.delta > 0 ? '+' : '−'}{Math.abs(availableChange.delta).toLocaleString('ko-KR')}
+            </span>
+          ) : null}
         </div>
         <strong>{displayedAvailable}</strong>
       </div>

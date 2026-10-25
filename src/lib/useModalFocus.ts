@@ -46,6 +46,8 @@ const isolateOutsideDialog = (dialog: HTMLElement): IsolatedElementState[] => {
     const parent = branch.parentElement;
     for (const sibling of parent.children) {
       if (!(sibling instanceof HTMLElement) || sibling === branch) continue;
+      // Non-focusable live regions (student toasts) stay announced while a dialog is open.
+      if (sibling.dataset.modalLiveRegion === 'true') continue;
       const ownership = inertOwnership.get(sibling);
       if (ownership) ownership.count += 1;
       else inertOwnership.set(sibling, { count: 1, inert: sibling.inert });

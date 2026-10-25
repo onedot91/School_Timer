@@ -48,8 +48,8 @@ export function AppRecoveryScreen({
   );
 }
 
-export function AppLoadingScreen({ label = '불러오는 중', embedded = false }: { label?: string; embedded?: boolean }) {
-  const Container = embedded ? 'section' : 'main';
+/** After 15 seconds of loading, records a startup timeout once and reports that the screen is delayed. */
+export function useLoadingTimeout(): boolean {
   const [delayed, setDelayed] = useState(false);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -58,13 +58,29 @@ export function AppLoadingScreen({ label = '불러오는 중', embedded = false 
     }, 15_000);
     return () => window.clearTimeout(timeout);
   }, []);
+  return delayed;
+}
+
+export function LoadingDelayedNotice() {
+  return (
+    <section className="runtime-fallback-surface">
+      <p role="status">화면을 불러오는 데 시간이 걸리고 있어요.</p>
+      <button type="button" className="runtime-fallback-action" onClick={reloadPage}>새로고침</button>
+    </section>
+  );
+}
+
+export function AppLoadingScreen({ label = '불러오는 중', embedded = false }: { label?: string; embedded?: boolean }) {
+  const Container = embedded ? 'section' : 'main';
+  const delayed = useLoadingTimeout();
   return (
     <Container className={embedded ? 'grid min-h-[60vh] place-items-center p-4' : 'runtime-fallback-page'}>
-      <section className="runtime-fallback-surface">
-        <GomaLoadingAnimation />
-        <p role="status">{delayed ? '화면을 불러오는 데 시간이 걸리고 있어요.' : <LoadingLabel>{label}</LoadingLabel>}</p>
-        {delayed ? <button type="button" className="runtime-fallback-action" onClick={reloadPage}>새로고침</button> : null}
-      </section>
+      {delayed ? <LoadingDelayedNotice /> : (
+        <section className="runtime-fallback-surface">
+          <GomaLoadingAnimation />
+          <p role="status"><LoadingLabel>{label}</LoadingLabel></p>
+        </section>
+      )}
     </Container>
   );
 }
