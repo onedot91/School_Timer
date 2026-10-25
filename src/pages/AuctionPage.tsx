@@ -19,6 +19,7 @@ import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentToast from '../components/student/StudentToast';
 import StudentLoadingSkeleton, { StudentLoadingPage } from '../components/student/StudentLoadingSkeleton';
 import type { StudentToast as StudentToastValue, StudentToastTone } from '../lib/studentToast';
+import { getAuctionBidAmountIssue } from '../lib/studentAmountIssue';
 import { getStudentEconomyRejectionMessage, isStudentProfileRejection, shouldToastStudentEconomyResult } from '../lib/studentEconomyRejection';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
@@ -2644,6 +2645,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               !isLoading &&
               isSubmittingItemId === null &&
               (hasPendingBid || (selectedBidAmount >= minimumBid && selectedBidAmount <= maxBid));
+            const bidAmountIssue = isLoading || hasPendingBid
+              ? null
+              : getAuctionBidAmountIssue({ draft: bidAmountDraft, amount: selectedBidAmount, minimumBid, maxBid });
 
             return (
               <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
@@ -2653,7 +2657,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       {selectedItemDisplayName}
                     </h2>
                     <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
-                      최고가 {formatCurrency(currentBid.amount)} · 시작가 {formatCurrency(selectedItem.startPrice)}
+                      최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · 시작가 {formatCurrency(selectedItem.startPrice)}
                     </p>
                   </div>
                   <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
@@ -2661,7 +2665,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                  <label className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
+                  <label data-invalid={bidAmountIssue ? 'true' : undefined} className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
                     <input
                       id="auction-bid-amount-input"
                       type="text"
@@ -2680,6 +2684,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       }}
                       className="h-full min-w-0 bg-transparent text-center font-mono text-[length:var(--type-title)] font-black text-[var(--apple-text-primary)] outline-none"
                       aria-label={`${selectedItemDisplayName} 입찰 금액`}
+                      aria-invalid={bidAmountIssue ? true : undefined}
+                      aria-describedby="auction-bid-amount-issue"
                       placeholder={String(minimumBid)}
                     />
                     <span className="pl-2 font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">고마</span>
@@ -2695,6 +2701,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '입찰'}
                   </button>
                 </div>
+                <p id="auction-bid-amount-issue" className="student-amount-issue auction-bid-amount-issue" aria-live="polite">{bidAmountIssue ?? ''}</p>
               </div>
             );
           })() : null}

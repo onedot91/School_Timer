@@ -3,6 +3,7 @@ import { formatCurrency, formatStudentNumberLabel } from '../../lib/currency';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import type { PendingTeacherDeduction } from '../../lib/studentEconomy';
 import { StudentPendingDeductionBadge } from './StudentPendingDeductionBadge';
+import { useStudentBalanceChange } from '../../lib/useStudentBalanceChange';
 
 const BalanceSkeleton = ({ size }: { readonly size: 'primary' | 'detail' }) => (
   <>
@@ -33,7 +34,8 @@ export default function StudentBalanceSummary({
   pendingDeductions = [],
 }: StudentBalanceSummaryProps) {
   // While loading, a fixed-width block holds the number's place so the header does not shift when the balance arrives.
-  const displayedAvailable = isLoading ? <BalanceSkeleton size="primary" /> : formatCurrency(availableBalance);
+  const { displayedValue: countedAvailable, change: availableChange } = useStudentBalanceChange(availableBalance, isLoading);
+  const displayedAvailable = isLoading ? <BalanceSkeleton size="primary" /> : formatCurrency(countedAvailable);
   const displayedReserved = isLoading ? <BalanceSkeleton size="detail" /> : formatCurrency(reservedAmount);
   const hasPendingDeduction = !isLoading && pendingDeductions.length > 0;
   const showReserved = !hasPendingDeduction || reservedAmount > 0;
@@ -69,10 +71,21 @@ export default function StudentBalanceSummary({
           </strong>
         </div>
       ) : null}
-      <div className="student-balance-primary">
+      <div className="student-balance-primary" data-changing={availableChange ? 'true' : undefined}>
         <div className="student-balance-primary-heading">
           <Coins size={24} aria-hidden="true" />
           <span>사용 가능 고마</span>
+          {availableChange ? (
+            // Visual echo only: the result toast already announces what changed.
+            <span
+              key={availableChange.id}
+              className="student-balance-change"
+              data-direction={availableChange.delta > 0 ? 'up' : 'down'}
+              aria-hidden="true"
+            >
+              {availableChange.delta > 0 ? '+' : '−'}{Math.abs(availableChange.delta).toLocaleString('ko-KR')}
+            </span>
+          ) : null}
         </div>
         <strong>{displayedAvailable}</strong>
       </div>

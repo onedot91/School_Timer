@@ -57,7 +57,7 @@ export function AuctionItemCard({
         : '잠긴 물품, 해당 요일에 공개됩니다'}
       className={`auction-item-card group relative overflow-hidden border text-left ${
         isUnlocked
-          ? 'bg-white hover:-translate-y-0.5'
+          ? 'bg-white'
           : 'auction-item-card-locked cursor-not-allowed border-[#E3EBE6] bg-[#F8FAF8]'
       } rounded-[1.05rem]`}
       style={isUnlocked
@@ -80,7 +80,7 @@ export function AuctionItemCard({
 
           <div className="auction-item-current-bid" style={{ color: accent.chip }}>
             <span>현재가</span>
-            <strong>{formatCurrency(currentAmount)}</strong>
+            <strong><span key={currentAmount} className="student-amount-settle">{formatCurrency(currentAmount)}</span></strong>
           </div>
 
           <div className="auction-item-bidder">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getKoreanDateKey, getRelativeKoreanWeekdayLabel, STUDENT_DEPOSIT_MINIMUM, type StudentEconomyAction, type StudentEconomyState } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StableLabel from '../StableLabel';
+import { getStudentBankAmountIssue, type StudentBankAmountIssue, type StudentBankAmountKind } from '../../lib/studentAmountIssue';
 
 interface StudentBankPageProps {
   state: StudentEconomyState;
@@ -36,11 +37,32 @@ export const STUDENT_BANK_RULES = {
   ],
 } as const;
 
-function BankRuleList({ rules }: { readonly rules: readonly BankRule[] }) {
+// An amount that breaks a listed rule highlights that rule instead of repeating it in a new line.
+const BANK_RULE_FOR_ISSUE: Readonly<Record<StudentBankAmountKind, Partial<Record<StudentBankAmountIssue['reason'], string>>>> = {
+  deposit: { below_minimum: '최소 금액' },
+  loan: { above_maximum: '대출 한도' },
+  transfer: { above_maximum: '송금 한도' },
+};
+
+const getBankIssueView = (kind: StudentBankAmountKind, issue: StudentBankAmountIssue | null) => {
+  const highlightedTerm = issue ? BANK_RULE_FOR_ISSUE[kind][issue.reason] ?? null : null;
+  return {
+    highlightedTerm,
+    // Only reasons without a listed rule (decimals, below one goma) need their own line.
+    lineMessage: issue && !highlightedTerm ? issue.message : null,
+    describedBy: highlightedTerm ? `student-bank-${kind}-rule` : `student-bank-${kind}-issue`,
+  };
+};
+
+function BankRuleList({ rules, highlightedTerm = null, highlightId }: {
+  readonly rules: readonly BankRule[];
+  readonly highlightedTerm?: string | null;
+  readonly highlightId?: string;
+}) {
   return (
     <ul className="student-bank-rule">
       {rules.map(({ term, explanation }) => (
-        <li key={term}>
+        <li key={term} id={term === highlightedTerm ? highlightId : undefined} data-invalid={term === highlightedTerm ? 'true' : undefined}>
           <strong>{term}</strong>
           <span>({explanation})</span>
         </li>
@@ -48,6 +70,11 @@ function BankRuleList({ rules }: { readonly rules: readonly BankRule[] }) {
     </ul>
   );
 }
+
+// Stays mounted so the reason is announced as soon as it appears; empty means nothing to fix yet.
+const AmountIssue = ({ id, issue }: { readonly id: string; readonly issue: string | null }) => (
+  <p id={id} className="student-amount-issue" aria-live="polite">{issue ?? ''}</p>
+);
 
 export default function StudentBankPage({ state, studentNumber, isSaving, onAction }: StudentBankPageProps) {
   const [depositAmount, setDepositAmount] = useState('');
@@ -78,6 +105,9 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
   const isTransferAmount = Number.isInteger(numericTransferAmount) && numericTransferAmount >= 1 && numericTransferAmount <= 30;
   const depositInterest = isDepositAmount ? Math.round(numericDepositAmount / 10) : 0;
   const loanRepayment = isLoanAmount ? numericLoanAmount + Math.round(numericLoanAmount / 10) : 0;
+  const depositIssue = getBankIssueView('deposit', getStudentBankAmountIssue('deposit', depositAmount));
+  const loanIssue = getBankIssueView('loan', getStudentBankAmountIssue('loan', loanAmount));
+  const transferIssue = getBankIssueView('transfer', getStudentBankAmountIssue('transfer', transferAmount));
   const canTransfer = isTransferAmount && numericRecipientNumber !== studentNumber && numericRecipientNumber >= 1 && numericRecipientNumber <= 23;
   const modalTitle = activeModal === 'deposit' ? '고마 맡기기' : activeModal === 'loan' ? state.loan > 0 ? '고마 갚기' : '고마 빌리기' : '고마 보내기';
   const modalDescription = activeModal === 'deposit'
@@ -164,21 +194,23 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
       >
         {activeModal === 'deposit' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount"><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min={STUDENT_DEPOSIT_MINIMUM} max="500" step="1" placeholder={`예: ${STUDENT_DEPOSIT_MINIMUM}`} value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
+            <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount" data-invalid={depositIssue.highlightedTerm || depositIssue.lineMessage ? 'true' : undefined}><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min={STUDENT_DEPOSIT_MINIMUM} max="500" step="1" placeholder={`예: ${STUDENT_DEPOSIT_MINIMUM}`} value={depositAmount} aria-invalid={depositIssue.highlightedTerm || depositIssue.lineMessage ? true : undefined} aria-describedby={depositIssue.describedBy} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
+            <AmountIssue id="student-bank-deposit-issue" issue={depositIssue.lineMessage} />
             {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : null}
-            <BankRuleList rules={STUDENT_BANK_RULES.deposit} />
+            <BankRuleList rules={STUDENT_BANK_RULES.deposit} highlightedTerm={depositIssue.highlightedTerm} highlightId="student-bank-deposit-rule" />
           </div>
         ) : null}
         {activeModal === 'loan' ? (
           <div className="student-bank-modal-form">
-            {state.loan > 0 ? <BankRuleList rules={STUDENT_BANK_RULES.repayment} /> : <><label className="student-bank-amount-field" htmlFor="student-bank-loan-amount"><span>빌릴 고마</span><input id="student-bank-loan-amount" type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<BankRuleList rules={STUDENT_BANK_RULES.loan} /></>}
+            {state.loan > 0 ? <BankRuleList rules={STUDENT_BANK_RULES.repayment} /> : <><label className="student-bank-amount-field" htmlFor="student-bank-loan-amount" data-invalid={loanIssue.highlightedTerm || loanIssue.lineMessage ? 'true' : undefined}><span>빌릴 고마</span><input id="student-bank-loan-amount" type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} aria-invalid={loanIssue.highlightedTerm || loanIssue.lineMessage ? true : undefined} aria-describedby={loanIssue.describedBy} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label><AmountIssue id="student-bank-loan-issue" issue={loanIssue.lineMessage} />{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<BankRuleList rules={STUDENT_BANK_RULES.loan} highlightedTerm={loanIssue.highlightedTerm} highlightId="student-bank-loan-rule" /></>}
           </div>
         ) : null}
         {activeModal === 'transfer' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field" htmlFor="student-bank-transfer-amount"><span>보낼 고마</span><input id="student-bank-transfer-amount" type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
+            <label className="student-bank-amount-field" htmlFor="student-bank-transfer-amount" data-invalid={transferIssue.highlightedTerm || transferIssue.lineMessage ? 'true' : undefined}><span>보낼 고마</span><input id="student-bank-transfer-amount" type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} aria-invalid={transferIssue.highlightedTerm || transferIssue.lineMessage ? true : undefined} aria-describedby={transferIssue.describedBy} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
+            <AmountIssue id="student-bank-transfer-issue" issue={transferIssue.lineMessage} />
             <label className="student-bank-recipient" htmlFor="student-bank-transfer-recipient"><span>받는 학생</span><select id="student-bank-transfer-recipient" value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
-            <BankRuleList rules={STUDENT_BANK_RULES.transfer} />
+            <BankRuleList rules={STUDENT_BANK_RULES.transfer} highlightedTerm={transferIssue.highlightedTerm} highlightId="student-bank-transfer-rule" />
           </div>
         ) : null}
       </StudentConfirmDialog>
