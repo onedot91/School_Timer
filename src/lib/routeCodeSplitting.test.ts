@@ -26,7 +26,7 @@ test('학생 첫 화면에 필요 없는 기능 UI는 기능을 열 때 불러�
   assert.match(auctionPageSource, /const StudentStorePage = lazy\(\(\) => import\('\.\.\/components\/student\/StudentStorePage'\)\)/);
   assert.doesNotMatch(auctionPageSource, /import StudentMissionsPage from/);
   assert.doesNotMatch(auctionPageSource, /import StudentStorePage from/);
-  assert.match(auctionPageSource, /<Suspense[\s\S]*?fallback=\{<StudentLoadingSkeleton \/>\}/);
+  assert.match(auctionPageSource, /<Suspense[\s\S]*?fallback=\{<StudentLoadingSkeleton variant=\{getStudentLoadingSkeletonVariant\(activeStudentView\)\} \/>\}/);
 });
 
 test('낱말판 전용 스타일은 번호 선택 화면에서 미리 내려받지 않는다', () => {

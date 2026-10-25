@@ -5,22 +5,38 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import StudentBalanceSummary from '../components/student/StudentBalanceSummary.tsx';
-import StudentLoadingSkeleton, { StudentLoadingPage } from '../components/student/StudentLoadingSkeleton.tsx';
+import StudentLoadingSkeleton, { getStudentLoadingSkeletonVariant, StudentLoadingPage } from '../components/student/StudentLoadingSkeleton.tsx';
 
 test('학생 화면 스켈레톤은 실제 화면 틀(.student-view, .student-header)에 자리를 잡고 상태를 알린다', () => {
-  const markup = renderToStaticMarkup(createElement(StudentLoadingSkeleton, { label: '학생 기록 불러오는 중' }));
+  const markup = renderToStaticMarkup(createElement(StudentLoadingSkeleton, { label: '학생 기록 불러오는 중', variant: 'cards' }));
 
-  assert.match(markup, /class="student-view student-loading-skeleton" role="status" aria-busy="true"/);
+  assert.match(markup, /class="student-view student-loading-skeleton" data-variant="cards" role="status" aria-busy="true"/);
   assert.match(markup, /class="student-header" aria-hidden="true"/);
   assert.match(markup, /<span class="sr-only">학생 기록 불러오는 중<\/span>/);
   assert.equal(markup.match(/class="student-loading-skeleton-card"/g)?.length, 3);
 });
 
 test('첫 화면 스켈레톤은 학생 화면과 같은 페이지 틀을 쓴다', () => {
-  const markup = renderToStaticMarkup(createElement(StudentLoadingPage, { label: '학생 기록 불러오는 중' }));
+  const markup = renderToStaticMarkup(createElement(StudentLoadingPage, { label: '학생 기록 불러오는 중', variant: 'panel' }));
 
   assert.match(markup, /class="auction-page student-mode-page h-\[100dvh\] w-full overflow-hidden/);
-  assert.match(markup, /<main class="mx-auto w-full max-w-7xl"><div class="student-view student-loading-skeleton"/);
+  assert.match(markup, /<main class="mx-auto w-full max-w-7xl"><div class="student-view student-loading-skeleton" data-variant="panel"/);
+});
+
+test('홈 스켈레톤은 헤더 없이 실제 홈의 그림 칸과 아래 칸 세 개 자리를 쓴다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentLoadingSkeleton, { variant: 'overview' }));
+
+  assert.match(markup, /class="student-view student-overview-view student-loading-skeleton" data-variant="overview"/);
+  assert.doesNotMatch(markup, /student-header/);
+  assert.match(markup, /<section class="student-overview-hero" aria-hidden="true"><span class="student-skeleton-block student-skeleton-overview-scene"><\/span><\/section>/);
+  assert.equal(markup.match(/student-skeleton-overview-card/g)?.length, 3);
+});
+
+test('화면마다 닮은 스켈레톤을 고른다', () => {
+  assert.equal(getStudentLoadingSkeletonVariant('overview'), 'overview');
+  assert.equal(getStudentLoadingSkeletonVariant('store-bank'), 'cards');
+  assert.equal(getStudentLoadingSkeletonVariant('store'), 'panel');
+  assert.equal(getStudentLoadingSkeletonVariant('missions'), 'panel');
 });
 
 test('잔액을 확인하는 동안 글자 대신 고정 폭 블록을 보여 주고 읽기 프로그램에는 확인 중이라고 알린다', () => {
