@@ -4,6 +4,13 @@ import { getFailureProfileImage, type FailureProfileAssignments } from '../../li
 import type { PendingTeacherDeduction } from '../../lib/studentEconomy';
 import { StudentPendingDeductionBadge } from './StudentPendingDeductionBadge';
 
+const BalanceSkeleton = ({ size }: { readonly size: 'primary' | 'detail' }) => (
+  <>
+    <span className={`student-skeleton-block student-balance-skeleton student-balance-skeleton--${size}`} aria-hidden="true" />
+    <span className="sr-only">확인 중</span>
+  </>
+);
+
 interface StudentBalanceSummaryProps {
   studentNumber?: number;
   profileAssignments?: FailureProfileAssignments;
@@ -25,8 +32,9 @@ export default function StudentBalanceSummary({
   onProfileClick,
   pendingDeductions = [],
 }: StudentBalanceSummaryProps) {
-  const displayedAvailable = isLoading ? '확인 중' : formatCurrency(availableBalance);
-  const displayedReserved = isLoading ? '확인 중' : formatCurrency(reservedAmount);
+  // While loading, a fixed-width block holds the number's place so the header does not shift when the balance arrives.
+  const displayedAvailable = isLoading ? <BalanceSkeleton size="primary" /> : formatCurrency(availableBalance);
+  const displayedReserved = isLoading ? <BalanceSkeleton size="detail" /> : formatCurrency(reservedAmount);
   const hasPendingDeduction = !isLoading && pendingDeductions.length > 0;
   const showReserved = !hasPendingDeduction || reservedAmount > 0;
   const profileImage = studentNumber !== undefined

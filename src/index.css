@@ -24753,6 +24753,72 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-rapid-click-dialog-timer { animation: none; opacity: .45; }
 }
 
+/* Student loading placeholders: a static tinted block is the whole message, the light sweep (transform only) is extra. */
+.student-skeleton-block {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--apple-accent) 11%, var(--apple-surface-muted));
+}
+.student-skeleton-block::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .7) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: student-skeleton-sweep 1.4s ease-in-out infinite;
+}
+@keyframes student-skeleton-sweep {
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-skeleton-block::after { display: none; }
+}
+@media (forced-colors: active) {
+  .student-skeleton-block { border: 1px solid CanvasText; }
+}
+
+/* Heights stay within each number's line box (primary 2rem; detail 21px in the compact store header), so the summary does not grow when numbers arrive. */
+.student-balance-skeleton { display: inline-block; vertical-align: top; }
+.student-balance-skeleton--primary { width: 5.5rem; height: 2rem; }
+.student-balance-skeleton--detail { width: 3.5rem; height: 1.25rem; }
+
+.student-skeleton-back { width: 4.5rem; height: 2.75rem; border-radius: var(--apple-radius-pill); }
+.student-skeleton-title { width: 7rem; height: 1.75rem; }
+.student-skeleton-balance { width: 14rem; height: 2.75rem; }
+
+.student-loading-skeleton-cards,
+.student-loading-skeleton-delayed {
+  min-height: 0;
+}
+.student-loading-skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--student-shell-gap, 1rem);
+}
+.student-loading-skeleton-delayed { display: grid; place-items: center; }
+.student-loading-skeleton-card {
+  display: grid;
+  grid-template-rows: minmax(8rem, 1fr) auto auto auto;
+  gap: .65rem;
+  min-height: 18rem;
+  padding: 1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-1);
+}
+.student-skeleton-scene { width: 100%; height: 100%; }
+.student-skeleton-line { width: 40%; height: .9rem; }
+.student-skeleton-amount { width: 55%; height: 1.75rem; }
+.student-skeleton-action { width: 100%; height: 2.75rem; border-radius: var(--apple-radius-pill); }
+@media (max-width: 47.99rem) {
+  .student-loading-skeleton-cards { grid-template-columns: minmax(0, 1fr); }
+  .student-loading-skeleton-card:nth-child(n + 2) { display: none; }
+  .student-skeleton-balance { width: 8rem; }
+}
+
 /* Confirmed results only; never blocks clicks, so students keep going while it is up.
    Sits just below the student header so a wide one-line message never hides the goma balance. */
 .student-toast-region {

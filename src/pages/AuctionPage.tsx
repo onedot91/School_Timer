@@ -14,9 +14,10 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
+import { AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentToast from '../components/student/StudentToast';
+import StudentLoadingSkeleton, { StudentLoadingPage } from '../components/student/StudentLoadingSkeleton';
 import type { StudentToast as StudentToastValue, StudentToastTone } from '../lib/studentToast';
 import { getStudentEconomyRejectionMessage, isStudentProfileRejection, shouldToastStudentEconomyResult } from '../lib/studentEconomyRejection';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
@@ -378,6 +379,13 @@ const grantTestServerPets = (studentNumber: number) => {
   storeStudentPetSnapshot({ ...snapshot, studentPets: { ...snapshot.studentPets, [String(studentNumber)]: grantEveryStudentPet(pet) } });
 };
 
+/**
+ * Opacity only, `--student-motion-state` (180ms); reduced motion skips it. No transform: it would make the view
+ * the containing block of its `position: fixed` children (walking pets, dialog backdrops) for the duration.
+ */
+const STUDENT_VIEW_ENTER_KEYFRAMES: Keyframe[] = [{ opacity: 0.3 }, { opacity: 1 }];
+const STUDENT_VIEW_ENTER_TIMING = { duration: 180, easing: 'ease-out' } as const;
+
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [, setDraftRevision] = useState(0);
   useEffect(() => {
@@ -658,6 +666,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   useEffect(() => {
     pageScrollRef.current?.scrollTo({ top: 0, left: 0 });
   }, [activeStudentView]);
+
+  // Student screen changes are real navigation: the new view (or its skeleton) settles in without remounting anything.
+  const studentViewMainRef = useRef<HTMLElement>(null);
+  const previousStudentViewRef = useRef(activeStudentView);
+  useLayoutEffect(() => {
+    if (previousStudentViewRef.current === activeStudentView) return undefined;
+    previousStudentViewRef.current = activeStudentView;
+    const view = studentViewMainRef.current?.lastElementChild;
+    if (!(view instanceof HTMLElement) || shouldReduceMotion || typeof view.animate !== 'function') return undefined;
+    const animation = view.animate(STUDENT_VIEW_ENTER_KEYFRAMES, STUDENT_VIEW_ENTER_TIMING);
+    // A paused animation clock (background tab, throttled frame) must never leave the screen half-transparent.
+    const settle = window.setTimeout(() => animation.finish(), STUDENT_VIEW_ENTER_TIMING.duration + 200);
+    return () => {
+      window.clearTimeout(settle);
+      animation.cancel();
+    };
+  }, [activeStudentView, shouldReduceMotion]);
 
   const focusAuctionReturnTarget = useCallback(() => {
     const storedTarget = statusReturnFocusRef.current;
@@ -2306,7 +2331,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && isStudentLifeSaving;
 
   if (!hasLoadedSharedSettingsRef.current && !(hasLoadedOverviewRef.current && activeStudentView === 'overview')) {
-    return isLoading || !hasSettingsLoadError ? <AppLoadingScreen label="학생 기록 불러오는 중" /> : (
+    return isLoading || !hasSettingsLoadError ? <StudentLoadingPage label="학생 기록 불러오는 중" /> : (
       <AppRecoveryScreen
         title="학생 기록을 불러오지 못했어요"
         description="연결을 확인하고 다시 시도해 주세요."
@@ -2321,7 +2346,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <StudentToast toast={studentToast} onDone={dismissStudentToast} />
-      <main className="mx-auto w-full max-w-7xl">
+      <main ref={studentViewMainRef} className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
           <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" role="status" aria-label="고마 처리 확인">
             <span>확인이 필요한 고마 처리가 있어요.</span>
@@ -2329,7 +2354,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           </section>
         ) : null}
         <Suspense
-          fallback={<AppLoadingScreen embedded />}
+          fallback={<StudentLoadingSkeleton />}
         >
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
