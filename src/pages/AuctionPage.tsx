@@ -17,7 +17,7 @@ import { animate as animateMotion, motion, useMotionValue, useReducedMotion, use
 import { AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentToast from '../components/student/StudentToast';
-import StudentLoadingSkeleton, { StudentLoadingPage } from '../components/student/StudentLoadingSkeleton';
+import StudentLoadingSkeleton, { getStudentLoadingSkeletonVariant, StudentLoadingPage } from '../components/student/StudentLoadingSkeleton';
 import type { StudentToast as StudentToastValue, StudentToastTone } from '../lib/studentToast';
 import { getAuctionBidAmountIssue } from '../lib/studentAmountIssue';
 import { getStudentEconomyRejectionMessage, isStudentProfileRejection, shouldToastStudentEconomyResult } from '../lib/studentEconomyRejection';
@@ -2332,7 +2332,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && isStudentLifeSaving;
 
   if (!hasLoadedSharedSettingsRef.current && !(hasLoadedOverviewRef.current && activeStudentView === 'overview')) {
-    return isLoading || !hasSettingsLoadError ? <StudentLoadingPage label="학생 기록 불러오는 중" /> : (
+    return isLoading || !hasSettingsLoadError ? <StudentLoadingPage label="학생 기록 불러오는 중" variant={getStudentLoadingSkeletonVariant(activeStudentView)} /> : (
       <AppRecoveryScreen
         title="학생 기록을 불러오지 못했어요"
         description="연결을 확인하고 다시 시도해 주세요."
@@ -2355,7 +2355,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           </section>
         ) : null}
         <Suspense
-          fallback={<StudentLoadingSkeleton />}
+          fallback={<StudentLoadingSkeleton variant={getStudentLoadingSkeletonVariant(activeStudentView)} />}
         >
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage

@@ -24859,6 +24859,30 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   gap: var(--student-shell-gap, 1rem);
 }
 .student-loading-skeleton-delayed { display: grid; place-items: center; }
+/* Panel: one large surface under the header, the shape most student screens share. */
+.student-loading-skeleton-panel {
+  display: grid;
+  min-height: 18rem;
+  padding: 1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-1);
+}
+/* Home: the scene and the three dock slots take the overview's own hero and destination cells. */
+.student-skeleton-overview-scene {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--student-card-radius, var(--apple-radius-panel));
+}
+.student-skeleton-overview-card {
+  min-height: 5.5rem;
+  border-radius: var(--student-card-radius, var(--apple-radius-panel));
+}
+@media (min-width: 64rem) {
+  .student-skeleton-overview-scene { height: 100%; aspect-ratio: auto; }
+  .student-skeleton-overview-card { min-height: 0; height: 100%; }
+}
 .student-loading-skeleton-card {
   display: grid;
   grid-template-rows: minmax(8rem, 1fr) auto auto auto;
