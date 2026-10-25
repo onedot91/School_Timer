@@ -17,7 +17,8 @@ import { animate as animateMotion, motion, useMotionValue, useReducedMotion, use
 import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentToast from '../components/student/StudentToast';
-import type { StudentToast as StudentToastValue } from '../lib/studentToast';
+import type { StudentToast as StudentToastValue, StudentToastTone } from '../lib/studentToast';
+import { getStudentEconomyRejectionMessage, isStudentProfileRejection, shouldToastStudentEconomyResult } from '../lib/studentEconomyRejection';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import StudentClassPrep from '../components/student/StudentClassPrep';
@@ -554,8 +555,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const confirmingBidRef = useRef(false);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
-  const [successToast, setSuccessToast] = useState<StudentToastValue | null>(null);
-  const successToastIdRef = useRef(0);
+  const [studentToast, setStudentToast] = useState<StudentToastValue | null>(null);
+  const studentToastIdRef = useRef(0);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [donationAmountDraft, setDonationAmountDraft] = useState('1');
   const [isDonating, setIsDonating] = useState(false);
@@ -742,13 +743,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStatusMessage(message);
   };
 
-  const showSuccessToast = (message: string) => {
-    successToastIdRef.current += 1;
-    setSuccessToast({ id: successToastIdRef.current, message });
+  const showStudentToast = (message: string, tone: StudentToastTone) => {
+    studentToastIdRef.current += 1;
+    setStudentToast({ id: studentToastIdRef.current, message, tone });
   };
+  const showSuccessToast = (message: string) => showStudentToast(message, 'success');
+  const showWarningToast = (message: string) => showStudentToast(message, 'warning');
 
-  const dismissSuccessToast = useCallback((id: number) => {
-    setSuccessToast((current) => (current?.id === id ? null : current));
+  const dismissStudentToast = useCallback((id: number) => {
+    setStudentToast((current) => (current?.id === id ? null : current));
   }, []);
 
   const dismissStatusMessage = () => {
@@ -1026,7 +1029,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         invalidateSharedSettingsCache();
         void refreshAuctionState({ forceFull: true });
         if (!result.applied || !result.profileImage) {
-          if (purchase.type === 'selected') showStatusMessage(result.message);
+          if (purchase.type === 'selected') {
+            if (!result.applied && result.message && isStudentProfileRejection(result.profileReason)) showWarningToast(result.message);
+            else showStatusMessage(result.message);
+          }
           return { ok: false, message: result.message };
         }
         if (purchase.type === 'selected') showSuccessToast(result.message);
@@ -1063,7 +1069,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 : reason === 'already_selected'
                   ? '이미 사용 중인 프로필입니다.'
                   : '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
-        if (purchase.type === 'selected') showStatusMessage(message);
+        if (purchase.type === 'selected') {
+          if (isStudentProfileRejection(reason)) showWarningToast(message);
+          else showStatusMessage(message);
+        }
         return { ok: false, message };
       }
 
@@ -2261,58 +2270,20 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'claim_halloween_character' && action.type !== 'buy_house') showSuccessToast(resultMessage);
+      if (resultMessage && shouldToastStudentEconomyResult(action.type)) showSuccessToast(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      const userMessage = storageAvailabilityMessage(error) ?? (message === 'SAVE_DRAFT_PENDING'
+      const storageMessage = storageAvailabilityMessage(error);
+      const rejectionMessage = storageMessage ? null : getStudentEconomyRejectionMessage(message, action.type);
+      if (rejectionMessage && shouldToastStudentEconomyResult(action.type)) {
+        showWarningToast(rejectionMessage);
+        return false;
+      }
+      const userMessage = storageMessage ?? (message === 'SAVE_DRAFT_PENDING'
         ? '이전 고마 처리의 저장 결과를 먼저 확인해 주세요.'
-        : message === 'HOUSE_CREATOR_BALANCE_LIMIT'
-        ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
-        : message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
-        ? '사용 가능한 고마가 부족합니다.'
-        : message === 'CHARACTER_CHOICE_PENDING'
-        ? '진행 중인 초성 선택을 먼저 완료해 주세요.'
-        : message === 'INVALID_CHARACTER_CHOICE'
-        ? action.type === 'claim_halloween_character' ? '다른 스킨을 골라 주세요.' : '초성 선택지를 새로 확인한 뒤 선택해 주세요.'
-        : message === 'HALLOWEEN_EVENT_CLAIMED'
-        ? '할로윈 스킨은 이미 받았습니다.'
-        : message === 'HALLOWEEN_EVENT_NOT_OPEN'
-        ? '아직 받을 수 없습니다.'
-        : message === 'INVALID_BANK_AMOUNT'
-          ? '예금은 10고마부터 맡길 수 있습니다.'
-        : message === 'INSUFFICIENT_BANK_BALANCE'
-          ? '예금 잔액이 부족합니다.'
-          : message === 'EXCESSIVE_LOAN_REPAYMENT'
-            ? '대출 잔액보다 많이 갚을 수 없습니다.'
-            : message === 'DEPOSIT_NOT_AVAILABLE_TODAY'
-              ? '예금은 월요일부터 금요일까지만 들 수 있습니다.'
-              : message === 'DEPOSIT_NOT_MATURED'
-                ? '아직 만기 전입니다. 예금을 깨면 원금만 받을 수 있습니다.'
-                : message === 'LOAN_LIMIT_EXCEEDED'
-                  ? '대출은 한 번에 50고마까지 받을 수 있고, 기존 대출을 먼저 갚아야 합니다.'
-                  : message === 'TRANSFER_DAILY_LIMIT_REACHED'
-                    ? '이체는 하루에 한 번, 한 명에게만 보낼 수 있습니다.'
-                    : message === 'TRANSFER_AMOUNT_LIMIT_EXCEEDED'
-                      ? '한 번에 30고마까지만 보낼 수 있습니다.'
-            : message === 'STOCK_MARKET_CLOSED'
-              ? '오늘은 휴장입니다.'
-              : message === 'INVESTMENT_LIMIT_EXCEEDED'
-                ? '최대 투자 금액을 넘을 수 없습니다.'
-                : message === 'INVALID_INVESTMENT_AMOUNT'
-                  ? '투자할 고마를 다시 확인해 주세요.'
-                  : message === 'INVESTMENT_NOT_FOUND'
-                    ? '찾을 투자금이 없습니다.'
-              : message === 'HOUSE_ALREADY_REPAIRED'
-                ? '이미 집을 고쳤습니다.'
-                : message === 'HOUSE_SHOP_LOCKED'
-                  ? '집을 먼저 고쳐야 합니다.'
-                  : message === 'ALL_CHARACTERS_OWNED'
-                    ? '모든 캐릭터를 모았습니다.'
-                    : message === 'CUSTOM_HOUSE_COUPON_REQUIRED'
-                      ? '집 만들기 쿠폰이 필요합니다.'
-              : '처리하지 못했습니다. 다시 시도해 주세요.');
+        : rejectionMessage ?? '처리하지 못했습니다. 다시 시도해 주세요.');
       showStatusMessage(userMessage);
       return false;
     } finally {
@@ -2349,7 +2320,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
       <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
-      <StudentToast toast={successToast} onDone={dismissSuccessToast} />
+      <StudentToast toast={studentToast} onDone={dismissStudentToast} />
       <main className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
           <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" role="status" aria-label="고마 처리 확인">

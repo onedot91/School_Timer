@@ -1,5 +1,6 @@
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getStudentToastDurationMs, type StudentToast as StudentToastValue } from '../../lib/studentToast';
 
 type StudentToastProps = {
@@ -7,7 +8,7 @@ type StudentToastProps = {
   readonly onDone: (id: number) => void;
 };
 
-// Confirmed results only. Unconfirmed saves and failures that need a next step stay in a dialog.
+// Confirmed results and normal rejections only. Unconfirmed saves, storage failures and unknown errors stay in a dialog.
 const StudentToast = ({ toast, onDone }: StudentToastProps) => {
   const [shownToast, setShownToast] = useState<StudentToastValue | null>(null);
 
@@ -18,23 +19,26 @@ const StudentToast = ({ toast, onDone }: StudentToastProps) => {
       return undefined;
     }
     const frame = window.requestAnimationFrame(() => setShownToast(toast));
-    const timer = window.setTimeout(() => onDone(toast.id), getStudentToastDurationMs(toast.message));
+    const timer = window.setTimeout(() => onDone(toast.id), getStudentToastDurationMs(toast.message, toast.tone));
     return () => {
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timer);
     };
   }, [toast, onDone]);
 
-  return (
-    <div className="student-toast-region" role="status" aria-live="polite" aria-atomic="true">
+  const Icon = shownToast?.tone === 'warning' ? TriangleAlert : CircleCheck;
+  // A body-level region marked for useModalFocus, so a confirm dialog that stays open (shop) does not make it inert.
+  const region = (
+    <div className="student-toast-region" role="status" aria-live="polite" aria-atomic="true" data-modal-live-region="true">
       {shownToast ? (
-        <p key={shownToast.id} className="student-toast">
-          <CircleCheck className="student-toast-icon" aria-hidden="true" focusable="false" />
+        <p key={shownToast.id} className="student-toast" data-tone={shownToast.tone}>
+          <Icon className="student-toast-icon" aria-hidden="true" focusable="false" />
           <span>{shownToast.message}</span>
         </p>
       ) : null}
     </div>
   );
+  return typeof document === 'undefined' ? region : createPortal(region, document.body);
 };
 
 export default StudentToast;

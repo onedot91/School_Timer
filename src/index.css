@@ -24759,7 +24759,8 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   position: fixed;
   left: 50%;
   top: max(5.5rem, env(safe-area-inset-top));
-  z-index: 60;
+  /* Above student confirm dialogs (110): a shop rejection arrives while its dialog stays open. */
+  z-index: 130;
   display: flex;
   justify-content: center;
   width: calc(100% - 2rem);
@@ -24794,6 +24795,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   height: 1.85rem;
   color: var(--apple-accent-pressed);
 }
+.student-toast[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--student-warning) 45%, var(--apple-separator));
+  background: var(--student-warning-soft);
+}
+.student-toast[data-tone="warning"] .student-toast-icon { color: var(--student-warning); }
 /* Slide only, no fade: a paused or skipped animation still leaves the message readable. */
 @keyframes student-toast-in {
   from { transform: translateY(-.75rem); }
