@@ -24753,6 +24753,59 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-rapid-click-dialog-timer { animation: none; opacity: .45; }
 }
 
+/* Confirmed results only; never blocks clicks, so students keep going while it is up.
+   Sits just below the student header so a wide one-line message never hides the goma balance. */
+.student-toast-region {
+  position: fixed;
+  left: 50%;
+  top: max(5.5rem, env(safe-area-inset-top));
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  width: calc(100% - 2rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.student-toast {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 28%, var(--apple-separator));
+  border-radius: var(--apple-radius-panel);
+  color: var(--apple-text-primary);
+  background: var(--apple-material-thick);
+  box-shadow: inset 0 1px 0 var(--apple-edge-highlight), var(--apple-shadow-3);
+  font-size: var(--type-title);
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  /* One line whenever it fits; only very long messages or large text zoom wrap, and then into even lines. */
+  text-wrap: balance;
+  animation: student-toast-in .22s ease-out both;
+}
+.student-toast-icon {
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  color: var(--apple-accent-pressed);
+}
+/* Slide only, no fade: a paused or skipped animation still leaves the message readable. */
+@keyframes student-toast-in {
+  from { transform: translateY(-.75rem); }
+  to { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-toast { animation: none; }
+}
+@media (forced-colors: active) {
+  .student-toast { border-color: CanvasText; }
+}
+
 .student-confirm-dialog.student-sudoku-settings-dialog {
   width: min(100%, 46rem);
   gap: .75rem;

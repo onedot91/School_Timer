@@ -16,6 +16,8 @@ import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
+import StudentToast from '../components/student/StudentToast';
+import type { StudentToast as StudentToastValue } from '../lib/studentToast';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import StudentClassPrep from '../components/student/StudentClassPrep';
@@ -552,6 +554,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const confirmingBidRef = useRef(false);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [successToast, setSuccessToast] = useState<StudentToastValue | null>(null);
+  const successToastIdRef = useRef(0);
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [donationAmountDraft, setDonationAmountDraft] = useState('1');
   const [isDonating, setIsDonating] = useState(false);
@@ -737,6 +741,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setActiveModal('status');
     setStatusMessage(message);
   };
+
+  const showSuccessToast = (message: string) => {
+    successToastIdRef.current += 1;
+    setSuccessToast({ id: successToastIdRef.current, message });
+  };
+
+  const dismissSuccessToast = useCallback((id: number) => {
+    setSuccessToast((current) => (current?.id === id ? null : current));
+  }, []);
 
   const dismissStatusMessage = () => {
     if (confirmingBidRef.current) return;
@@ -1016,7 +1029,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           if (purchase.type === 'selected') showStatusMessage(result.message);
           return { ok: false, message: result.message };
         }
-        if (purchase.type === 'selected') showStatusMessage(result.message);
+        if (purchase.type === 'selected') showSuccessToast(result.message);
         return { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 };
       }
 
@@ -1057,7 +1070,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
-      if (purchase.type === 'selected') showStatusMessage(`${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
+      if (purchase.type === 'selected') showSuccessToast(`${formatCurrency(result.price)}로 프로필을 바꿨어요.`);
       if (result.profileImage === null) {
         return { ok: false, message: '프로필 결과를 확인하지 못했습니다. 새로고침해 주세요.' };
       }
@@ -1947,7 +1960,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
       setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
       void playAuctionSound('bid');
-      showStatusMessage('입찰이 완료되었습니다.');
+      showSuccessToast('입찰했어요.');
     } catch (error) {
       if (!isSupabaseSettingsEnabled && error instanceof Error && error.message === 'AUCTION_BID_LOCAL_SAVE_FAILED') reportSaveFailure('auction', 'storage', studentNumber);
       console.error('Failed to submit auction bid.', error);
@@ -2100,7 +2113,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
       setIsDonationOpen(false);
       donationRequestIdRef.current = '';
-      showStatusMessage(`${formatCurrency(result.donatedAmount)}를 기부했습니다.`);
+      showSuccessToast(`${formatCurrency(result.donatedAmount)}를 기부했어요.`);
       await refreshAuctionState();
     } catch (error) {
       console.error('Failed to donate to class goal.', error);
@@ -2128,7 +2141,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setStudentEconomyStates((previous) => ({ ...previous, [studentKey]: result.studentEconomy }));
         setStudentLifeSnapshot(mergeStudentEconomyLife(studentLife, result.studentLife));
         minimumSettingsUpdatedAtRef.current = result.updatedAt;
-        showStatusMessage(result.message || '저장 결과를 확인했습니다.');
+        showSuccessToast(result.message || '저장 결과를 확인했어요.');
         void refreshAuctionState({ forceFull: true });
       }
     } catch {
@@ -2248,7 +2261,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'claim_halloween_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
+      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'claim_halloween_character' && action.type !== 'buy_house') showSuccessToast(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
@@ -2336,6 +2349,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
       <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
+      <StudentToast toast={successToast} onDone={dismissSuccessToast} />
       <main className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
           <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" role="status" aria-label="고마 처리 확인">
