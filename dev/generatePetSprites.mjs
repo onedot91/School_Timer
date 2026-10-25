@@ -1604,9 +1604,16 @@ const chip = (x, y, angle) => `<path d="M${x} ${y} q4 -4 9 -1 q-1 5 -5 7 q-3 -2 
 // Dark inside showing through the gap under a lifted top.
 // `depth` grows as the top lifts higher and more of the inside shows.
 const opening = (depth = 16) => `<path d="M26 52 C40 ${52 + depth} 80 ${52 + depth} 94 52 L${zigBack.split(' L').slice(1).join(' L')} Z" fill="#2a2018"/>`;
-const peekingEyes = `
-  <circle cx="51" cy="57" r="3.8" fill="#fff"/><circle cx="52" cy="57.8" r="2" fill="${C.eye}"/>
-  <circle cx="69" cy="57" r="3.8" fill="#fff"/><circle cx="70" cy="57.8" r="2" fill="${C.eye}"/>`;
+// Big round eyes that fill most of the white, each with two sparkles, plus pink cheeks on the shell
+// below: small dot pupils in the dark gap read as a glare, so the peeking chick looks curious instead.
+const peekingEye = (cx) => `
+  <ellipse cx="${cx}" cy="57.5" rx="4.4" ry="4.7" fill="#fff"/>
+  <ellipse cx="${cx + 0.3}" cy="58" rx="3.3" ry="3.7" fill="${C.eye}"/>
+  <circle cx="${cx + 1.4}" cy="56.4" r="1.25" fill="#fff"/>
+  <circle cx="${cx - 0.9}" cy="59.6" r="0.6" fill="#fff"/>`;
+const peekingEyes = `${peekingEye(51)}${peekingEye(69)}
+  <ellipse cx="43" cy="66" rx="4.2" ry="2.4" fill="#f3a3a3" opacity="0.7"/>
+  <ellipse cx="77" cy="66" rx="4.2" ry="2.4" fill="#f3a3a3" opacity="0.7"/>`;
 // The egg broken along the zigzag: the bottom stays in the nest, the top lifts or comes off.
 // `marks` are the cracks and holes drawn so far; each half keeps its own share of them.
 const splitEgg = (stage, topTransform, inside, marks = '', depth = 16) => `
@@ -1621,7 +1628,8 @@ const CRACKS = {
   top: [[62, 14], [66, 21], [63, 26], [68, 31], [65, 37]],
   left: [[31, 60], [37, 56], [35, 50], [41, 46], [39, 40]],
   ring: ZIGZAG,
-  down: [[57, 52], [55, 59], [59, 65], [57, 71]],
+  // Starts at the right end of the ring, away from the peeking face, so it never reads as a nose.
+  down: [[85, 52], [83, 59], [87, 65], [84, 71]],
   right: [[78, 44], [82, 37], [80, 31]],
   join: [[64, 43], [65, 38]],
 };

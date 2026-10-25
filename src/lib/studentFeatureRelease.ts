@@ -6,11 +6,11 @@ export const STUDENT_FEATURE_RELEASES: Readonly<Record<StudentFeatureReleaseId, 
   bookstore: true,
   failureExhibition: true,
   emotionOrbs: true,
-  petEgg: false,
+  petEgg: true,
 };
 
 /** Features already open on the test (development) server while they stay closed in production. */
-export const STUDENT_TEST_SERVER_FEATURES: ReadonlySet<StudentFeatureReleaseId> = new Set<StudentFeatureReleaseId>(['petEgg']);
+export const STUDENT_TEST_SERVER_FEATURES: ReadonlySet<StudentFeatureReleaseId> = new Set<StudentFeatureReleaseId>();
 
 export const isStudentFeatureOpen = (
   feature: StudentFeatureReleaseId,
