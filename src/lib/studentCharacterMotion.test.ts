@@ -117,4 +117,9 @@ test('토네이도는 빠르게 휘몰아치며 지나가고 같은 방향·마�
   assert.match(css, /translate\(var\(--student-character-blow-pull-x, 0px\), -2rem\)/);
   assert.match(css, /@keyframes studentCharacterTornadoBlown \{[\s\S]*?-125vh/);
   assert.match(css, /\[data-tornado-blown\] \.student-character-scale \{[^}]*forwards/);
+
+  const reducedTornado = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)]
+    .find((match) => match[1].includes('.student-character-tornado-dust'))?.[1] ?? '';
+  assert.match(reducedTornado, /\.student-character-showcase\[data-tornado-blown\] \.student-character-scale \{\s*animation-duration: 2s !important;/,
+    '동작 줄이기에서도 날려 보내기가 전역 0.01ms로 단축되지 않아야 한다');
 });

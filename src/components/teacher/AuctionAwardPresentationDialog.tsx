@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { ChevronDown, X } from 'lucide-react';
-import { useReducedMotion } from 'motion/react';
 import { playAuctionSound } from '../../lib/auctionAudio';
 import { FAILURE_EMPTY_PROFILE_IMAGE, getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
@@ -82,7 +81,6 @@ export default function AuctionAwardPresentationDialog({
   presentation, completedItems, profileAssignments, hasQueuedPresentations, dialogRef,
   onComplete, onRevealComplete, onDismiss,
 }: AuctionAwardPresentationDialogProps) {
-  const reduceMotion = useReducedMotion() ?? false;
   const replay = getAuctionAwardReplaySteps(presentation.steps, presentation.award);
   const [index, setIndex] = useState(0);
   const [revealing, setRevealing] = useState(false);
@@ -167,7 +165,7 @@ export default function AuctionAwardPresentationDialog({
       }
     }}
     onClick={event => { if (event.target === event.currentTarget && canDismiss) onDismiss(); }}>
-    <section className="auction-ceremony" data-phase={phase} data-reduced-motion={reduceMotion} style={timingStyle}>
+    <section className="auction-ceremony" data-phase={phase} style={timingStyle}>
       <header className="auction-ceremony-header">
         <span className="auction-ceremony-brand">{presentation.weekdayLabel} 경매</span>
         <div className="auction-ceremony-controls">

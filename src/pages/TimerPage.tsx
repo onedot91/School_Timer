@@ -30,7 +30,7 @@ import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stoc
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
-import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
+import { animate as animateMotion, AnimatePresence, motion, MotionConfig, useMotionValue, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -3944,7 +3944,6 @@ function StudentCharacterShowcase({
 }
 
 export default function TimerPage() {
-  const shouldReduceMotion = useReducedMotion();
   const initialState = getInitialAppState();
   const [initialRandomDrawState] = useState(() => getInitialRandomDrawState());
   const [initialScheduleYoutubeState] = useState(() => getInitialScheduleYoutubeState());
@@ -4385,8 +4384,8 @@ export default function TimerPage() {
     if (!isSettingsMaterialMounted) return;
     const target = isSettingsOpen ? 1 : 0;
     const controls = animateMotion(settingsMaterialProgress, target, {
-      duration: shouldReduceMotion ? 0.16 : 0.34,
-      ease: shouldReduceMotion ? 'easeOut' : [0.2, 0.8, 0.2, 1],
+      duration: 0.34,
+      ease: [0.2, 0.8, 0.2, 1],
       onComplete: () => {
         if (target === 0 && !isSettingsOpenRef.current) {
           setIsSettingsMaterialMounted(false);
@@ -4394,7 +4393,7 @@ export default function TimerPage() {
       },
     });
     return () => controls.stop();
-  }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
+  }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress]);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('today');
   const isClassDonationGoalReached = classDonation.enabled && isClassDonationCompleted(classDonation);
   const currentSettingsNavigationItem = SETTINGS_NAVIGATION_ITEMS.find((item) => item.panel === settingsPanel);
@@ -5447,13 +5446,6 @@ export default function TimerPage() {
   }, [scheduleNotice, isEditingNotice]);
 
   useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-
     let blinkStartTimer: number | undefined;
     let blinkEndTimer: number | undefined;
 
@@ -5477,13 +5469,6 @@ export default function TimerPage() {
   }, []);
 
   useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-
     let glanceStartTimer: number | undefined;
     let glanceEndTimer: number | undefined;
     const glances: Exclude<WatchFaceGlance, 'center'>[] = ['left', 'right', 'up'];
@@ -8564,13 +8549,6 @@ export default function TimerPage() {
         : currentDaySchedule.length > 0 ? 0 : -1;
 
   useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-
     const previousRunning = previousWatchFaceRunningRef.current;
     const isFinished = displayTotalTime > 0 && displayTimeLeft === 0;
     const didRunningChange = previousRunning !== null && previousRunning !== displayIsRunning;
@@ -8907,21 +8885,15 @@ export default function TimerPage() {
         <motion.div
           key="schedule-notice"
           className="relative z-30 shrink-0 overflow-hidden px-4 pb-1 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-[1.15rem] lg:px-7 xl:px-8"
-          initial={shouldReduceMotion
-            ? { height: 0, opacity: 0 }
-            : { height: 0, opacity: 0, y: -8, scale: 0.996 }}
+          initial={{ height: 0, opacity: 0, y: -8, scale: 0.996 }}
           animate={{ height: 'auto', opacity: 1, y: 0, scale: 1 }}
-          exit={shouldReduceMotion
-            ? { height: 0, opacity: 0 }
-            : { height: 0, opacity: 0, y: -8, scale: 0.996 }}
-          transition={shouldReduceMotion
-            ? { duration: 0.16, ease: 'easeOut' }
-            : {
-                height: { duration: 0.26, ease: [0.22, 1, 0.36, 1] },
-                y: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
-                scale: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
-                opacity: { duration: 0.16, ease: 'easeOut' },
-              }}
+          exit={{ height: 0, opacity: 0, y: -8, scale: 0.996 }}
+          transition={{
+            height: { duration: 0.26, ease: [0.22, 1, 0.36, 1] },
+            y: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
+            scale: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
+            opacity: { duration: 0.16, ease: 'easeOut' },
+          }}
           style={{ transformOrigin: '50% 0%', willChange: 'transform, opacity' }}
           data-notice-motion="true"
         >
@@ -11749,6 +11721,7 @@ export default function TimerPage() {
   );
 
   return (
+    <MotionConfig reducedMotion="never">
     <div className="mascot-app teacher-app h-[100dvh] w-full overflow-hidden">
       {teacherRefreshPending && !isSettingsOpen && <div className="fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border bg-[var(--teacher-surface)] px-4 py-2 shadow" role="status">
         <span>저장됨 · 화면 갱신 중</span>
@@ -13356,7 +13329,7 @@ export default function TimerPage() {
           className="settings-backdrop teacher-settings-theme fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: isSettingsOpen ? 1 : 0, pointerEvents: isSettingsOpen ? 'auto' : 'none' }}
-          transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
         >
           <motion.div
             ref={settingsDialogRef}
@@ -13365,9 +13338,7 @@ export default function TimerPage() {
             aria-modal={!hasSettingsChildModal ? 'true' : undefined}
             aria-labelledby="timer-settings-title"
             tabIndex={-1}
-            style={shouldReduceMotion
-              ? { opacity: settingsMaterialProgress }
-              : { opacity: settingsMaterialProgress, scale: settingsMaterialScale, filter: settingsMaterialFilter }}
+            style={{ opacity: settingsMaterialProgress, scale: settingsMaterialScale, filter: settingsMaterialFilter }}
           >
             <div
               className="settings-parent-content flex min-h-0 flex-1 flex-col"
@@ -14235,5 +14206,6 @@ export default function TimerPage() {
         }}
       />
     </div>
+    </MotionConfig>
   );
 }

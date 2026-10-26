@@ -797,6 +797,8 @@ textarea {
   }
 }
 
+/* 교사 화면과 포털은 동작 줄이기 규칙에서 제외한다. :where로 기존 우선순위를 유지한다. */
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-mail-envelope,
   .student-mail-envelope-flap,
@@ -809,6 +811,7 @@ textarea {
   .student-compose-recipient-list { animation: none !important; transition-duration: 0ms !important; }
 }
 
+}
 @media (forced-colors: active) {
   .student-mail-envelope,
   .student-mailbox-tray,
@@ -1420,6 +1423,11 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   }
 }
 
+:where(:root[data-teacher-motion="full"]) {
+.student-canvas-library-world-cue {
+    animation: library-cue-appear 140ms ease-out;
+  }
+}
 @keyframes library-cue-appear {
   from { opacity: 0; transform: translate(-50%, calc(-50% + 2px)); }
   to { opacity: 1; transform: translate(-50%, -50%); }
@@ -2263,6 +2271,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-canvas-library *,
   .student-canvas-library *::before,
@@ -2274,6 +2283,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .student-canvas-library-scrim {
     background: var(--library-ink-deep);
@@ -2530,6 +2540,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   animation: auctionAwardWinner 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .auction-award-rings,
   .auction-award-core-halo,
@@ -2554,6 +2565,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   }
 }
 
+}
 .mascot-app {
   position: relative;
   display: flex;
@@ -3015,12 +3027,14 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   display: none;
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .notice-card-reading {
     animation: none;
   }
 }
 
+}
 .notice-editor,
 .notice-content {
   position: relative;
@@ -9350,6 +9364,7 @@ h3 {
 }
 
 /* 걷는 캐릭터처럼 동작 줄이기 설정에서도 빼꼼은 그대로 나온다(전역 0.01ms 단축을 되돌린다). */
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-character-peek,
   .student-character-peek-speech {
@@ -9366,6 +9381,7 @@ h3 {
   }
 }
 
+}
 @supports (width: 1cqh) {
   .timer-watch-face {
     width: min(40cqw, 40cqh, 17.5rem);
@@ -9534,6 +9550,7 @@ h3 {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .timer-watch-face,
   .timer-watch-face .timer-watch-eye,
@@ -9546,6 +9563,7 @@ h3 {
   }
 }
 
+}
 .timer-primary-chip,
 .timer-secondary-chip {
   backdrop-filter: blur(18px) saturate(1.02);
@@ -10119,6 +10137,7 @@ body::after,
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .dictionary-results-stage,
   .dictionary-loading-stage::before,
@@ -10132,6 +10151,7 @@ body::after,
   }
 }
 
+}
 @media (min-width: 640px) {
   .dictionary-search-body-active {
     padding-top: 9.25rem;
@@ -13990,6 +14010,7 @@ h3 {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .random-board-drawing,
   .random-board-win-impact,
@@ -14003,6 +14024,7 @@ h3 {
   }
 }
 
+}
 .auction-page {
   background:
     linear-gradient(180deg, rgba(250, 252, 250, 0.98) 0%, rgba(255, 253, 249, 0.98) 100%);
@@ -14123,6 +14145,7 @@ h3 {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .auction-room-shell,
   .auction-item-card,
@@ -14131,6 +14154,7 @@ h3 {
   }
 }
 
+}
 /* APPLE THEME START */
 /* FOUNDATION */
 :root {
@@ -14498,10 +14522,12 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .network-status-banner { animation: none; }
 }
 
+}
 @media (max-width: 760px) {
   .data-mode-banner + .network-status-banner {
     top: max(3.75rem, calc(env(safe-area-inset-top) + 3.25rem));
@@ -15451,10 +15477,12 @@ a[href]:active {
   .teacher-writing-student-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-writing-calendar { animation: none; }
 }
 
+}
 .teacher-bookstore-settings { display: grid; gap: 1rem; }
 .teacher-featured-writing-list { display: grid; gap: 1rem; }
 .teacher-featured-writing-card { display: grid; gap: 1rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); padding: 1rem; box-shadow: var(--apple-shadow-1); }
@@ -16527,6 +16555,7 @@ a[href]:active {
 @keyframes studentFailureBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes studentFailureComposeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes studentFailureStampMenuIn { from { opacity: 0; transform: translateY(.25rem); } to { opacity: 1; transform: translateY(0); } }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-failure-compose-backdrop,
   .student-failure-compose-dialog,
@@ -16543,6 +16572,7 @@ a[href]:active {
   .student-failure-relay-toolbar button:active { transform: none; }
 }
 
+}
 @media (hover: none) {
   .student-failure-message-actions { opacity: .72; }
 }
@@ -16741,6 +16771,12 @@ a[href]:active {
   }
 }
 
+:where(:root[data-teacher-motion="full"]) {
+.auction-item-card:not(:disabled):active {
+    transform: translateY(0) scale(0.985) !important;
+    opacity: 0.88 !important;
+  }
+}
 .auction-item-card[aria-pressed="true"] {
   outline: 2px solid color-mix(in srgb, var(--apple-accent) 78%, white);
   outline-offset: -2px;
@@ -16960,12 +16996,14 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .auction-item-card {
     transform: none !important;
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .auction-room-header,
   .auction-modal-backdrop {
@@ -17534,6 +17572,7 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .timer-main-shell .timer-watch-face {
     animation: none !important;
@@ -17549,6 +17588,7 @@ a[href]:active {
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .timer-main-shell .editorial-control-pane,
   .timer-main-shell .sound-toggle,
@@ -17884,6 +17924,7 @@ a[href]:active {
   font-weight: 800;
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .settings-today-task {
     transition: none;
@@ -17894,6 +17935,7 @@ a[href]:active {
   }
 }
 
+}
 /* Shared settings panel frame: status → one primary action → body → collapsed details. */
 .settings-frame {
   display: grid;
@@ -18105,6 +18147,7 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .settings-frame-primary,
   .settings-frame-action > .settings-frame-primary {
@@ -18117,6 +18160,7 @@ a[href]:active {
   }
 }
 
+}
 .settings-body {
   min-height: 0;
   overflow-x: hidden;
@@ -19441,11 +19485,7 @@ a[href]:active {
 @keyframes auctionCeremonyProfile { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes auctionCeremonyPaper { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: .8; } 100% { opacity: 0; transform: translate(var(--bit-x), var(--bit-y)) rotate(var(--bit-turn)); } }
 @keyframes auctionCeremonyFade { from { opacity: 0; } to { opacity: 1; } }
-.auction-ceremony[data-reduced-motion="true"], .auction-ceremony[data-reduced-motion="true"] * { animation: none !important; transition: none !important; }
-.auction-ceremony[data-reduced-motion="true"] :is(.auction-ceremony-gavel-scene, .auction-ceremony-paper-bits) { display: none; }
-.auction-ceremony[data-reduced-motion="true"][data-phase="strike"] .auction-ceremony-lot { visibility: hidden; }
-.auction-ceremony[data-reduced-motion="true"][data-phase="strike"] .auction-ceremony-stamp { opacity: 1; transform: none; animation: auctionCeremonyFade 120ms linear !important; }
-.auction-ceremony[data-reduced-motion="true"][data-phase="reveal"] .auction-ceremony-certificate { animation: auctionCeremonyFade 160ms linear !important; }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .auction-ceremony, .auction-ceremony * { animation: none !important; transition: none !important; }
   .auction-ceremony :is(.auction-ceremony-gavel-scene, .auction-ceremony-paper-bits) { display: none; }
@@ -19453,7 +19493,8 @@ a[href]:active {
   .auction-ceremony[data-phase="strike"] .auction-ceremony-stamp { opacity: 1; transform: none; }
   .auction-ceremony[data-phase="reveal"] .auction-ceremony-certificate { animation: auctionCeremonyFade 160ms linear !important; }
 }
-@media (max-width: 47.999rem), (max-height: 39rem) {
+
+}@media (max-width: 47.999rem), (max-height: 39rem) {
   .auction-ceremony-backdrop { padding: .75rem; }
   .auction-ceremony { height: calc(100dvh - 1.5rem); overflow-y: auto; }
   .auction-ceremony-header { padding: 1rem 1.25rem; }
@@ -19648,6 +19689,7 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .announcement-history-panel,
   .utility-pane-card {
@@ -19659,6 +19701,7 @@ a[href]:active {
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .announcement-shell,
   .memo-shell,
@@ -19916,6 +19959,7 @@ a[href]:active {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .random-draw-page :is(.random-repeat-flight, .random-repeat-flight *, .random-stage-win-flash, .random-stage-repeat-flash, .random-stage-reset-flash, .random-board-win-rays, .random-board-win-particles, .random-board-reset-particles, .random-board-reset-ring, .random-board-reset-sweep) {
     display: none !important;
@@ -19929,6 +19973,7 @@ a[href]:active {
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .random-draw-page .random-control-pane,
   .random-settings-shell {
@@ -21752,6 +21797,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   to { opacity: 1; transform: translateY(0); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-today-friend-person[data-reveal-stage],
   .student-today-friend-assignment[data-reveal-state]::before,
@@ -21760,6 +21806,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   }
 }
 
+}
 .student-today-friend-guide {
   position: relative;
   isolation: isolate;
@@ -22091,10 +22138,12 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   to { opacity: 1; transform: scale(1); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .today-friend-intro-dialog { animation-name: today-friend-intro-backdrop-in; }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .today-friend-intro-backdrop { backdrop-filter: none; }
   .today-friend-intro-dialog,
@@ -23301,6 +23350,7 @@ body:has(.student-sudoku-view) .data-mode-banner {
   50% { opacity: .42; }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-action-progress,
   .student-action-progress-card {
@@ -23312,6 +23362,7 @@ body:has(.student-sudoku-view) .data-mode-banner {
   }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .student-action-progress,
   .student-action-progress-card {
@@ -24734,10 +24785,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-rapid-click-dialog-timer { animation: none; opacity: .45; }
 }
 
+}
 /* Amount checks: one plain line says why the confirm button is off. The words and a stronger border carry it, not color alone. */
 .student-amount-issue {
   margin: 0;
@@ -24768,10 +24821,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   from { transform: translateY(-.22em); }
   to { transform: translateY(0); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-amount-settle { animation: none; }
 }
 
+}
 /* Student loading placeholders: a static tinted block is the whole message, the light sweep (transform only) is extra. */
 .student-skeleton-block {
   position: relative;
@@ -24791,10 +24846,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 @keyframes student-skeleton-sweep {
   to { transform: translateX(100%); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-skeleton-block::after { display: none; }
 }
-@media (forced-colors: active) {
+
+}@media (forced-colors: active) {
   .student-skeleton-block { border: 1px solid CanvasText; }
 }
 
@@ -24841,10 +24898,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   from { transform: translateY(.35rem) scale(.92); }
   to { transform: translateY(0) scale(1); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-balance-change { animation: none; }
 }
 
+}
 .student-skeleton-back { width: 4.5rem; height: 2.75rem; border-radius: var(--apple-radius-pill); }
 .student-skeleton-title { width: 7rem; height: 1.75rem; }
 .student-skeleton-balance { width: 14rem; height: 2.75rem; }
@@ -24956,10 +25015,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   from { transform: translateY(-.75rem); }
   to { transform: translateY(0); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-toast { animation: none; }
 }
-@media (forced-colors: active) {
+
+}@media (forced-colors: active) {
   .student-toast { border-color: CanvasText; }
 }
 
@@ -25679,10 +25740,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .teacher-currency-reasons { grid-template-columns: minmax(0, 1fr); }
   .teacher-currency-columns, .teacher-currency-student > summary, .teacher-currency-student-row { grid-template-columns: 2.5rem minmax(3.75rem, .8fr) minmax(4rem, 1.2fr) minmax(3.5rem, auto) 1rem; column-gap: .5rem; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-currency-student > summary, .teacher-currency-chevron { transition: none; }
 }
 
+}
 .teacher-investment-dashboard h4 { margin: 0; color: var(--apple-text-primary); font-size: var(--type-body); font-weight: 800; }
 .teacher-investment-dashboard header > span { color: var(--apple-text-secondary); font-size: var(--type-caption); }
 .settings-dialog .teacher-stock-settings .teacher-investment-dashboard .is-up { color: var(--student-stock-up) !important; }
@@ -26136,6 +26199,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-spin {
     animation: none;
@@ -26167,6 +26231,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-baseball-submit { transform: none !important; }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .student-header {
     background: var(--apple-surface);
@@ -26229,7 +26294,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 }
 
 /* PREFERENCES */
-  @media (prefers-reduced-motion: reduce) {
+  :where(:root:not([data-teacher-motion="full"])) {
+@media (prefers-reduced-motion: reduce) {
+  &,
+  &::before,
+  &::after,
   *,
   *::before,
   *::after {
@@ -26261,6 +26330,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 
   }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .settings-backdrop {
     backdrop-filter: none !important;
@@ -26737,7 +26807,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .student-pet-walker-heart { animation-name: student-pet-heart-fade; }
+  :where(:root:not([data-teacher-motion="full"])) .student-pet-walker-heart { animation-name: student-pet-heart-fade; }
   @keyframes student-pet-heart-fade {
     0% { opacity: 0; transform: translateX(-50%); }
     25%, 70% { opacity: 1; transform: translateX(-50%); }
@@ -26833,13 +26903,15 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   0%, 100% { opacity: .2; transform: scale(.8); }
   50% { opacity: 1; transform: scale(1.1); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-pet-hatch-pet,
   .student-pet-hatch-shell-left,
   .student-pet-hatch-shell-right,
   .student-pet-hatch-sparkle { animation: none; }
 }
-.student-egg {
+
+}.student-egg {
   position: relative;
   display: grid;
   width: 13rem;
@@ -26983,20 +27055,20 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .student-egg-ring-fill { transition: none; }
-  .student-egg-art.is-fed,
-  .student-egg-art.is-cracking,
-  .student-egg.is-hatching .student-egg-art,
-  .student-egg-coin,
-  .student-egg-sparkle,
-  .student-egg-shard,
-  .student-egg-glow,
-  .student-egg-flash { animation: none; }
-  .student-egg-coin,
-  .student-egg-sparkle,
-  .student-egg-shard,
-  .student-egg-flash { display: none; }
-  .student-egg-plus { animation-name: student-egg-plus-fade; }
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-ring-fill { transition: none; }
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-art.is-fed,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-art.is-cracking,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg.is-hatching .student-egg-art,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-coin,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-sparkle,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-shard,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-glow,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-flash { animation: none; }
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-coin,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-sparkle,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-shard,
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-flash { display: none; }
+  :where(:root:not([data-teacher-motion="full"])) .student-egg-plus { animation-name: student-egg-plus-fade; }
   @keyframes student-egg-plus-fade {
     0%, 100% { opacity: 0; }
     20%, 75% { opacity: 1; }
@@ -27195,12 +27267,14 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-halloween-picker img { width: 4.25rem; height: 4.25rem; }
   .student-halloween-done img { width: 9rem; height: 9rem; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-halloween-picker button { transition: none; }
   .student-halloween-picker button:hover:not(:disabled) { transform: none; }
   .student-halloween-bat { animation: none; }
 }
 
+}
 .student-emotion-empty-orb,
 .emotion-status-empty-orb {
   display: inline-flex;
@@ -27900,11 +27974,13 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .emotion-status-student-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-emotion-option { transition: none; }
   .student-emotion-option:active { transform: none; }
 }
 
+}
 @media (forced-colors: active) {
   .student-emotion-option[aria-checked="true"],
   .emotion-status-student[aria-pressed="true"] { border-color: Highlight; outline: 2px solid Highlight; }
@@ -28752,6 +28828,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   outline-offset: 3px;
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-profile-gacha-loader { animation: student-profile-gacha-pulse 1s ease-in-out infinite alternate; }
   .student-profile-gacha-close,
@@ -28762,6 +28839,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-profile-gacha-result-action:active { transform: none; }
 }
 
+}
 @keyframes student-profile-gacha-pulse { from { opacity: .42; } to { opacity: 1; } }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -29029,6 +29107,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-gacha-initial-label { justify-items: start; margin: 0; font-size: var(--type-heading); }
   .student-gacha-initial-question { font-size: 2.25rem; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-gacha-initial-choice .student-gacha-initial-card,
   .student-gacha-initial-choice .student-gacha-initial-art :is(.student-gacha-initial-silhouette, .student-gacha-initial-question, .student-gacha-initial-skin) { transition: none; transform: none; }
@@ -29038,6 +29117,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-gacha-initial-burst { display: none; }
 }
 
+}
 /* One continuous stage owns capsule travel, opening, and the committed result. */
 .student-gacha-reveal-backdrop {
   position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; overflow: auto;
@@ -29108,12 +29188,14 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-gacha-orbit circle { fill: #ffe2a2; }
 .student-gacha-orbit-inner ellipse { stroke: #f8d28b; stroke-dasharray: 40 5 1 5; }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-claw-machine-claw, .student-claw-direction-buttons button, .student-gacha-reveal-close,
   .student-gacha-open-hint, .student-gacha-result-action { transition: none; }
   .student-gacha-result-action:active:enabled { transform: none; }
 }
 
+}
 @media (prefers-reduced-transparency: reduce) {
   .student-gacha-reveal-backdrop[data-variant] .student-gacha-reveal-scrim { background: #24372c; }
   .student-gacha-reveal-backdrop[data-variant="double"] .student-gacha-reveal-scrim { background: #28243f; }
@@ -29172,14 +29254,18 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   70% { transform: translateX(55%) scaleX(.35); opacity: 1; }
   100% { transform: translateX(105%) scaleX(.15); opacity: .45; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-currency-save-progress,
   .teacher-currency-save-progress > span { animation: none; transform: none; }
   .teacher-currency-save-progress::after { display: none; }
 }
-@keyframes currency-deduction-progress { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+
+}@keyframes currency-deduction-progress { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) { .currency-deduction-progress > span { width: 100%; animation: none; } }
 
+}
 .student-house-market article > button[data-owned="true"]:not(:disabled) { background: #e9f1fb; color: #234f7d; border: 2px solid #7396bc; }
 .student-house-market article > button:disabled { background: #d9c9b9; color: #695b50; }
 .student-custom-house-card { position: relative; isolation: isolate; overflow: hidden; }
@@ -29349,10 +29435,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .teacher-shop-house-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-shop-tabs > button { transition: none; }
 }
 
+}
 @media (min-width: 64rem) {
   .student-mode-page {
     --student-shell-inset: .75rem;
@@ -30360,12 +30448,14 @@ body {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .settings-dialog .slot-insert-button {
     transition: none;
   }
 }
 
+}
 :is(
   .student-back-button,
   .student-primary-action,
@@ -30528,6 +30618,7 @@ body {
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   :is(
     .student-featured-writing-card,
@@ -30592,6 +30683,7 @@ body {
   }
 }
 
+}
 .timer-main-shell .editorial-control-pane :is(button, [role="button"]):focus-visible,
 .timer-main-shell .editorial-settings-dialog :is(button, [role="button"]):focus-visible {
   outline: 3px solid var(--apple-focus);
@@ -30863,13 +30955,15 @@ body {
 .student-house-celebration[data-reduced-motion="true"] .student-house-celebration-seal { opacity: 1; }
 .student-house-celebration[data-reduced-motion="true"] .student-house-celebration-rays { opacity: .2; }
 .student-house-celebration[data-reduced-motion="true"] .student-house-celebration-star { opacity: .65; }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-house-celebration-backdrop, .student-house-celebration, .student-house-celebration * { animation: none !important; transition: none !important; }
   .student-house-celebration .student-house-celebration-house, .student-house-celebration .student-house-celebration-seal { opacity: 1; }
   .student-house-celebration .student-house-celebration-rays { opacity: .2; }
   .student-house-celebration .student-house-celebration-star { opacity: .65; }
 }
-@media (max-width: 40rem) {
+
+}@media (max-width: 40rem) {
   .student-house-celebration-header { padding: 3rem 1.25rem 1.25rem; }
   .student-house-celebration-stage { height: 17rem; }
   .student-house-celebration-art img { width: 90%; }
@@ -31094,6 +31188,7 @@ body {
   100% { transform: translate(calc(var(--goma-spark-x) - 90px), calc(var(--goma-spark-y) + 8px)); opacity: 0; }
 }
 @keyframes goma-wind { from { transform: translateX(8px); opacity: 0; } 25% { opacity: .7; } to { transform: translateX(-12px); opacity: 0; } }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-loading *, .student-action-progress:has(.goma-loading), .student-action-progress-card:has(.goma-loading) { animation: none; }
   .goma-cloud-far { transform: translate(25px, 22px); }
@@ -31102,6 +31197,7 @@ body {
   .goma-spark, .goma-wind { opacity: 0; }
 }
 
+}
 /* Preserve the approved raster artwork instead of redrawing its silhouette. */
 .goma-artwork { mix-blend-mode: multiply; }
 .goma-artwork .goma-scarf-tail {
@@ -31112,10 +31208,12 @@ body {
   from { transform: translateY(-.5px); }
   to { transform: translateY(.5px); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-artwork .goma-scarf-tail { animation: none; }
 }
-.goma-loading svg { mix-blend-mode: multiply; }
+
+}.goma-loading svg { mix-blend-mode: multiply; }
 .goma-loading:has(.goma-artwork) { contain: none; mix-blend-mode: multiply; }
 
 .goma-loading-label {
@@ -31161,11 +31259,13 @@ body {
   10% { opacity: 1; transform: translateY(-10px) scale(1.3); }
   18% { opacity: .9; transform: translateY(1px) scale(.95); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-loading-letter,
   .goma-loading-dots > span { animation: none; opacity: 1; transform: none; }
 }
 
+}
 .goma-foot-kick {
   transform-origin: 69px 67px;
   animation: goma-foot-kick 10s ease-in-out 2s infinite;
@@ -31176,10 +31276,12 @@ body {
   4.5% { transform: rotate(5deg); }
   6.5% { transform: rotate(-1deg); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-foot-kick { animation: none; }
 }
 
+}
 .student-character-gesture { width: 100%; display: grid; place-items: center; transform-origin: center bottom; }
 .student-character-showcase[data-spacing-wait],
 .student-character-showcase[data-spacing-wait] .student-character-path,
@@ -31199,10 +31301,12 @@ body {
   80% { transform: translateY(1px) rotate(calc(1deg * var(--student-character-greeting-direction, 1))); }
 }
 .student-character-walk-left { --student-character-greeting-direction: -1; }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-character-gesture { animation: none !important; }
 }
 
+}
 .student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-look-question { display: block; }
 
 .student-character-greeting {
@@ -31280,10 +31384,15 @@ body {
       rotate(calc(var(--student-character-blow-direction) * 1080deg)) scale(calc(var(--student-character-walk-scale) * 0.35));
   }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-character-tornado-dust { display: none; }
+  .student-character-showcase[data-tornado-blown] .student-character-scale {
+    animation-duration: 2s !important;
+  }
 }
 
+}
 /* Four hand-drawn poses, held discretely to keep pixel edges intact. */
 .goma-loading-sprite { aspect-ratio: 5 / 4; display: grid; place-items: center; mix-blend-mode: multiply; }
 .goma-loading-preload { position: absolute; width: 1px; height: 1px; visibility: hidden; pointer-events: none; }
@@ -31297,10 +31406,12 @@ body {
   72% { transform: translate(var(--goma-frame-4-x, -50%), var(--goma-frame-y, -50%)); }
   82% { transform: translate(0, 0); }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-loading .goma-sprite-sheet { animation: none; transform: none; }
 }
 
+}
 .goma-preview { min-height: 100dvh; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: #f7f4ee; color: #493b2f; }
 .goma-preview nav, .goma-preview-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .goma-preview button { min-height: 44px; padding: 8px 18px; border: 1px solid #c9cec8; border-radius: 12px; background: #fff; font-weight: 700; }
@@ -31374,11 +31485,13 @@ body {
   50% { transform: translate(var(--particle-drift), -7px); }
   100% { transform: translate(0, -40px); opacity: 0; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-kinetic * { animation: none !important; }
   .goma-kinetic .goma-scene-particle { opacity: .45; }
 }
 
+}
 .goma-jumper, .goma-parachutist { mix-blend-mode: multiply; }
 
 .goma-skater, .goma-sailor { mix-blend-mode: multiply; }
@@ -31420,10 +31533,12 @@ body {
   30% { transform: translate(var(--particle-drift), 0); opacity: .8; }
   75% { transform: translate(calc(var(--particle-drift) * 2), 24px); opacity: 0; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .goma-kinetic .goma-speed-line { opacity: .4; }
 }
 
+}
 .goma-bubble-rider, .goma-cloud-train, .goma-moon-swing, .goma-star-rocket, .goma-carrot-car { mix-blend-mode: multiply; }
 .goma-bubble-rider { animation: goma-bubble-float 4.4s ease-in-out infinite; }
 @keyframes goma-bubble-float {
@@ -31528,11 +31643,13 @@ summary.teacher-storage-indicator-face:hover { background: color-mix(in srgb, va
 .teacher-storage-indicator-icon b { position: absolute; top: -9px; right: -12px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; color: #fff; background: var(--indicator-color); font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; }
 .teacher-storage-indicator[data-state="saving"] .teacher-storage-indicator-icon svg { animation: teacher-save-spin 900ms linear infinite; }
 @keyframes teacher-save-spin { to { transform: rotate(360deg); } }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-storage-indicator[data-state="saving"] .teacher-storage-indicator-icon svg { animation: none; }
   .teacher-storage-indicator-face { transition-duration: 0ms; }
 }
-.teacher-storage-indicator summary:focus-visible, .teacher-storage-indicator button:focus-visible { outline: 3px solid var(--apple-focus, #0066cc); outline-offset: 2px; }
+
+}.teacher-storage-indicator summary:focus-visible, .teacher-storage-indicator button:focus-visible { outline: 3px solid var(--apple-focus, #0066cc); outline-offset: 2px; }
 .teacher-storage-indicator-content { position: absolute; right: 0; top: 100%; z-index: 20; width: min(320px, calc(100vw - 48px)); max-height: min(480px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain; padding: 12px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 12px; background: var(--teacher-surface, #faf7ee); color: var(--teacher-text, #243c32); box-shadow: 0 4px 16px #203c3220; }
 .teacher-storage-indicator-content p { margin: 0 0 8px; overflow-wrap: anywhere; }
 .teacher-storage-indicator-content button { min-height: 44px; padding: 6px 10px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 8px; }
@@ -32017,8 +32134,10 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   .student-newspaper-page .student-header-status { font-size: var(--type-caption); padding: 5px 8px; }
   .student-newspaper-page .student-header-actions { width: 100%; max-width: none; justify-content: flex-end; gap: 6px; }
 }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) { .newspaper button { transition: none; } .newspaper-glasses-options button { animation: none; } .newspaper-heart.is-popping svg { animation-name: newspaper-heart-reduced; } }
-.teacher-mail-chat-message { position: relative; padding-right: 4rem; }
+
+}.teacher-mail-chat-message { position: relative; padding-right: 4rem; }
 .teacher-mail-delete-button {
   position: absolute;
   top: 8px;
@@ -32040,8 +32159,10 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 .teacher-mail-chat-message.is-outgoing .teacher-mail-delete-button:hover:not(:disabled) { background: #ffffff2e; border-color: #ffffff85; }
 .teacher-mail-delete-button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 .teacher-mail-delete-button:disabled { opacity: 0.5; cursor: wait; }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) { .teacher-mail-delete-button { transition: none; } }
 
+}
 /* Transient save/progress copy must not resize controls or push neighbouring layout. */
 /* [data-align] outranks container rules such as `.panel-header span` so inner labels inherit the control's text style. */
 .stable-label[data-align] {
@@ -32132,11 +32253,13 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 }
 .student-class-prep-lock-class { color: var(--apple-text-secondary); font-size: var(--type-title); font-weight: 800; }
 @keyframes student-class-prep-in { from { opacity: 0; } to { opacity: 1; } }
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .student-class-prep-ring-fill { transition: none; }
   .student-class-prep-lock, .student-class-prep-wrap-up, .student-class-prep-ring-character { animation: none; }
 }
-@media (forced-colors: active) {
+
+}@media (forced-colors: active) {
   .student-class-prep-wrap-up, .student-class-prep-wrap-up[data-stage="notice"] { border-color: CanvasText; background: Canvas; }
   .student-class-prep-wrap-up .student-class-prep-ring-fill { stroke: CanvasText; }
 }
@@ -32237,6 +32360,7 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   to { transform: translateX(265%); }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .teacher-loading-block {
     animation: teacherLoadingPulse 1.6s ease-in-out infinite;
@@ -32249,6 +32373,7 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   }
 }
 
+}
 @keyframes teacherLoadingPulse {
   50% { opacity: .55; }
 }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
 import { AppLoadingScreen, AppRecoveryScreen, AppReady } from './components/AppRecovery';
@@ -164,6 +164,11 @@ export default function RootApp() {
   const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
+  useLayoutEffect(() => {
+    if (selectedEntryNumber === 0) document.documentElement.dataset.teacherMotion = 'full';
+    else delete document.documentElement.dataset.teacherMotion;
+    return () => { delete document.documentElement.dataset.teacherMotion; };
+  }, [selectedEntryNumber]);
   useEffect(() => { retainStorageResponseActor(selectedEntryNumber); }, [selectedEntryNumber]);
   useEffect(() => {
     if (selectedEntryNumber === null) return;

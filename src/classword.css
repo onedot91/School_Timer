@@ -908,6 +908,7 @@
   }
 }
 
+:where(:root:not([data-teacher-motion="full"])) {
 @media (prefers-reduced-motion: reduce) {
   .classword-cell,
   .classword-cell-main,
@@ -921,6 +922,7 @@
   .classword-quiz form button:enabled:active { transform: none; }
 }
 
+}
 @media (forced-colors: active) {
   .classword-cell.is-filled { border-color: CanvasText; }
   .classword-cell.is-own { border-color: Highlight; }
