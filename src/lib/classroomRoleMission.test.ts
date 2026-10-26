@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   CLASSROOM_ROLE_ASSIGNMENT_NAMES,
   applyClassroomRoleMissionResultInSettings,
+  getClassroomRoleDeductionLetterId,
   isClassroomRoleSchoolDay,
   getClassroomRoleAssignments,
   getClassroomRoleMissionBalanceDelta,
@@ -149,6 +150,32 @@ test('지급 취소는 차감 우편을 보내지 않으며 지급에서 미수�
   const penalized = applyClassroomRoleMissionResultInSettings(rewarded, { ...command, requestId: 'penalty', nextResult: 'penalized' });
   assert.equal(Reflect.get(Object(penalized.currencyBalances), '1'), 80);
   assert.match(normalizeStudentLifeState(penalized.studentLife).letters[0].content, /^선생님이 20고마를 차감했어요\./);
+});
+
+
+test('차감을 취소하거나 지급으로 바꾸면 그 학생의 차감 우편만 회수하고 다시 차감하면 새로 보낸다', () => {
+  const otherLetter = { id: 'other-letter', recipient: 1, senderLabel: '선생님', senderStudentNumber: null,
+    title: '다른 편지', content: '남길 편지', createdAt: '2026-09-07T00:00:00.000Z' };
+  const initial = {
+    classroomRoleMission: { anchorDateKey: '2026-09-07', anchorStartStudentNumber: 1 },
+    currencyBalances: { '1': 100, '2': 100 },
+    studentLife: { letters: [otherLetter] },
+  };
+  const command = { studentNumber: 1, dateKey: '2026-09-07', requestId: 'penalty', createdAt: '2026-09-07T01:00:00.000Z' };
+  const penalized = applyClassroomRoleMissionResultInSettings(
+    applyClassroomRoleMissionResultInSettings(initial, { ...command, nextResult: 'penalized' }),
+    { ...command, studentNumber: 2, requestId: 'penalty-2', nextResult: 'penalized' },
+  );
+  const letterIds = (value: Record<string, unknown>) => normalizeStudentLifeState(value.studentLife).letters.map((letter) => letter.id);
+  assert.deepEqual(letterIds(penalized), [
+    'other-letter', getClassroomRoleDeductionLetterId('2026-09-07', 1), getClassroomRoleDeductionLetterId('2026-09-07', 2),
+  ]);
+  for (const nextResult of [undefined, 'rewarded'] as const) {
+    const changed = applyClassroomRoleMissionResultInSettings(penalized, { ...command, requestId: `change-${nextResult}`, nextResult });
+    assert.deepEqual(letterIds(changed), ['other-letter', getClassroomRoleDeductionLetterId('2026-09-07', 2)]);
+    const penalizedAgain = applyClassroomRoleMissionResultInSettings(changed, { ...command, requestId: `again-${nextResult}`, nextResult: 'penalized' });
+    assert.equal(letterIds(penalizedAgain).filter((id) => id === getClassroomRoleDeductionLetterId('2026-09-07', 1)).length, 1);
+  }
 });
 
 

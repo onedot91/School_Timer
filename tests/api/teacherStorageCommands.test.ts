@@ -46,6 +46,21 @@ test('teacher deletes only the selected letter and repeated deletion is safe', (
   assert.deepEqual(apply(first, 'teacher.mail.delete', { letterId: 'letter-1' }).value, first);
   assert.throws(() => apply(first, 'teacher.mail.delete', { letterId: '' }));
 });
+test('1인1역 차감을 취소하거나 지급으로 바꾸면 보낸 차감 우편을 회수한다', () => {
+  const otherLetter = { id: 'other-letter', recipient: 1, senderLabel: '선생님', senderStudentNumber: null, replyToId: null,
+    title: '다른 편지', content: '남길 편지', createdAt: context.createdAt, readAt: null };
+  const before = { classroomRoleMission: { anchorDateKey: '2026-09-07', anchorStartStudentNumber: 1 },
+    currencyBalances: { '1': 100 }, studentLife: { letters: [otherLetter] } };
+  const payload = { studentNumber: 1, dateKey: '2026-09-07' };
+  const penalized = apply(before, 'teacher.role.result', { ...payload, nextResult: 'penalized' }, 'penalty').value;
+  const roleLetterId = 'teacher-deduction-letter-classroom-role-2026-09-07-1';
+  assert.ok(normalizeStudentLifeState(penalized.studentLife).letters.some(letter => letter.id === roleLetterId));
+  for (const nextResult of [null, 'rewarded']) {
+    const changed = apply(penalized, 'teacher.role.result', { ...payload, nextResult }, `change-${nextResult}`).value;
+    assert.deepEqual(normalizeStudentLifeState(changed.studentLife).letters.map(letter => letter.id), ['other-letter']);
+    assert.equal(normalizeCurrencyBalances(changed.currencyBalances)['1'], nextResult === null ? 100 : 120);
+  }
+});
 test('latest-bid finalization uses the authoritative winner and amount despite stale teacher display', () => {
   const current = { auctionBids: { 'item-a': { bidder: 2, amount: 30 } }, currencyBalances: { '1': 100, '2': 100 } };
   assert.throws(() => apply(current, 'teacher.auction.finalize', {
