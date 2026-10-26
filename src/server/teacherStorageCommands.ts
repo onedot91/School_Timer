@@ -5,7 +5,7 @@ import {
   createWeeklyCurrencyCycle, finalizeAuctionAwardInSettings, getAuctionItemDisplayName, normalizeAuctionAwards,
   normalizeAuctionBids, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory,
 } from '../lib/currency.js';
-import { applyClassroomRoleMissionResultInSettings } from '../lib/classroomRoleMission.js';
+import { applyClassroomRoleMissionResultInSettings, getWithdrawnClassroomRoleLetterIds } from '../lib/classroomRoleMission.js';
 import { normalizeClassDonationSettings } from '../lib/classDonation.js';
 import { isStudentLetterRetained, isTeacherMailSender, createStudentLetters, markTeacherLettersRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import {
@@ -30,15 +30,16 @@ const date = (value: unknown): string => typeof value === 'string' && /^\d{4}-\d
 const students = (value: unknown): number[] => Array.isArray(value) && value.length > 0 && value.length <= 23 ? [...new Set(value.map(student))] : invalid();
 const mailRecipients = (value: unknown): number[] => Array.isArray(value) && value.length > 0 && value.length <= 24
   ? [...new Set(value.map(mailStudent))] : invalid();
-const preserveLife = (before: unknown, after: unknown, referenceAt: string): unknown => {
+const preserveLife = (before: unknown, after: unknown, referenceAt: string, withdrawnIds: readonly string[] = []): unknown => {
   if (before === after || !isStorageRecord(before) || !isStorageRecord(after)) return after;
+  const withdrawn = new Set(withdrawnIds);
   const next = { ...before, ...after };
   for (const field of ['letters', 'books', 'failureStories']) {
     const oldItems = before[field]; const newItems = after[field];
     if (!Array.isArray(oldItems) || !Array.isArray(newItems)) continue;
     const ids = new Set(newItems.filter(isStorageRecord).map(item => item.id));
     next[field] = [...newItems, ...oldItems.filter(item => (
-      (!isStorageRecord(item) || !ids.has(item.id))
+      (!isStorageRecord(item) || (!ids.has(item.id) && !(field === 'letters' && withdrawn.has(String(item.id)))))
       && (field !== 'letters' || !isStorageRecord(item) || isStudentLetterRetained(item.createdAt, referenceAt))
     ))];
   }
@@ -52,8 +53,8 @@ export const applyTeacherStorageCommand = (
   if (!action.startsWith('teacher.')) return null;
   if (!isStorageRecord(payload)) return invalid();
   const current = isStorageRecord(currentValue) ? currentValue : {};
-  const finish = (value: Record<string, unknown>, result: unknown = null) => ({
-    value: { ...value, ...(value.studentLife !== undefined ? { studentLife: preserveLife(current.studentLife, value.studentLife, context.createdAt) } : {}) }, result,
+  const finish = (value: Record<string, unknown>, result: unknown = null, withdrawnLetterIds: readonly string[] = []) => ({
+    value: { ...value, ...(value.studentLife !== undefined ? { studentLife: preserveLife(current.studentLife, value.studentLife, context.createdAt, withdrawnLetterIds) } : {}) }, result,
   });
   if (action === 'teacher.settings.patch') {
     if (!Array.isArray(payload.changes) || payload.changes.length > 40) return invalid();
@@ -122,8 +123,9 @@ export const applyTeacherStorageCommand = (
   if (action === 'teacher.role.result') {
     const nextResult = payload.nextResult === null || payload.nextResult === undefined ? undefined
       : payload.nextResult === 'rewarded' || payload.nextResult === 'penalized' ? payload.nextResult : invalid();
-    return finish(applyClassroomRoleMissionResultInSettings(current, { studentNumber: student(payload.studentNumber),
-      nextResult, dateKey: date(payload.dateKey), ...context }));
+    const studentNumber = student(payload.studentNumber); const dateKey = date(payload.dateKey);
+    const value = applyClassroomRoleMissionResultInSettings(current, { studentNumber, nextResult, dateKey, ...context });
+    return finish(value, null, getWithdrawnClassroomRoleLetterIds(current.classroomRoleMission, value.classroomRoleMission, studentNumber, dateKey));
   }
   if (action === 'teacher.auction.finalize') {
     const itemId = text(payload.itemId, 100);

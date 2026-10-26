@@ -3,6 +3,7 @@ import {
   clampCurrencyBalance, createTeacherCurrencyDeductionLetter, normalizeCurrencyBalances,
   normalizeCurrencyHistory,
 } from './currency.js';
+import { normalizeStudentLifeState } from './studentLife.js';
 import { STUDENT_PET_STORAGE_KEY } from './studentPet.js';
 
 export const CLASSROOM_ROLE_MISSION_REWARD = 20;
@@ -223,6 +224,33 @@ export const getClassroomRoleMissionBalanceDelta = (
     : -CLASSROOM_ROLE_MISSION_REWARD;
 };
 
+const CLASSROOM_ROLE_DEDUCTION_LETTER_ID_PREFIX = 'teacher-deduction-letter-classroom-role-';
+
+export const getClassroomRoleDeductionLetterId = (dateKey: string, studentNumber: number) => (
+  `${CLASSROOM_ROLE_DEDUCTION_LETTER_ID_PREFIX}${dateKey}-${studentNumber}`
+);
+
+const withdrawClassroomRoleDeductionLetter = (studentLife: unknown, dateKey: string, studentNumber: number) => {
+  const life = normalizeStudentLifeState(studentLife);
+  const letterId = getClassroomRoleDeductionLetterId(dateKey, studentNumber);
+  return { ...life, letters: life.letters.filter((letter) => letter.id !== letterId) };
+};
+
+// The deduction letter a role-result change took back, so letter-preserving writers do not restore it.
+export const getWithdrawnClassroomRoleLetterIds = (
+  beforeSettings: unknown,
+  afterSettings: unknown,
+  studentNumber: number,
+  dateKey: string,
+): readonly string[] => {
+  const studentKey = String(studentNumber);
+  const before = normalizeClassroomRoleMissionSettings(beforeSettings).results[dateKey]?.[studentKey];
+  const after = normalizeClassroomRoleMissionSettings(afterSettings).results[dateKey]?.[studentKey];
+  return before === 'penalized' && after !== 'penalized'
+    ? [getClassroomRoleDeductionLetterId(dateKey, studentNumber)]
+    : [];
+};
+
 export const applyClassroomRoleMissionResultInSettings = (
   value: unknown,
   { studentNumber, nextResult, dateKey, requestId, createdAt }: {
@@ -257,6 +285,9 @@ export const applyClassroomRoleMissionResultInSettings = (
         studentNumber, amount: Math.min(CLASSROOM_ROLE_MISSION_REWARD, before - after), teacherReason: '1인1역 제대로 하지 않음',
         requestId: `classroom-role-${dateKey}-${studentNumber}`, createdAt,
       }),
+    } : {}),
+    ...(previousResult === 'penalized' && nextResult !== 'penalized' ? {
+      studentLife: withdrawClassroomRoleDeductionLetter(current.studentLife, dateKey, studentNumber),
     } : {}),
   };
 };
