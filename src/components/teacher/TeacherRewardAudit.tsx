@@ -17,6 +17,8 @@ export default function TeacherRewardAudit() {
   const returnFocusRef = useRef<HTMLButtonElement>(null);
   const manualRequest = useRef<AbortController | null>(null);
   const refreshRef = useRef<(signal: AbortSignal) => Promise<void>>(async () => undefined);
+  const openRef = useRef(false);
+  openRef.current = isOpen;
   useModalFocus({ dialogRef, isOpen, onDismiss: () => setIsOpen(false), returnFocusRef });
   useEffect(() => {
     let disposed = false, revision = 0;
@@ -29,11 +31,13 @@ export default function TeacherRewardAudit() {
         const next = await loadRewardAuditReport(signal);
         if (!disposed && !signal.aborted && current === revision) { setReport(next); setError(null); }
       } catch (failure) {
-        if (!disposed && !signal.aborted && current === revision) setError(failure instanceof RewardAuditRequestError ? failure.failure : { httpStatus: null, code: 'REWARD_AUDIT_FAILED', stage: null });
+        const next = failure instanceof RewardAuditRequestError ? failure.failure : { httpStatus: null, code: 'REWARD_AUDIT_FAILED', stage: null };
+        // Another teacher device holds the audit slot; only a check the teacher asked for reports it.
+        if (!disposed && !signal.aborted && current === revision && (next.code !== 'REWARD_AUDIT_BUSY' || openRef.current)) setError(next);
       } finally { if (activeRequest === signal) activeRequest = null; if (!disposed && current === revision) setLoading(false); }
     };
     refreshRef.current = refresh;
-    const stop = startRewardAuditPolling({ refresh, visible: () => document.visibilityState === 'visible', events: window, visibilityEvents: document,
+    const stop = startRewardAuditPolling({ refresh, visible: () => document.visibilityState === 'visible', visibilityEvents: document,
       schedule: tick => { const timer = window.setInterval(tick, REWARD_AUDIT_INTERVAL_MS); return () => window.clearInterval(timer); }, now: Date.now });
     return () => { disposed = true; stop(); manualRequest.current?.abort(); };
   }, []);

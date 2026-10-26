@@ -9,6 +9,7 @@ export const STORAGE_REGRESSION_FILES = [
   'tests/storage/auctionBidAtomic.integration.test.ts',
   'tests/storage/scopeReadBuffers.integration.test.ts',
   'tests/storage/studentReadGate.integration.test.ts',
+  'tests/storage/rewardAuditGate.integration.test.ts',
 ];
 
 export const storageRegressionCommand = (env = process.env) => ({

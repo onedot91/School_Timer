@@ -42,7 +42,7 @@ export type RewardAuditStage = keyof typeof REWARD_AUDIT_STAGES;
 export class RewardAuditError extends Error {
   constructor(readonly code = 'REWARD_AUDIT_INVALID_RESPONSE', readonly stage?: RewardAuditStage) { super(code); this.name = 'RewardAuditError'; }
 }
-const REWARD_AUDIT_CODE = /^(?:REWARD_AUDIT_(?:INVALID_RESPONSE|UNKNOWN_MISSION|UNAVAILABLE|FAILED|NETWORK|TIMEOUT|CLIENT_TIMEOUT|SOURCE_NETWORK|SOURCE_TIMEOUT|SOURCE_HTTP_[45][0-9]{2})|DEVICE_REGISTRATION_REQUIRED|TEACHER_REQUIRED|TOO_MANY_REQUESTS|SAVE_ALERTS_NOT_CONFIGURED)$/;
+const REWARD_AUDIT_CODE = /^(?:REWARD_AUDIT_(?:BUSY|INVALID_RESPONSE|UNKNOWN_MISSION|UNAVAILABLE|FAILED|NETWORK|TIMEOUT|CLIENT_TIMEOUT|SOURCE_NETWORK|SOURCE_TIMEOUT|SOURCE_HTTP_[45][0-9]{2})|DEVICE_REGISTRATION_REQUIRED|TEACHER_REQUIRED|TOO_MANY_REQUESTS|SAVE_ALERTS_NOT_CONFIGURED)$/;
 export const isRewardAuditStage = (value: unknown): value is RewardAuditStage => typeof value === 'string' && Object.hasOwn(REWARD_AUDIT_STAGES, value);
 export const toRewardAuditFailure = (error: unknown, fallbackStage: RewardAuditStage): { readonly code: string; readonly stage: RewardAuditStage } => ({
   code: error instanceof RewardAuditError && REWARD_AUDIT_CODE.test(error.code) ? error.code : 'REWARD_AUDIT_FAILED',
@@ -66,7 +66,7 @@ export const parseRewardAuditFailureBody = (httpStatus: number, body: unknown): 
 };
 export const describeRewardAuditFailure = (failure: RewardAuditFailure): { readonly action: string; readonly detail: string } => ({
   action: failure.httpStatus === 401 || failure.httpStatus === 403 ? '교사 기기 등록을 확인한 뒤 다시 검사해 주세요.'
-    : failure.httpStatus === 429 ? '잠시 후 다시 검사해 주세요.' : '다시 검사해 주세요.',
+    : failure.httpStatus === 429 || failure.code === 'REWARD_AUDIT_BUSY' ? '잠시 후 다시 검사해 주세요.' : '다시 검사해 주세요.',
   detail: [failure.httpStatus === null ? '응답 없음' : `HTTP ${failure.httpStatus}`, failure.code,
     ...(failure.stage ? [`단계: ${REWARD_AUDIT_STAGES[failure.stage]}`] : [])].join(' · '),
 });
