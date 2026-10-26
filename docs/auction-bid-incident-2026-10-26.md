@@ -29,7 +29,15 @@
 
 - PGlite 테스트 `tests/api/auctionHistoryTombstones.postgres.test.ts`: 대상 선택, 백업, 재실행, 보존 기간 하한, maintenance 거부, 권한, 롤백 복원.
 - `npm run lint`, `npm test` 통과.
-- 운영 적용 후 효과(입찰 지연, 시간 초과 빈도)는 적용 후 측정해야 한다.
+- 2026-10-26 운영 적용: 묘비 1,388행 백업 후 삭제, 컨테이너 묘비 27행과 살아 있는 기록 18행 유지, pg_cron 일정 활성. 삭제 직후 죽은 행 때문에 읽기가 느려져 `vacuum (analyze) public.storage_resources`를 실행했다.
+
+| 적용 후 측정 (유휴 상태, 운영 DB) | 적용 전 | 적용 후 |
+|---|---:|---:|
+| 입찰 범위 응답 크기 | 383 KB | 24 KB |
+| 입찰 범위 `storage_load_scope` (5회) | 약 150 ms | 38 / 12 / 10 / 10 / 10 ms |
+| 학생 개요 읽기 `storage_load_scope` | 207 ms | 48 ms |
+
+- 수업 중 동시 접속 상태의 입찰 지연과 시간 초과 빈도는 다음 수업에서 Vercel 로그로 확인해야 한다.
 
 ## 남은 위험
 
