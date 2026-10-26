@@ -187,3 +187,24 @@ test('보상 점검 실패는 실패 단계와 허용된 오류 코드만 응답
     assert.doesNotMatch(JSON.stringify(logged), /private upstream detail/);
   } finally { process.env = previous; }
 });
+
+test('다른 교사 기기가 보상 점검 중이면 DB 연결을 붙잡지 않고 503으로 바로 답한다', async t => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { SUPABASE_URL: 'https://save-alerts.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake', DEVICE_SESSION_SECRET: secret, STORAGE_REWARD_AUDIT_GATE: '1' });
+  const paths: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname; paths.push(path);
+    if (path.endsWith('/rpc/storage_reward_audit_source_gated')) return Response.json({ code: 'P0001', message: 'REWARD_AUDIT_BUSY' }, { status: 400 });
+    return new Response('[]', { status: 200 });
+  });
+  const logged: unknown[] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
+  try {
+    const result = await invoke('GET', undefined, true, {}, { audit: 'rewards' });
+    assert.equal(result.status, 503);
+    assert.deepEqual(result.value, { error: 'REWARD_AUDIT_UNAVAILABLE', code: 'REWARD_AUDIT_BUSY', stage: 'source' });
+    assert.ok(paths.includes('/rest/v1/rpc/storage_reward_audit_source_gated'));
+    assert.ok(!paths.includes('/rest/v1/rpc/storage_reward_audit_source'));
+    assert.equal(logged.length, 0);
+  } finally { process.env = previous; }
+});

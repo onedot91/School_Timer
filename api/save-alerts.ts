@@ -40,6 +40,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         const startedAt = Date.now();
         try { response.status(200).json(await loadRewardAudit({ url, key })); } catch (error) {
           const failure = toRewardAuditFailure(error, 'request');
+          if (failure.code === 'REWARD_AUDIT_BUSY') {
+            response.setHeader('Retry-After', '60'); response.status(503).json({ error: 'REWARD_AUDIT_UNAVAILABLE', ...failure }); return;
+          }
           console.error('Reward audit failed.', { route: '/api/save-alerts', ...failure, elapsedMs: Date.now() - startedAt });
           response.status(502).json({ error: 'REWARD_AUDIT_UNAVAILABLE', ...failure });
         }

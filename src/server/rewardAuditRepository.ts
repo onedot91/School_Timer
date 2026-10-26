@@ -101,15 +101,21 @@ const loadQuestionAudit = async (configuration: StorageConfiguration): Promise<Q
 };
 export const loadRewardAudit = async (configuration: StorageConfiguration): Promise<RewardAuditReport> => {
   const questions = await loadQuestionAudit(configuration);
-  const response = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/storage_reward_audit_source`, {
+  // storage_reward_audit_gate.sql: one audit at a time across the classroom; a busy slot answers at once.
+  const source = process.env.STORAGE_REWARD_AUDIT_GATE === '1' ? 'storage_reward_audit_source_gated' : 'storage_reward_audit_source';
+  const response = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/${source}`, {
     method: 'POST', headers: { apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' },
     body: '{}', signal: AbortSignal.timeout(8000),
   }).catch((error: unknown) => {
     throw new RewardAuditError(error instanceof Error && error.name === 'TimeoutError' ? 'REWARD_AUDIT_SOURCE_TIMEOUT' : 'REWARD_AUDIT_SOURCE_NETWORK', 'source');
   });
-  if (!response.ok) throw new RewardAuditError(`REWARD_AUDIT_SOURCE_HTTP_${response.status}`, 'source');
-  const source: unknown = await response.json().catch((error: unknown) => {
+  if (!response.ok) {
+    const failure: unknown = await response.json().catch(() => null);
+    if (isStorageRecord(failure) && failure.message === 'REWARD_AUDIT_BUSY') throw new RewardAuditError('REWARD_AUDIT_BUSY', 'source');
+    throw new RewardAuditError(`REWARD_AUDIT_SOURCE_HTTP_${response.status}`, 'source');
+  }
+  const body: unknown = await response.json().catch((error: unknown) => {
     throw new RewardAuditError(error instanceof Error && error.name === 'TimeoutError' ? 'REWARD_AUDIT_SOURCE_TIMEOUT' : 'REWARD_AUDIT_INVALID_RESPONSE', 'source');
   });
-  return buildRewardAudit(source, questions);
+  return buildRewardAudit(body, questions);
 };

@@ -40,4 +40,5 @@ test('보상 점검 실패 응답은 허용된 코드·단계만 받아 HTTP 상
   assert.match(describeRewardAuditFailure({ httpStatus: 401, code: 'DEVICE_REGISTRATION_REQUIRED', stage: null }).action, /교사 기기 등록/);
   assert.deepEqual(parseRewardAuditFailureBody(500, { code: 'raw message here', stage: 'evil' }), { httpStatus: 500, code: 'REWARD_AUDIT_UNAVAILABLE', stage: null });
   assert.equal(describeRewardAuditFailure({ httpStatus: null, code: 'REWARD_AUDIT_NETWORK', stage: 'request' }).detail, '응답 없음 · REWARD_AUDIT_NETWORK · 단계: 검사 요청');
+  assert.deepEqual(describeRewardAuditFailure(parseRewardAuditFailureBody(503, { error: 'REWARD_AUDIT_UNAVAILABLE', code: 'REWARD_AUDIT_BUSY', stage: 'source' })), { action: '잠시 후 다시 검사해 주세요.', detail: 'HTTP 503 · REWARD_AUDIT_BUSY · 단계: 보상 원본 조회' });
 });
