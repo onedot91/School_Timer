@@ -250,13 +250,14 @@ test('낙찰 연출은 transform과 opacity만 애니메이션하고 호가 교�
   assert.doesNotMatch(ceremonyStyles, /transition:\s*all\b/);
 });
 
-test('동작 줄이기는 호가와 저장 절차를 유지하며 경매봉과 종이 움직임을 제거한다', () => {
-  assert.match(dialogSource, /useReducedMotion\(\)/);
-  assert.match(dialogSource, /data-reduced-motion=\{reduceMotion\}/);
-  assert.match(stylesheetSource, /\.auction-ceremony\[data-reduced-motion="true"\] \* \{ animation: none !important; transition: none !important;/);
-  assert.match(stylesheetSource, /\.auction-ceremony\[data-reduced-motion="true"\] :is\(\.auction-ceremony-gavel-scene, \.auction-ceremony-paper-bits\) \{ display: none;/);
-  assert.match(stylesheetSource, /@media \(prefers-reduced-motion: reduce\) \{\s*\.auction-ceremony, \.auction-ceremony \* \{ animation: none !important; transition: none !important;/);
-  assert.match(stylesheetSource, /@keyframes auctionCeremonyFade \{ from \{ opacity: 0; \} to \{ opacity: 1; \} \}/);
+test('교사는 동작 줄이기 설정과 관계없이 경매 발표와 저장 절차를 유지한다', () => {
+  const rootAppSource = readFileSync(new URL('../RootApp.tsx', import.meta.url), 'utf8');
+  assert.match(rootAppSource, /selectedEntryNumber === 0\) document\.documentElement\.dataset\.teacherMotion = 'full'/);
+  assert.match(rootAppSource, /delete document\.documentElement\.dataset\.teacherMotion/);
+  assert.match(timerPageSource, /<MotionConfig reducedMotion="never">/);
+  assert.doesNotMatch(timerPageSource, /useReducedMotion|prefers-reduced-motion/);
+  assert.doesNotMatch(dialogSource, /useReducedMotion|data-reduced-motion/);
+  assert.match(stylesheetSource, /:where\(:root:not\(\[data-teacher-motion="full"\]\)\) \{\n@media \(prefers-reduced-motion: reduce\) \{\s*\.auction-ceremony,/);
   assert.doesNotMatch(
     timerPageSource,
     /matchMedia\('\(prefers-reduced-motion: reduce\)'\)[\s\S]*?currentIndex: prefersReducedMotion/,

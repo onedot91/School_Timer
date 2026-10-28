@@ -80,8 +80,8 @@ export type SubmitClasswordQuizAnswerResult = {
 export class ClasswordClientError extends Error {
   readonly code: string;
 
-  constructor(code: string, readonly status?: number, readonly retryAfterMs?: number) {
-    super(code);
+  constructor(code: string, readonly status?: number, readonly retryAfterMs?: number, cause?: unknown) {
+    super(code, cause === undefined ? undefined : { cause });
     this.name = 'ClasswordClientError';
     this.code = code;
   }
@@ -195,18 +195,22 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
         if (getStorageAvailability(error) || error instanceof StorageResponseActorChangedError
           || (error instanceof ClasswordClientError && error.status !== undefined && error.status < 500 && error.status !== 408)) throw error;
         let retryAfterMs = error instanceof ClasswordClientError ? error.retryAfterMs : undefined;
+        let receiptError: Error | undefined;
         try {
           const confirmed = await loadClasswordCommandReceipt(body, transportHash);
           if (confirmed !== null) return confirmed;
         } catch (confirmationError) {
           if (confirmationError instanceof StorageResponseActorChangedError) throw confirmationError;
           if (!(confirmationError instanceof Error)) throw confirmationError;
+          receiptError = confirmationError;
           if (confirmationError instanceof ClasswordClientError && confirmationError.retryAfterMs !== undefined) retryAfterMs = Math.max(retryAfterMs ?? 0, confirmationError.retryAfterMs);
         }
         if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
-        throw new ClasswordClientError('CLASSWORD_CONFIRMATION_REQUIRED', 502, retryAfterMs);
+        throw Object.assign(new ClasswordClientError('CLASSWORD_CONFIRMATION_REQUIRED', 502, retryAfterMs, error), {
+          receiptOutcome: receiptError ? 'error' : 'unknown', receiptError,
+        });
       }
-    }, actor, { requestId: String(body.requestId), deferUntilRecovery: actor > 0 && body.expectedStudentNumber === actor && transportHash && (body.action === 'save_entry' || (body.action === 'answer_quiz' && typeof body.expectedQuestionId === 'string')), stage: 'write', retryCount: 0 }));
+    }, actor, { requestId: String(body.requestId), operation: body.action === 'save_entry' ? 'classword_entry' : body.action === 'answer_quiz' ? 'classword_quiz' : undefined, deferUntilRecovery: actor > 0 && body.expectedStudentNumber === actor && transportHash && (body.action === 'save_entry' || (body.action === 'answer_quiz' && typeof body.expectedQuestionId === 'string')), stage: 'write', retryCount: 0 }));
     invalidateSharedSettingsCache();
     await finishClasswordRequest(storage, actor, String(body.action), body.requestId);
     return result;

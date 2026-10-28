@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySaveFailure, parseSaveFailureReport, type SaveFailureAlert } from './saveFailure.js';
-import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from './saveFailureDiagnostics.js';
+import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, formatSaveFailureDiagnostics, getSaveFailureExplanation, getSaveFailureLabel } from './saveFailureDiagnostics.js';
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
 
@@ -100,4 +100,41 @@ test('복구 진단은 제한된 요청 식별자·배포 시각·단계·횟수
   assert.equal(parseSaveFailureReport({ ...alert, diagnostics: { requestId: '비공개 내용', buildVersion: 'private token', stage: '/api?answer=private', retryCount: 10000 } })?.diagnostics, undefined);
   assert.match(formatSaveFailureDiagnostic({ ...alert, diagnostics: parsed?.diagnostics }), /저장 요청 ID: submitted-request-123/);
   assert.match(formatSaveFailureDiagnostic({ ...alert, diagnostics: parsed?.diagnostics }), /재시도 횟수: 5/);
+});
+
+
+test('ㄱㄴㄷ 저장 확인 불가와 접수 시각을 정확하게 표시한다', () => {
+  const cause = Object.assign(new Error('CLASSWORD_HTTP_503'), { code: 'CLASSWORD_HTTP_503', status: 503 });
+  const error = Object.assign(new Error('CLASSWORD_CONFIRMATION_REQUIRED', { cause }), { code: 'CLASSWORD_CONFIRMATION_REQUIRED', status: 502 });
+  assert.equal(classifySaveFailure(error), 'response');
+  const diagnostics = collectSaveFailureDiagnostics(error);
+  assert.equal(diagnostics?.httpStatus, 503);
+  assert.equal(diagnostics?.causeCode, 'CLASSWORD_HTTP_503');
+  const item: SaveFailureAlert = { ...alert, code: 'server', receivedAt: '2026-09-07T01:10:00.000Z', diagnostics: { errorCode: 'CLASSWORD_CONFIRMATION_REQUIRED', httpStatus: 502 } };
+  assert.equal(getSaveFailureLabel(item), '저장 확인 필요');
+  assert.match(getSaveFailureExplanation(item).problem, /저장됐을 수도/);
+  assert.match(formatSaveFailureDiagnostic(item), /접수 시각: 2026-09-07T01:10:00.000Z/);
+  assert.match(formatSaveFailureDiagnostic(item), /상태 출처 확인 필요/);
+});
+
+
+test('반복 진단은 설명을 묶고 모든 사건의 식별자와 시각을 보존한다', () => {
+  const first: SaveFailureAlert = { ...alert, id: 'alert-first', receivedAt: '2026-09-07T01:03:00.000Z', diagnostics: { operation: 'newspaper_submit', httpStatus: 429, requestId: 'request-first' } };
+  const second: SaveFailureAlert = { ...first, id: 'alert-second', occurredAt: '2026-09-07T01:01:00.000Z', receivedAt: '2026-09-07T01:04:00.000Z', diagnostics: { ...first.diagnostics, requestId: 'request-second' } };
+  const output = formatSaveFailureDiagnostics([first, second]);
+  assert.match(output, /같은 진단 2건/);
+  assert.equal((output.match(/문제:/g) ?? []).length, 1);
+  for (const value of ['alert-first', 'alert-second', 'request-first', 'request-second', first.occurredAt, second.occurredAt, first.receivedAt, second.receivedAt]) assert.ok(output.includes(value));
+  assert.doesNotMatch(formatSaveFailureDiagnostics([first, { ...second, diagnostics: { ...second.diagnostics, operation: 'classword_entry' } }]), /같은 진단 2건/);
+});
+
+test('결과 확인 오류는 허용된 진단만 보존한다', () => {
+  const receiptError = Object.assign(new Error('private answer'), { code: 'STORAGE_DATABASE_TIMEOUT', status: 503 });
+  const error = Object.assign(new Error('CLASSWORD_CONFIRMATION_REQUIRED'), { code: 'CLASSWORD_CONFIRMATION_REQUIRED', receiptOutcome: 'error', receiptError });
+  const details = collectSaveFailureDiagnostics(error, { operation: 'classword_entry' });
+  assert.equal(details?.receiptOutcome, 'error');
+  assert.equal(details?.receiptErrorCode, 'STORAGE_DATABASE_TIMEOUT');
+  assert.equal(details?.receiptHttpStatus, 503);
+  assert.doesNotMatch(JSON.stringify(details), /private answer/);
+  assert.equal(parseSaveFailureReport({ ...alert, diagnostics: { operation: 'private answer', receiptErrorCode: 'private answer' } })?.diagnostics, undefined);
 });
