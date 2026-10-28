@@ -104,7 +104,8 @@ const captureSaveFailureContext = (): SaveFailureDiagnostics => {
 };
 
 export interface SaveFailureReportingOptions {
-  readonly requestId: string;
+  readonly requestId?: string;
+  readonly operation?: SaveFailureDiagnostics['operation'];
   readonly deferUntilRecovery?: boolean;
   readonly stage?: SaveFailureDiagnostics['stage'];
   readonly retryCount?: number;
@@ -183,7 +184,7 @@ export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, s
     const code = classifySaveFailure(error);
     if (code) {
       const details = collectSaveFailureDiagnostics(error, { ...context,
-        requestId: options?.requestId, stage: options?.stage, retryCount: options?.retryCount,
+        requestId: options?.requestId, operation: options?.operation, stage: options?.stage, retryCount: options?.retryCount,
         online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
       });
       if (details?.httpStatus === 401) notifyDeviceSessionRejected();

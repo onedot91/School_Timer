@@ -91,5 +91,5 @@ export const newspaperCommand = async (actor: number, command: Record<string, un
   return withSaveFailureReporting('newspaper', async () => {
     if (typeof navigator !== 'undefined' && navigator.locks) return navigator.locks.request(`newspaper:${appDataMode}`, execute);
     return execute();
-  }, actor);
+  }, actor, { operation: command.action === 'submit' ? 'newspaper_submit' : undefined });
 };

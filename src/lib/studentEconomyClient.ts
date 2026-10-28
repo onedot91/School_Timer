@@ -1,5 +1,6 @@
 import { canonicalStorageJson } from './storageV2Codec.js';
 import { withSaveFailureReporting } from './saveFailureClient.js';
+import { parseSaveFailureDiagnostics } from './saveFailure.js';
 import { publishStorageAvailability } from './storageAvailability.js';
 import { deferSaveRecoveryUntil, getSaveRecoveryDelay } from './saveRecovery.js';
 import { parseStorageProjectionPatch } from './storageProjectionPatch.js';
@@ -231,6 +232,7 @@ export const retryStudentEconomyRequest = async ({
         : error instanceof Error && (['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name) || error.message === 'STUDENT_ECONOMY_INVALID_RESPONSE');
       if (!uncertain) throw error;
       let receiptAttempts = 0;
+      let receiptError: Error | undefined;
       for (let confirmationAttempt = 0; confirmationAttempt < 3; confirmationAttempt += 1) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
         if (confirmationAttempt) await new Promise(resolve => setTimeout(resolve, 250 * 2 ** (confirmationAttempt - 1) + Math.random() * 250));
@@ -239,12 +241,14 @@ export const retryStudentEconomyRequest = async ({
         try {
           receiptAttempts += 1;
           const committed = await loadStudentEconomyReceipt(studentNumber, requestId, action, context);
+          receiptError = undefined;
           if (committed) return { result: committed };
         } catch (confirmationError) {
           if (confirmationError instanceof StorageResponseActorChangedError
             || (confirmationError instanceof StudentEconomyRequestError && (confirmationError.code === 'STORAGE_REQUEST_REUSED'
               || [401, 403].includes(confirmationError.status)))) return { error: confirmationError };
           if (!(confirmationError instanceof Error)) throw confirmationError;
+          receiptError = confirmationError;
           const retryAfterMs = confirmationError instanceof StudentEconomyRequestError ? confirmationError.retryAfterMs : undefined;
           if (retryAfterMs || (confirmationError instanceof StudentEconomyRequestError && [429, 502, 503, 504].includes(confirmationError.status))
             || ['TimeoutError', 'AbortError'].includes(confirmationError.name)) {
@@ -257,9 +261,10 @@ export const retryStudentEconomyRequest = async ({
       throw Object.assign(new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504,
         { cause: error, retryAfterMs: getSaveRecoveryDelay(studentNumber, requestId) || undefined }), {
         stage: 'receipt', retryCount: receiptAttempts,
+        receiptOutcome: receiptAttempts === 0 ? 'not_attempted' : receiptError ? 'error' : 'unknown', receiptError,
       });
     } finally { clearTimeout(timeout); }
-  }, studentNumber, { requestId });
+  }, studentNumber, { requestId, operation: parseSaveFailureDiagnostics({ operation: isRecord(action) ? action.type : undefined })?.operation });
   if ('error' in outcome) throw outcome.error;
   return outcome.result;
 };

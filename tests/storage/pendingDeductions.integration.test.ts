@@ -103,6 +103,23 @@ test('real PostgreSQL: pending deductions are atomic, private, FIFO, idempotent 
   assert.equal(economy().deposits[0]?.interest, 0);
   assert.equal(economy().pendingDeductions.length, 0);
   assert.equal(query("select delta from wallet_ledger where entry_id like 'currency-economy-pending-%-14' order by recorded_at desc limit 1;"), '0');
+  command('teacher.currency.deduct', { studentNumbers: [14], amount: 10, teacherReason: 'investment-fixture', deferIfInsufficient: true }, 'queue-investment');
+  const investmentSnapshot = load(scope);
+  const investmentState = { ...economy(), investments: { sunny: { investedAmount: 20, currentAmount: 12, lastSettledDateKey: '2026-10-14', lastChangeAmount: 4, lastStage: 'rise' } } };
+  const investmentArgs = buildScopedStorageMutation({ snapshot: investmentSnapshot, value: { ...investmentSnapshot.value, studentEconomy: { '14': investmentState } }, actorKey: 'teacher:0', requestId: 'investment-fixture', action: 'teacher.fixture', payload: {}, result: null });
+  const investmentResult = read(`select storage_commit_scoped_and_load(${Object.entries(investmentArgs).map(([key, value]) => `${key} => ${typeof value === 'string' ? literal(value) : value === null ? 'null' : json(value)}`).join(',')},p_result_scope => ${json(scope)});`);
+  assert.ok(isStorageRecord(investmentResult));
+  assert.equal(investmentResult.saved, true);
+  assert.equal(economy().pendingDeductions.length, 0);
+  assert.equal(economy().deposit, 0);
+  assert.equal(economy().investments.sunny?.currentAmount, 4);
+  assert.equal(economy().investments.sunny?.investedAmount, 7);
+  assert.equal(economy().investments.sunny?.lastChangeAmount, 1);
+  assert.match(JSON.stringify(load(own()).value.studentLife), /증권사 투자금/);
+  // Reset disposable investment fixture before the independent weekly-reward scenario.
+  const resetSnapshot = load(scope);
+  const resetArgs = buildScopedStorageMutation({ snapshot: resetSnapshot, value: { ...resetSnapshot.value, studentEconomy: { '14': { ...economy(), deposit: 2, deposits: [{ id: 'fixture-deposit', principal: 2, interest: 0, openedOn: '2026-10-14', maturityDate: '2026-10-21' }], investments: {} } } }, actorKey: 'teacher:0', requestId: 'investment-reset', action: 'teacher.fixture', payload: {}, result: null });
+  read(`select storage_commit_scoped_and_load(${Object.entries(resetArgs).map(([key, value]) => `${key} => ${typeof value === 'string' ? literal(value) : value === null ? 'null' : json(value)}`).join(',')},p_result_scope => ${json(scope)});`);
   command('teacher.currency.deduct', { studentNumbers: [14], amount: 10, teacherReason: 'weekly-reward', deferIfInsufficient: true }, 'queue-weekly-reward');
   const reward = read("select claim_weekly_mission_reward_v2(14,'2026-10','personal_question','fixture-question',2);");
   assert.ok(isStorageRecord(reward));

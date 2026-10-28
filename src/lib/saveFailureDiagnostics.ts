@@ -2,17 +2,23 @@ import { parseSaveFailureDiagnostics, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEA
 
 export const getSaveFailureLabel = (alert: SaveFailureAlert): string => (
   [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('STORAGE_SCOPE_VIOLATION')
-    ? '서버 저장 범위 오류' : ['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'].includes(alert.diagnostics?.errorCode ?? '')
+    ? '서버 저장 범위 오류' : ['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 'CLASSWORD_CONFIRMATION_REQUIRED'].includes(alert.diagnostics?.errorCode ?? '')
     ? '저장 확인 필요' : [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')
     ? '경매 물품 삭제 불가' : SAVE_FAILURE_CODE_LABELS[alert.code]
 );
 
 export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailureDiagnostics = {}): SaveFailureDiagnostics | undefined => {
-  let details = parseSaveFailureDiagnostics(context) ?? {};
+  const receiptError = error instanceof Error ? Reflect.get(error, 'receiptError') : undefined;
+  const receipt = receiptError instanceof Error ? parseSaveFailureDiagnostics({
+    receiptErrorCode: Reflect.get(receiptError, 'code') ?? Reflect.get(receiptError, 'serverCode') ?? receiptError.message,
+    receiptHttpStatus: Reflect.get(receiptError, 'status'), receiptErrorName: receiptError.name,
+  }) : undefined;
+  let details = parseSaveFailureDiagnostics({ ...context, ...receipt,
+    receiptOutcome: error instanceof Error ? Reflect.get(error, 'receiptOutcome') : undefined }) ?? {};
   let current = error;
   for (let depth = 0; depth < 4 && (current instanceof Error || (typeof DOMException !== 'undefined' && current instanceof DOMException)); depth += 1) {
     const errorCode = Reflect.get(current, 'code');
-    const isSyntheticConfirmation = errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'
+    const isSyntheticConfirmation = errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED' || errorCode === 'CLASSWORD_CONFIRMATION_REQUIRED'
       || (Reflect.get(current, 'serverCode') === 'STORAGE_CONFIRMATION_REQUIRED'
         && Reflect.get(current, 'cause') instanceof Error);
     const candidate = parseSaveFailureDiagnostics({
@@ -39,7 +45,7 @@ export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: s
     problem: '서버의 저장 범위 검사에서 요청이 거절되었습니다.',
     action: '작성 내용을 보존하고 진단 정보를 전달해 주세요. 서버 저장 경로를 수정해야 합니다.',
   };
-  if (['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'].includes(details?.errorCode ?? '')) return {
+  if (['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 'CLASSWORD_CONFIRMATION_REQUIRED'].includes(details?.errorCode ?? '')) return {
     problem: '저장 완료 응답을 확인하지 못했습니다. 실제로 저장됐을 수도 있습니다.',
     action: '해당 기록의 저장 결과를 다시 확인하세요. 확인 전에는 같은 지급·차감을 새 요청으로 반복하지 마세요.',
   };
@@ -98,9 +104,15 @@ export const formatSaveFailureDiagnostic = (alert: SaveFailureAlert): string => 
   return [
     `저장 오류 ID: ${alert.id}`,
     `발생 시각: ${alert.occurredAt}`,
+    ...(alert.receivedAt ? [`접수 시각: ${alert.receivedAt}`] : []),
     ...(details?.requestId ? [`저장 요청 ID: ${details.requestId}`] : []),
     ...(details?.buildVersion ? [`배포 버전: ${details.buildVersion}`] : []),
+    ...(details?.operation ? [`저장 동작: ${details.operation}`] : []),
     ...(details?.stage ? [`실패 단계: ${details.stage}`] : []),
+    ...(details?.receiptOutcome ? [`결과 확인: ${details.receiptOutcome === 'unknown' ? '결과 미확인' : details.receiptOutcome === 'not_attempted' ? '확인 요청 미시도' : '확인 요청 오류'}`] : []),
+    ...(details?.receiptErrorCode ? [`확인 오류 코드: ${details.receiptErrorCode}`] : []),
+    ...(details?.receiptHttpStatus ? [`확인 HTTP 상태: ${details.receiptHttpStatus}`] : []),
+    ...(details?.receiptErrorName ? [`확인 오류 유형: ${details.receiptErrorName}`] : []),
     ...(details?.storageBackend ? [`기기 저장소: ${details.storageBackend}`] : []),
     ...(details?.storageOperation ? [`기기 저장 작업: ${details.storageOperation}`] : []),
     ...(details?.elapsedMs !== undefined ? [`소요 시간: ${details.elapsedMs}ms`] : []),
@@ -111,11 +123,35 @@ export const formatSaveFailureDiagnostic = (alert: SaveFailureAlert): string => 
     `분류: ${getSaveFailureLabel(alert)}`,
     ...(details?.errorCode ? [`오류 코드: ${details.errorCode}`] : []),
     ...(details?.causeCode ? [`원인 코드: ${details.causeCode}`] : []),
-    ...(details?.httpStatus ? [`HTTP 상태: ${details.httpStatus}`] : []),
+    ...(details?.httpStatus ? [`HTTP 상태: ${details.httpStatus}${details.errorCode === 'CLASSWORD_CONFIRMATION_REQUIRED' ? ' (상태 출처 확인 필요)' : ''}`] : []),
     ...(details?.endpoint ? [`요청 경로: ${details.endpoint}`] : []),
     ...(details?.errorName ? [`오류 유형: ${details.errorName}`] : []),
     ...(details?.online !== undefined ? [`기기 연결: ${details.online ? '온라인으로 감지' : '오프라인으로 감지'}`] : []),
     ...(!details ? ['세부 정보: 이전 알림에는 상세 진단이 저장되지 않았습니다.'] : []),
     `문제: ${explanation.problem}`, `조치: ${explanation.action}`,
   ].join('\n');
+};
+
+
+/** Summarize identical diagnostics while retaining every event's identifiers and timestamps. */
+export const formatSaveFailureDiagnostics = (alerts: readonly SaveFailureAlert[]): string => {
+  const groups = new Map<string, SaveFailureAlert[]>();
+  for (const alert of alerts) {
+    const { requestId: _requestId, ...details } = alert.diagnostics ?? {};
+    const key = JSON.stringify([alert.studentNumber, alert.feature, alert.code, details]);
+    const group = groups.get(key);
+    if (group) group.push(alert); else groups.set(key, [alert]);
+  }
+  return [...groups.values()].map(group => {
+    if (group.length === 1) return formatSaveFailureDiagnostic(group[0]);
+    const common = formatSaveFailureDiagnostic(group[0]).split('\n').filter(line =>
+      !['저장 오류 ID:', '발생 시각:', '접수 시각:', '저장 요청 ID:'].some(prefix => line.startsWith(prefix))).join('\n');
+    const events = group.map(item => [
+      `발생: ${item.occurredAt}`,
+      ...(item.receivedAt ? [`접수: ${item.receivedAt}`] : []),
+      `오류 ID: ${item.id}`,
+      ...(item.diagnostics?.requestId ? [`요청 ID: ${item.diagnostics.requestId}`] : []),
+    ].join(' | '));
+    return [`같은 진단 ${group.length}건`, common, ...events].join('\n');
+  }).join('\n\n---\n\n');
 };

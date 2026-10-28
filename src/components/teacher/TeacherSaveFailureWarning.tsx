@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
 import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadAllSaveFailureAlerts, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
-import { formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from '../../lib/saveFailureDiagnostics';
+import { formatSaveFailureDiagnostic, formatSaveFailureDiagnostics, getSaveFailureExplanation, getSaveFailureLabel } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StableLabel from '../StableLabel';
 
@@ -72,7 +72,7 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
     setIsCopying(true); setCopyStatus(''); setCopyFallback('');
     try {
       const all = hasMore ? await loadAllSaveFailureAlerts() : alerts;
-      const text = all.map(formatSaveFailureDiagnostic).join('\n\n---\n\n');
+      const text = formatSaveFailureDiagnostics(all);
       if (!text) { setCopyStatus('복사할 저장 오류가 없습니다.'); return; }
       try { await navigator.clipboard.writeText(text); setCopyStatus(`${all.length}건의 진단 정보를 복사했습니다.`); }
       catch { setCopyFallback(text); setCopyStatus('자동 복사를 사용할 수 없습니다. 선택된 진단 정보를 직접 복사하세요.'); }

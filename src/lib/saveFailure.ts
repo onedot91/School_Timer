@@ -27,7 +27,17 @@ export const SAVE_FAILURE_VIEWS = {
   classword: 'ㄱㄴㄷ 게임', 'today-friend': '오늘의 친구', mailbox: '우체통', newspaper: '신문 질문',
   library: '도서관', 'library-bookstore': '책방', 'library-bookshelf': '책장', 'library-failure-board': '실패 게시판',
 } as const;
+export const SAVE_FAILURE_OPERATIONS = ['classword_entry', 'classword_quiz', 'newspaper_submit',
+  'deposit', 'withdraw', 'save', 'open_deposit', 'close_deposit', 'claim_deposit', 'borrow', 'repay',
+  'transfer', 'buy_item', 'draw_character', 'choose_draw_character', 'select_character', 'claim_halloween_character',
+  'buy_house', 'select_house', 'buy_custom_house_coupon', 'register_custom_house', 'invest', 'withdraw_investment',
+  'settle_investments', 'draw_profile', 'select_profile'] as const;
 export type SaveFailureDiagnostics = {
+  operation?: typeof SAVE_FAILURE_OPERATIONS[number];
+  receiptOutcome?: 'unknown' | 'error' | 'not_attempted';
+  receiptErrorCode?: string;
+  receiptHttpStatus?: number;
+  receiptErrorName?: string;
   errorCode?: string;
   causeCode?: string;
   httpStatus?: number;
@@ -51,6 +61,17 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
     if (typeof code === 'string' && (/^(?:SHARED_|STUDENT_|QUESTION_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)
       || code === 'TEACHER_SETTING_CONFLICT' || code === 'RESOURCE_REVISION_CONFLICT')) result[field] = code;
   }
+  const operation = Reflect.get(value, 'operation');
+  const knownOperation = SAVE_FAILURE_OPERATIONS.find(item => item === operation);
+  if (knownOperation) result.operation = knownOperation;
+  const receiptOutcome = Reflect.get(value, 'receiptOutcome');
+  if (receiptOutcome === 'unknown' || receiptOutcome === 'error' || receiptOutcome === 'not_attempted') result.receiptOutcome = receiptOutcome;
+  const receiptCode = Reflect.get(value, 'receiptErrorCode');
+  if (typeof receiptCode === 'string' && /^(?:CLASSWORD_|STUDENT_|STORAGE|SHARED_)[A-Z0-9_]{1,64}$/.test(receiptCode)) result.receiptErrorCode = receiptCode;
+  const receiptStatus = Reflect.get(value, 'receiptHttpStatus');
+  if (Number.isInteger(receiptStatus) && receiptStatus >= 400 && receiptStatus <= 599) result.receiptHttpStatus = receiptStatus;
+  const receiptName = Reflect.get(value, 'receiptErrorName');
+  if (['Error', 'TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(receiptName)) result.receiptErrorName = receiptName;
   const status = Reflect.get(value, 'httpStatus');
   if (Number.isInteger(status) && status >= 400 && status <= 599) result.httpStatus = status;
   const errorName = Reflect.get(value, 'errorName');
@@ -112,7 +133,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
   const errorCode = Reflect.get(error, 'code');
   if (typeof errorCode === 'string' && ['QUESTION_CONFLICT', 'QUESTION_WEEK_CHANGED', 'QUESTION_NOT_FOUND', 'QUESTION_REQUEST_REUSED'].includes(errorCode)) return null;
-  if (errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED') return 'response';
+  if (errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED' || errorCode === 'CLASSWORD_CONFIRMATION_REQUIRED') return 'response';
   if (Reflect.get(error, 'serverCode') === 'STORAGE_CONFIRMATION_REQUIRED') return 'response';
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
   if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
@@ -155,7 +176,8 @@ export const groupSaveFailureAlerts = (alerts: readonly SaveFailureAlert[]): Sav
     const details = alert.diagnostics;
     const key = JSON.stringify([alert.studentNumber, alert.feature, alert.code, details?.errorCode,
       details?.causeCode, details?.httpStatus, details?.endpoint, details?.view, details?.stage,
-      details?.online, details?.buildVersion, details?.storageBackend, details?.storageOperation]);
+      details?.online, details?.buildVersion, details?.storageBackend, details?.storageOperation, details?.operation,
+      details?.receiptOutcome, details?.receiptErrorCode, details?.receiptHttpStatus, details?.receiptErrorName]);
     const group = groups.get(key);
     if (group) group.push(alert); else groups.set(key, [alert]);
   }

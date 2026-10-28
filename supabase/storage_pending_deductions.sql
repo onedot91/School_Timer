@@ -9,9 +9,9 @@ declare
   account public.wallet_accounts%rowtype;
   economy public.storage_resources%rowtype;
   state jsonb; pending jsonb; item jsonb; deposits jsonb; deposit_item jsonb;
-  processed jsonb; letter jsonb; letter_id text; settlement_id text; settlement_entry_id text;
+  processed jsonb; investments jsonb; position jsonb; letter jsonb; letter_id text; settlement_id text; settlement_entry_id text;
   amount integer; deposit_total integer; deposit_used integer; remaining integer; principal integer;
-  wallet_used integer; letter_order double precision; settled_at timestamptz; stamp text; k text;
+  wallet_used integer; investment_total integer; investment_used integer; current_amount integer; stock_id text; letter_order double precision; settled_at timestamptz; stamp text; k text;
 begin
   perform public.storage_require_writable();
   if p_student_number is null or p_student_number not between 1 and 23 then raise exception 'INVALID_STUDENT_NUMBER'; end if;
@@ -51,7 +51,11 @@ begin
     amount := (item->>'amount')::integer;
     if amount < 1 or amount > 999999 then raise exception 'STORAGE_INVALID_PENDING_DEDUCTION'; end if;
     select coalesce(sum((value->>'principal')::integer), 0) into deposit_total from jsonb_array_elements(deposits);
-    if account.balance + deposit_total < amount then exit; end if;
+    investments := coalesce(state->'investments', '{}'::jsonb);
+    if jsonb_typeof(investments) is distinct from 'object' then raise exception 'STORAGE_INVALID_PENDING_DEDUCTION'; end if;
+    select coalesce(sum(coalesce((investments->stock->>'currentAmount')::integer, 0)), 0) into investment_total
+      from unnest(array['sunny', 'sprout', 'cloud', 'star']) stock;
+    if account.balance + deposit_total + investment_total < amount then exit; end if;
     settlement_entry_id := 'currency-economy-' || settlement_id || '-' || p_student_number;
     if exists(select 1 from public.wallet_ledger where student_number = p_student_number and entry_id = settlement_entry_id) then
       raise exception 'STORAGE_PENDING_DEDUCTION_REUSED';
@@ -59,7 +63,8 @@ begin
     settled_at := clock_timestamp();
     stamp := to_char(settled_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
     wallet_used := least(account.balance, amount);
-    deposit_used := amount - wallet_used;
+    deposit_used := least(deposit_total, amount - wallet_used);
+    investment_used := amount - wallet_used - deposit_used;
     state := jsonb_set(state, '{deposits}', '[]'::jsonb);
     -- Consume oldest deposits; only touched principals have their interest recalculated.
     remaining := deposit_used;
@@ -73,6 +78,24 @@ begin
       end if;
       if principal > 0 then state := jsonb_set(state, '{deposits}', (state->'deposits') || jsonb_build_array(deposit_item)); end if;
     end loop;
+    remaining := investment_used;
+    foreach stock_id in array array['sunny', 'sprout', 'cloud', 'star'] loop
+      position := investments->stock_id;
+      if remaining > 0 and position is not null and (position->>'currentAmount')::integer > 0 then
+        current_amount := (position->>'currentAmount')::integer;
+        amount := least(current_amount, remaining);
+        remaining := remaining - amount;
+        if current_amount = amount then investments := investments - stock_id;
+        else
+          position := position || jsonb_build_object(
+            'currentAmount', current_amount - amount,
+            'investedAmount', greatest(1, floor((position->>'investedAmount')::numeric * (current_amount - amount) / current_amount + 0.5)::integer),
+            'lastChangeAmount', floor((position->>'lastChangeAmount')::numeric * (current_amount - amount) / current_amount + 0.5)::integer);
+          investments := jsonb_set(investments, array[stock_id], position);
+        end if;
+      end if;
+    end loop;
+    state := jsonb_set(state, '{investments}', investments);
     amount := (item->>'amount')::integer;
     deposits := state->'deposits';
     pending := pending - 0;
@@ -90,7 +113,8 @@ begin
       where not deleted and value->>'parentKey' = '/studentLife/letters';
     letter := jsonb_build_object('id', letter_id, 'recipient', p_student_number, 'senderLabel', '선생님', 'senderStudentNumber', null,
       'replyToId', null, 'title', '고마 차감 안내', 'content', '선생님이 ' || amount || '고마를 차감했어요.' || E'\n\n차감 사유\n: '
-      || (item->>'teacherReason') || case when deposit_used > 0 then E'\n\n보유 고마가 부족해 ' || deposit_used || '고마는 예금에서 사용했어요.' else '' end,
+      || (item->>'teacherReason') || case when deposit_used > 0 then E'\n\n보유 고마가 부족해 ' || deposit_used || '고마는 예금에서 사용했어요.' else '' end
+      || case when investment_used > 0 then E'\n\n' || investment_used || '고마는 증권사 투자금에서 사용했어요.' else '' end,
       'createdAt', stamp, 'readAt', null);
     perform public.storage_write_resource('/studentLife/letters/@' || letter_id, 'studentLife', null,
       jsonb_build_object('kind', 'value', 'parentKey', '/studentLife/letters', 'member', '@' || letter_id, 'order', letter_order, 'data', letter));
