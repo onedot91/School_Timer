@@ -1,7 +1,7 @@
 import { canonicalStorageJson } from '../lib/storageV2Codec.js';
 import {
   AUCTION_ITEM_IDS, CURRENCY_BALANCE_MAX, CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE, TEST_STUDENT_NUMBER,
-  appendCurrencyHistoryEntry, applyTeacherCurrencyDeductionsInSettings, clampCurrencyBalance,
+  appendCurrencyHistoryEntry, applyTeacherCurrencyDeductionsInSettings, applyTeacherCurrencyIncreaseInSettings, clampCurrencyBalance,
   createWeeklyCurrencyCycle, finalizeAuctionAwardInSettings, getAuctionItemDisplayName, normalizeAuctionAwards,
   normalizeAuctionBids, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory,
 } from '../lib/currency.js';
@@ -97,6 +97,9 @@ export const applyTeacherStorageCommand = (
       return finish(applyTeacherCurrencyDeductionsInSettings(current, {
         studentNumbers: targets, amount: -amount, teacherReason: '화폐 조정', deferIfInsufficient: true, ...context,
       }).value);
+    }
+    if (action === 'teacher.currency.adjust' && amount > 0) {
+      return finish(applyTeacherCurrencyIncreaseInSettings(current, targets, amount, context.requestId, context.createdAt));
     }
     const balances = normalizeCurrencyBalances(current.currencyBalances);
     if (action === 'teacher.currency.set' && targets.some(number => balances[String(number)] !== payload.expectedBalance)) {
