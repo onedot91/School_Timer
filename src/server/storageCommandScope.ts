@@ -84,10 +84,10 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       fields.forEach(name => field(name));
     } else if (['teacher.currency.adjust', 'teacher.currency.set', 'teacher.currency.reset'].includes(action)) {
       money(action.endsWith('.reset') ? allStudents : target);
-      if (action === 'teacher.currency.adjust' && typeof input.amount === 'number' && input.amount < 0) {
+      if (action === 'teacher.currency.adjust' && typeof input.amount === 'number' && input.amount !== 0) {
         target.forEach(number => {
           add({ path: storageResourceKey('studentEconomy', String(number)) });
-          mail(number);
+          if (typeof input.amount === 'number' && input.amount < 0) mail(number);
         });
       }
     } else if (action === 'teacher.currency.deduct') {

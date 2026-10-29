@@ -10,7 +10,7 @@ declare
   economy public.storage_resources%rowtype;
   state jsonb; pending jsonb; item jsonb; deposits jsonb; deposit_item jsonb;
   processed jsonb; investments jsonb; position jsonb; letter jsonb; letter_id text; settlement_id text; settlement_entry_id text;
-  amount integer; deposit_total integer; deposit_used integer; remaining integer; principal integer;
+  amount integer; pending_amount integer; deposit_total integer; deposit_used integer; remaining integer; principal integer;
   wallet_used integer; investment_total integer; investment_used integer; current_amount integer; stock_id text; letter_order double precision; settled_at timestamptz; stamp text; k text;
 begin
   perform public.storage_require_writable();
@@ -39,7 +39,7 @@ begin
   end if;
   processed := coalesce(state->'processedRequestIds', '[]'::jsonb);
 
-  -- FIFO, whole amount only. No negative wallet and no partial debit while waiting.
+  -- FIFO: consume available assets immediately and retain any unpaid amount.
   while jsonb_array_length(pending) > 0 loop
     item := pending->0;
     settlement_id := item->>'settlementRequestId';
@@ -55,7 +55,10 @@ begin
     if jsonb_typeof(investments) is distinct from 'object' then raise exception 'STORAGE_INVALID_PENDING_DEDUCTION'; end if;
     select coalesce(sum(coalesce((investments->stock->>'currentAmount')::integer, 0)), 0) into investment_total
       from unnest(array['sunny', 'sprout', 'cloud', 'star']) stock;
-    if account.balance + deposit_total + investment_total < amount then exit; end if;
+    pending_amount := amount;
+    amount := least(pending_amount, account.balance + deposit_total + investment_total);
+    if amount <= 0 then exit; end if;
+    settlement_id := settlement_id || '-' || pending_amount;
     settlement_entry_id := 'currency-economy-' || settlement_id || '-' || p_student_number;
     if exists(select 1 from public.wallet_ledger where student_number = p_student_number and entry_id = settlement_entry_id) then
       raise exception 'STORAGE_PENDING_DEDUCTION_REUSED';
@@ -96,9 +99,10 @@ begin
       end if;
     end loop;
     state := jsonb_set(state, '{investments}', investments);
-    amount := (item->>'amount')::integer;
+    amount := least(pending_amount, account.balance + deposit_total + investment_total);
     deposits := state->'deposits';
-    pending := pending - 0;
+    if amount = pending_amount then pending := pending - 0;
+    else pending := jsonb_set(pending, '{0,amount}', to_jsonb(pending_amount - amount)); end if;
     select coalesce(jsonb_agg(value order by ordinality), '[]'::jsonb) into processed from (
       select value, ordinality from jsonb_array_elements(processed || jsonb_build_array(settlement_id)) with ordinality
       order by ordinality desc limit 24
@@ -118,6 +122,7 @@ begin
       'createdAt', stamp, 'readAt', null);
     perform public.storage_write_resource('/studentLife/letters/@' || letter_id, 'studentLife', null,
       jsonb_build_object('kind', 'value', 'parentKey', '/studentLife/letters', 'member', '@' || letter_id, 'order', letter_order, 'data', letter));
+    if amount < pending_amount then exit; end if;
   end loop;
 end;
 $$;
