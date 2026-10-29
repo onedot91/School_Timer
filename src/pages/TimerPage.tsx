@@ -19,6 +19,8 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
+import { TeacherHalloweenPumpkin, TeacherHalloweenScenery } from '../components/teacher/TeacherHalloweenDecor';
+import { getTeacherSeasonalTheme } from '../lib/seasonalTheme';
 import StudentCharacterPeek from '../components/teacher/StudentCharacterPeek';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import SettingsPanelFrame, { SettingsStatusChip } from '../components/teacher/SettingsPanelFrame';
@@ -8154,6 +8156,8 @@ export default function TimerPage() {
   const isScheduleIdle = displayTotalTime === 0;
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
+  const seasonalTheme = getTeacherSeasonalTheme(adjustedScheduleNow);
+  const isHalloweenTheme = seasonalTheme === 'halloween';
   const scheduleMonthDayLabel = adjustedScheduleNow.toLocaleDateString('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -11701,7 +11705,7 @@ export default function TimerPage() {
 
   return (
     <MotionConfig reducedMotion="never">
-    <div className="mascot-app teacher-app h-[100dvh] w-full overflow-hidden">
+    <div className="mascot-app teacher-app h-[100dvh] w-full overflow-hidden" data-season={seasonalTheme ?? undefined}>
       {teacherRefreshPending && !isSettingsOpen && <div className="fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border bg-[var(--teacher-surface)] px-4 py-2 shadow" role="status">
         <span>저장됨 · 화면 갱신 중</span>
         <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void refreshTeacherSavedState()}>다시 불러오기</button>
@@ -11783,6 +11787,7 @@ export default function TimerPage() {
           ) : null}
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
+            {isHalloweenTheme ? <TeacherHalloweenScenery /> : null}
             <div className="bgm-reveal-zone absolute left-1 top-1 z-40 flex items-start p-3 sm:left-2 sm:top-2 md:left-3 md:top-3">
               <button
                 onClick={toggleBackgroundMusic}
@@ -11959,6 +11964,7 @@ export default function TimerPage() {
                   className="transition-[stroke-dashoffset] duration-1000 ease-linear"
                 />
               </svg>
+              {isHalloweenTheme ? <TeacherHalloweenPumpkin /> : null}
               {shouldShowMorningReading ? (
                 <button
                   type="button"
