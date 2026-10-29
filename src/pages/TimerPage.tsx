@@ -208,8 +208,8 @@ import {
   AUCTION_MISSION_MAX_COUNT,
   AUCTION_MISSIONS_STORAGE_KEY,
   AUCTION_WEEKDAY_LABELS,
-  adjustCurrencyBalancesForStudents,
   applyTeacherCurrencyDeductionsInSettings,
+  applyTeacherCurrencyIncreaseInSettings,
   createAuctionItemTemplate,
   CURRENCY_BALANCE_MAX,
   CURRENCY_BALANCE_STEP,
@@ -7326,30 +7326,33 @@ export default function TimerPage() {
     else recordCurrencyAdjustment(target, -amount);
   };
 
+  const increaseLocalCurrency = (studentNumbers: readonly number[], amount: number, target: CurrencyAdjustmentTarget) => {
+    const snapshot = loadStoredStudentPetSnapshot();
+    const value = applyTeacherCurrencyIncreaseInSettings({ ...snapshot }, studentNumbers, amount, crypto.randomUUID(), new Date().toISOString());
+    const stored = storeStudentPetSnapshot({ ...snapshot,
+      currencyBalances: normalizeCurrencyBalances(value.currencyBalances),
+      currencyHistory: normalizeCurrencyHistory(value.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(value.studentEconomy),
+    });
+    if (!stored) {
+      reportSaveFailure('settings', 'storage');
+      setCurrencyDeductionError('고마 조정을 저장하지 못했어요. 다시 시도해 주세요.');
+      return;
+    }
+    const saved = loadStoredStudentPetSnapshot();
+    commitCurrencyState(saved.currencyBalances, saved.currencyHistory);
+    setStudentEconomyStates(saved.studentEconomy);
+    setStudentLife(saved.studentLife);
+    recordCurrencyAdjustment(target, amount);
+  };
+
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     if (isSupabaseSettingsEnabled) {
       queueCurrencyClick({ target: 'student', key: String(studentNumber), studentNumbers: [studentNumber], delta });
       return;
     }
     if (delta < 0) { deductLocalCurrency([studentNumber], -delta, 'student'); return; }
-    setIsCurrencyDeductionVisible(false);
-    setCurrencyDeductionReason('');
-    setCurrencyDeductionError('');
-    const key = String(studentNumber);
-    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
-    const after = clampCurrencyBalance(before + delta);
-    const nextBalances = {
-      ...previousBalances,
-      [key]: after,
-    };
-    const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
-      studentNumber,
-      before,
-      after,
-      reason: 'manual',
-    });
-    commitCurrencyAdjustment(nextBalances, nextHistory, 'student', delta);
+    increaseLocalCurrency([studentNumber], delta, 'student');
   };
 
   const submitCurrencyDeduction = async () => {
@@ -7432,22 +7435,7 @@ export default function TimerPage() {
       return;
     }
     if (delta < 0) { deductLocalCurrency(CURRENCY_STUDENT_NUMBERS, -delta, 'all'); return; }
-    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const nextBalances = CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
-      const key = String(studentNumber);
-      const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
-      balances[key] = clampCurrencyBalance(before + delta);
-      return balances;
-    }, {});
-    const createdAt = new Date().toISOString();
-    const nextHistory = appendCurrencyChangesToHistory(
-      currencyHistoryRef.current,
-      previousBalances,
-      nextBalances,
-      'bulk_adjust',
-      createdAt,
-    );
-    commitCurrencyAdjustment(nextBalances, nextHistory, 'all', delta);
+    increaseLocalCurrency(CURRENCY_STUDENT_NUMBERS, delta, 'all');
   };
 
   const toggleCurrencyGroupStudentNumber = (studentNumber: number) => {
@@ -7470,16 +7458,7 @@ export default function TimerPage() {
     }
     if (delta < 0) { deductLocalCurrency(selectedStudentNumbers, -delta, 'group'); return; }
 
-    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const nextBalances = adjustCurrencyBalancesForStudents(previousBalances, selectedStudentNumbers, delta);
-    const nextHistory = appendCurrencyChangesToHistory(
-      currencyHistoryRef.current,
-      previousBalances,
-      nextBalances,
-      'bulk_adjust',
-      new Date().toISOString(),
-    );
-    commitCurrencyAdjustment(nextBalances, nextHistory, 'group', delta);
+    increaseLocalCurrency(selectedStudentNumbers, delta, 'group');
   };
 
   const resetCurrencyBalances = () => {
@@ -8732,7 +8711,7 @@ export default function TimerPage() {
         </button>
       </div>
       {!isCurrencyDeductionInvalid && currencyDeductionDeferredCount > 0 ? <p className="mt-2 text-sm text-[var(--teacher-warning)]" role="status">
-        {currencyDeductionDeferredCount}명은 잔액이 부족해 차감 대기로 기록돼요. 보유 고마·예금·증권사 투자금이 충분해지면 자동 차감됩니다.
+        {currencyDeductionDeferredCount}명은 잔액이 부족해 차감 대기로 기록돼요. 보유 고마·예금·증권사 투자금에서 가능한 만큼 자동 차감됩니다.
       </p> : null}
       {currencyDeductionError ? (
         <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>

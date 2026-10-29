@@ -77,12 +77,18 @@ test('부족한 자산의 차감은 전액 대기로 저장하며 재시도해�
   assert.deepEqual(after.studentEconomy, before.studentEconomy);
 });
 
-test('자산이 부족한 동안에는 일부 차감과 차감 기록을 만들지 않는다', () => {
+test('자산이 부족하면 가능한 만큼 차감하고 남은 대기를 보존한다', () => {
   const before = queue();
   const withReward: Record<string, unknown> = { ...before, currencyBalances: { '14': 7, '3': 91 } };
   const after = settlePendingTeacherDeductionsInSettings(withReward, createdAt);
-  assert.deepEqual(after, withReward);
-  assert.equal(normalizeCurrencyHistory(after.currencyHistory)['14'].length, 0);
+  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['14'], 0);
+  assert.equal(state(after).pendingDeductions[0]?.amount, 3);
+  assert.equal(normalizeCurrencyHistory(after.currencyHistory)['14'][0]?.delta, -7);
+  assert.deepEqual(settlePendingTeacherDeductionsInSettings(after, createdAt), after);
+  const rest = settlePendingTeacherDeductionsInSettings({ ...after, currencyBalances: { '14': 5, '3': 91 } }, createdAt);
+  assert.equal(state(rest).pendingDeductions.length, 0);
+  assert.equal(normalizeCurrencyBalances(rest.currencyBalances)['14'], 2);
+  assert.equal(normalizeCurrencyHistory(rest.currencyHistory)['14'].length, 2);
 });
 
 test('실제 잔액이 없는 범위 조회에서는 기본 잔액으로 자동 차감하지 않는다', () => {
@@ -118,8 +124,8 @@ test('큰 대기 금액을 건너뛰어 뒤의 작은 금액부터 차감하지 
   const before = queue(2, 20);
   const second = applyTeacherCurrencyDeductionsInSettings(before, { ...input, requestId: 'second-fixture', amount: 10 }).value;
   const after = settlePendingTeacherDeductionsInSettings({ ...second, currencyBalances: { '14': 12 } }, createdAt);
-  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['14'], 12);
-  assert.deepEqual(state(after).pendingDeductions.map(item => item.amount), [20, 10]);
+  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['14'], 0);
+  assert.deepEqual(state(after).pendingDeductions.map(item => item.amount), [8, 10]);
 });
 
 test('잘못된 대기 기록은 정규화 경계에서 거절한다', () => {
@@ -165,4 +171,30 @@ test('학생 범위의 교사 차감 명령은 다른 학생의 원본 기록을
   assert.deepEqual(args.p_ledger, []);
   assert.ok(Array.isArray(args.p_resources));
   assert.ok(args.p_resources.every(row => row.owner_number === 14 || row.owner_number === null));
+});
+
+test('+ 조정은 최근 차감 대기부터 줄이고 남은 금액만 지급한다', () => {
+  const before = queue(2, 105);
+  const corrected = applyTeacherStorageCommand(before, 'teacher.currency.adjust', { studentNumbers: [14], amount: 5 }, { requestId: 'fixture-plus', createdAt });
+  assert.ok(corrected);
+  assert.equal(state(corrected.value).pendingDeductions[0]?.amount, 100);
+  assert.equal(normalizeCurrencyBalances(corrected.value.currencyBalances)['14'], 2);
+  const paid = applyTeacherStorageCommand(corrected.value, 'teacher.currency.adjust', { studentNumbers: [14], amount: 103 }, { requestId: 'fixture-plus-2', createdAt });
+  assert.ok(paid);
+  assert.equal(state(paid.value).pendingDeductions.length, 0);
+  assert.equal(normalizeCurrencyBalances(paid.value.currencyBalances)['14'], 5);
+  assert.deepEqual(Reflect.get(paid.value.studentEconomy as object, '3'), { future: null });
+});
+
+test('+ 조정은 여러 대기 항목을 최신순으로 줄이며 다른 학생의 지급은 유지한다', () => {
+  const first = queue(0, 20);
+  const second = applyTeacherCurrencyDeductionsInSettings(first, { ...input, requestId: 'fixture-second', amount: 10 }).value;
+  const result = applyTeacherStorageCommand(second, 'teacher.currency.adjust', { studentNumbers: [14, 3], amount: 15 }, { requestId: 'fixture-bulk-plus', createdAt });
+  assert.ok(result);
+  assert.deepEqual(state(result.value).pendingDeductions.map(item => item.amount), [15]);
+  assert.equal(normalizeCurrencyBalances(result.value.currencyBalances)['14'], 0);
+  assert.equal(normalizeCurrencyBalances(result.value.currencyBalances)['3'], 106);
+  const scope = storageCommandScope('teacher.currency.adjust', { studentNumbers: [14, 3], amount: 15 }, { role: 'teacher', expiresAt: 0 });
+  assert.ok(scope.resources.some(entry => entry.path === '/studentEconomy/14'));
+  assert.ok(scope.writeResources.some(entry => entry.path === '/studentEconomy/14'));
 });

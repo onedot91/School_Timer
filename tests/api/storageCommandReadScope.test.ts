@@ -12,7 +12,8 @@ test('negative teacher adjustments allow only target economy and mail writes', (
     { path: '/studentEconomy/6' }, { path: '/studentLife/letters', mail: { actor: 6, direction: 'recipient' } },
     { path: '/studentEconomy/15' }, { path: '/studentLife/letters', mail: { actor: 15, direction: 'recipient' } },
   ]);
-  for (const [action, amount] of [['teacher.currency.adjust', 10], ['teacher.currency.set', 10], ['teacher.currency.reset', 0]] as const) {
+  assert.deepEqual(storageCommandScope('teacher.currency.adjust', { studentNumbers: [6], amount: 10 }, teacher).writeResources, [{ path: '/studentEconomy/6' }]);
+  for (const [action, amount] of [['teacher.currency.set', 10], ['teacher.currency.reset', 0]] as const) {
     assert.deepEqual(storageCommandScope(action, { studentNumbers: [6], amount }, teacher).writeResources, []);
   }
 });
