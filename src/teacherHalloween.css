@@ -1,0 +1,460 @@
+/* 10월 30~31일 한정 교사 화면 할로윈 테마. 모든 규칙은 data-season="halloween"일 때만 적용된다. */
+
+.teacher-app[data-season="halloween"],
+.teacher-app[data-season="halloween"] .timer-main-shell {
+  color-scheme: dark;
+  --teacher-canvas: #1b1524;
+  --teacher-surface: #2a2135;
+  --teacher-surface-muted: #342940;
+  --teacher-text: #f5ecdc;
+  --teacher-text-secondary: #c6b8ce;
+  --teacher-accent: #ff9d45;
+  --teacher-accent-pressed: #ffb872;
+  --teacher-warning: #f2b45c;
+  --teacher-urgent: #ff7d6e;
+  --teacher-border: #45374f;
+  --teacher-border-strong: #5c4a69;
+  --teacher-warning-soft: #3d2f22;
+  --teacher-urgent-soft: #412529;
+  --teacher-focus: #ffb872;
+  --apple-surface-tint: #30263c;
+  --apple-text-tertiary: #a596ad;
+  --apple-edge-highlight: rgba(255, 255, 255, 0.07);
+  --apple-scrim: rgba(8, 5, 12, 0.55);
+  --apple-shadow-1: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.28);
+  --apple-shadow-2: 0 0.75rem 1.8rem rgba(0, 0, 0, 0.34);
+  --apple-shadow-3: 0 1.2rem 3rem rgba(0, 0, 0, 0.42);
+
+  --halloween-pumpkin: #f07f24;
+  --halloween-pumpkin-light: #9a5427;
+  --halloween-pumpkin-idle: #ec8a35;
+  --halloween-pumpkin-rib: rgba(110, 42, 4, 0.34);
+  --halloween-stem: #6f7f3c;
+  --halloween-leaf: #8ea54f;
+  --halloween-night: #07050b;
+  --halloween-moon: #f8ebc0;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .timer-ring-svg circle:first-child {
+  stroke: var(--halloween-pumpkin-light) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .timer-ring-svg circle:last-child {
+  stroke: var(--halloween-pumpkin) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell.timer-idle-state .timer-ring-svg circle:first-child {
+  stroke: var(--halloween-pumpkin-idle) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell.app-tone-warning .timer-ring-svg circle:last-child,
+.teacher-app[data-season="halloween"] .timer-main-shell.app-tone-finished .timer-ring-svg circle:last-child {
+  stroke: #e9a23b !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell.app-tone-urgent .timer-ring-svg circle:last-child {
+  stroke: #ff5d4d !important;
+}
+
+/* 어두운 배경에서 호박이 은은하게 빛나도록 */
+.teacher-app[data-season="halloween"] .timer-main-shell .timer-ring-svg {
+  filter: drop-shadow(0 0 2.6rem rgba(240, 127, 36, 0.38));
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .editorial-clock-display {
+  color: var(--teacher-text) !important;
+  text-shadow: 0 0 1.6rem rgba(255, 157, 69, 0.28) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell.timer-idle-state .editorial-clock-display {
+  color: var(--teacher-text-secondary) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell:is(.app-tone-warning, .app-tone-finished) .editorial-clock-display {
+  color: #f2b45c !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell.app-tone-urgent .editorial-clock-display {
+  color: #ff7d6e !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-watch-nose,
+.teacher-app[data-season="halloween"] .timer-watch-smile {
+  border-color: rgba(70, 26, 2, 0.62);
+}
+
+.teacher-app[data-season="halloween"] .timer-watch-pupil {
+  background: rgba(46, 18, 2, 0.8);
+}
+
+/* 고정 색상(밝은 배경용)으로 쓰인 글자를 어두운 배경에서도 또렷하게 */
+.teacher-app[data-season="halloween"] .timer-main-shell .schedule-panel-header > time {
+  color: var(--teacher-text) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .schedule-panel-header > time > span + span {
+  color: var(--teacher-text-secondary) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .editorial-schedule-board :is(.schedule-row-title, .schedule-row-subject) {
+  color: var(--teacher-text) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .editorial-schedule-board .schedule-row-compact :is(.schedule-row-title, .schedule-row-subject) {
+  color: var(--teacher-text-secondary) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .editorial-schedule-board .schedule-row-time {
+  color: var(--teacher-text-secondary) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .editorial-schedule-board .schedule-row-period-badge {
+  color: var(--teacher-accent) !important;
+  background: rgba(255, 157, 69, 0.14) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .schedule-row-active :where(.schedule-row-title, .schedule-row-subject, .schedule-row-time, .schedule-row-period-badge) {
+  color: #2a1606 !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .schedule-settings-button {
+  color: var(--teacher-accent) !important;
+  background: var(--teacher-surface-muted) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell :is(.manual-timer-display, .manual-timer-display-part, .manual-timer-display-colon) {
+  color: var(--teacher-text) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell :is(.round-action-play, .round-action-pause) {
+  color: #2a1606 !important;
+  background: var(--teacher-accent) !important;
+}
+
+.teacher-app[data-season="halloween"] .timer-main-shell .round-action-reset {
+  color: var(--teacher-text-secondary) !important;
+}
+
+/* 화폐·유튜브·낱말판·질문 패널은 밝은 배경 전용 색이 많아 원래 밝은 색을 유지한다(밤 배경 위 종이 카드). */
+.teacher-app[data-season="halloween"] .timer-main-shell .docked-utility-panel {
+  color-scheme: light;
+  --teacher-canvas: #eae8e1;
+  --teacher-surface: #f4f2ec;
+  --teacher-surface-muted: #e4e8e3;
+  --teacher-text: #24322d;
+  --teacher-text-secondary: #5d6863;
+  --teacher-accent: #4d6f60;
+  --teacher-accent-pressed: #395448;
+  --teacher-warning: #805525;
+  --teacher-urgent: #914b45;
+  --teacher-border: #c9cec8;
+  --teacher-border-strong: #aeb6af;
+  --teacher-warning-soft: #eee4d5;
+  --teacher-urgent-soft: #eddfdc;
+  --teacher-focus: #315f4d;
+  --apple-canvas: var(--teacher-canvas);
+  --apple-canvas-warm: var(--teacher-canvas);
+  --apple-surface: var(--teacher-surface);
+  --apple-surface-tint: #eeeee8;
+  --apple-surface-muted: var(--teacher-surface-muted);
+  --apple-text-primary: var(--teacher-text);
+  --apple-text-secondary: var(--teacher-text-secondary);
+  --apple-text-tertiary: #747d78;
+  --apple-accent: var(--teacher-accent);
+  --apple-accent-pressed: var(--teacher-accent-pressed);
+  --apple-separator: var(--teacher-border);
+  --apple-separator-strong: var(--teacher-border-strong);
+  --apple-focus: var(--teacher-focus);
+  --apple-material-regular: color-mix(in srgb, var(--teacher-surface) 94%, transparent);
+  --apple-material-thick: color-mix(in srgb, var(--teacher-surface) 98%, transparent);
+  --apple-edge-highlight: rgba(255, 255, 255, 0.48);
+  --apple-scrim: rgba(36, 50, 45, 0.28);
+  --apple-shadow-1: 0 0.35rem 0.9rem rgba(36, 50, 45, 0.07);
+  --apple-shadow-2: 0 0.75rem 1.8rem rgba(36, 50, 45, 0.09);
+  --apple-shadow-3: 0 1.2rem 3rem rgba(36, 50, 45, 0.14);
+  color: var(--teacher-text);
+}
+
+/* 호박 줄기·골: 링 SVG와 같은 크기로 겹친다. 원래 링의 circle:first/last-child 규칙을 건드리지 않도록 별도 SVG로 둔다. */
+.halloween-pumpkin-overlay {
+  --halloween-ring-max: 45rem;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: min(100cqw, 100cqh, var(--halloween-ring-max));
+  aspect-ratio: 1;
+  overflow: visible;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+@media (min-width: 1280px) {
+  .halloween-pumpkin-overlay {
+    --halloween-ring-max: 54rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .halloween-pumpkin-overlay {
+    --halloween-ring-max: 58rem;
+  }
+}
+
+.halloween-pumpkin-rib {
+  fill: none;
+  stroke: var(--halloween-pumpkin-rib);
+  stroke-width: 1.6;
+}
+
+.halloween-pumpkin-stem {
+  fill: var(--halloween-stem);
+}
+
+.halloween-pumpkin-leaf {
+  fill: var(--halloween-leaf);
+}
+
+.halloween-pumpkin-vine {
+  fill: none;
+  stroke: var(--halloween-stem);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+/* 타이머 영역 가장자리 장식 */
+.halloween-scenery {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 밤하늘 별 */
+.halloween-scenery::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 246, 220, 0.8) 0 1px, transparent 2px),
+    radial-gradient(circle at 34% 9%, rgba(255, 246, 220, 0.6) 0 1px, transparent 2px),
+    radial-gradient(circle at 62% 14%, rgba(255, 246, 220, 0.7) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle at 78% 34%, rgba(255, 246, 220, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 9% 58%, rgba(255, 246, 220, 0.55) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 62%, rgba(255, 246, 220, 0.6) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle at 24% 78%, rgba(255, 246, 220, 0.45) 0 1px, transparent 2px),
+    radial-gradient(circle at 71% 82%, rgba(255, 246, 220, 0.5) 0 1px, transparent 2px);
+}
+
+.halloween-scenery > * {
+  position: absolute;
+  display: block;
+}
+
+.halloween-web {
+  left: 0;
+  top: 0;
+  width: clamp(6rem, 13vw, 10rem);
+}
+
+.halloween-web-threads {
+  fill: none;
+  stroke: rgba(232, 222, 242, 0.3);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.halloween-spider {
+  left: clamp(4.4rem, 9vw, 7rem);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 0;
+  animation: halloweenSpiderSwing 6s ease-in-out infinite;
+}
+
+.halloween-spider-thread {
+  width: 1px;
+  height: clamp(4rem, 14vh, 7rem);
+  background: rgba(232, 222, 242, 0.4);
+}
+
+.halloween-spider-body {
+  width: 2rem;
+  margin-top: -0.2rem;
+  fill: var(--halloween-night);
+  filter: drop-shadow(0 0 0.25rem rgba(201, 170, 230, 0.45));
+}
+
+.halloween-spider-legs {
+  fill: none;
+  stroke: var(--halloween-night);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.halloween-spider-eye {
+  fill: #fff8e6;
+}
+
+.halloween-moon {
+  right: clamp(1.5rem, 4vw, 3.5rem);
+  top: clamp(1.2rem, 4vh, 2.6rem);
+  width: clamp(3.4rem, 6vw, 5rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #fffaf0 0%, var(--halloween-moon) 62%, #ecd79c 100%);
+  box-shadow: 0 0 2.4rem 0.6rem rgba(248, 235, 192, 0.7);
+}
+
+.halloween-bat {
+  width: clamp(2.4rem, 4vw, 3.4rem);
+  fill: var(--halloween-night);
+  filter: drop-shadow(0 0 0.3rem rgba(201, 170, 230, 0.45));
+  animation: halloweenBatDrift 9s ease-in-out infinite;
+}
+
+.halloween-bat-eye {
+  fill: #ffd27a;
+}
+
+.halloween-bat-wing {
+  transform-box: fill-box;
+  animation: halloweenBatFlap 0.9s ease-in-out infinite alternate;
+}
+
+.halloween-bat-wing-left {
+  transform-origin: 100% 60%;
+}
+
+.halloween-bat-wing-right {
+  transform-origin: 0% 60%;
+}
+
+.halloween-bat-one {
+  right: clamp(5.5rem, 11vw, 9rem);
+  top: clamp(4.2rem, 13vh, 6.5rem);
+}
+
+.halloween-bat-two {
+  right: clamp(1.2rem, 3vw, 2.6rem);
+  top: clamp(6.4rem, 19vh, 9.5rem);
+  width: clamp(1.9rem, 3vw, 2.6rem);
+  animation-delay: -3s;
+}
+
+.halloween-bat-three {
+  right: clamp(8.5rem, 16vw, 13rem);
+  top: clamp(1.4rem, 5vh, 2.4rem);
+  width: clamp(1.6rem, 2.6vw, 2.2rem);
+  animation-delay: -6s;
+}
+
+.halloween-bat-two .halloween-bat-wing {
+  animation-delay: -0.3s;
+}
+
+.halloween-bat-three .halloween-bat-wing {
+  animation-delay: -0.6s;
+}
+
+.halloween-ghost {
+  left: clamp(1.2rem, 3vw, 2.6rem);
+  bottom: clamp(1.2rem, 4vh, 2.6rem);
+  width: clamp(3.4rem, 6vw, 5rem);
+  filter: drop-shadow(0 0 0.9rem rgba(232, 222, 242, 0.32));
+  animation: halloweenGhostFloat 4.5s ease-in-out infinite;
+}
+
+.halloween-ghost-body {
+  fill: #fffdf8;
+  stroke: rgba(201, 170, 230, 0.3);
+  stroke-width: 1.5;
+}
+
+.halloween-ghost-eye,
+.halloween-ghost-mouth {
+  fill: var(--halloween-night);
+}
+
+.halloween-ghost-cheek {
+  fill: rgba(240, 140, 120, 0.35);
+}
+
+.halloween-pumpkin-patch {
+  right: clamp(0.8rem, 2vw, 1.8rem);
+  bottom: clamp(0.6rem, 2vh, 1.4rem);
+  width: clamp(6.5rem, 11vw, 9rem);
+}
+
+.halloween-patch-pumpkin {
+  fill: var(--halloween-pumpkin);
+}
+
+.halloween-patch-pumpkin-small {
+  fill: #f39a45;
+}
+
+.halloween-patch-rib {
+  fill: none;
+  stroke: var(--halloween-pumpkin-rib);
+  stroke-width: 2;
+}
+
+.halloween-patch-stem {
+  fill: var(--halloween-stem);
+}
+
+.halloween-patch-face {
+  fill: #5a2a0c;
+}
+
+@keyframes halloweenSpiderSwing {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes halloweenBatFlap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.45);
+  }
+}
+
+@keyframes halloweenBatDrift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-0.8rem, -0.5rem);
+  }
+}
+
+@keyframes halloweenGhostFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halloween-spider,
+  .halloween-bat,
+  .halloween-bat-wing,
+  .halloween-ghost {
+    animation: none;
+  }
+}
