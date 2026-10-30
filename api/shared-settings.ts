@@ -5,7 +5,7 @@ import { createStorageProjectionPatch } from '../src/server/storageProjection.js
 import { loadTeacherChanges, parseReadManifest } from '../src/server/storageProgressiveRead.js';
 import { formatServerTiming, withStorageRequestTiming } from '../src/server/storageRequestTiming.js';
 import { prioritizeStorageRead, StorageReadBusyError } from '../src/server/storageReadPriority.js';
-import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, pollScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
+import { loadScopedStorageChangesForRead, loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, pollScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
 import {
@@ -360,6 +360,24 @@ const studentReadScope = (studentNumber: number): import('../src/server/storageS
   writeWallets: [],
 });
 
+/** A student manifest names only this student's read selectors and wallet. */
+const parseStudentReadManifest = (raw: unknown, studentNumber: number): Record<string, string> | null => {
+  if (raw === undefined) return null;
+  if (typeof raw !== 'string' || raw.length > 32768) throw new Error('STORAGE_INVALID_READ_MANIFEST');
+  const known = parseReadManifest(JSON.parse(raw));
+  const keys = new Set([...studentReadScope(studentNumber).resources.map(selection => `scope:${selection.path}`), `wallet:${studentNumber}`]);
+  if (Object.keys(known).some(name => !keys.has(name))) throw new Error('STORAGE_INVALID_READ_MANIFEST');
+  return known;
+};
+
+const loadStudentChanges = async (url: string, key: string, studentNumber: number, known: Record<string, string> | null) => {
+  const { manifest, snapshot, complete } = await loadScopedStorageChangesForRead({ url, key }, studentReadScope(studentNumber), known);
+  const value = projectStudentValue(snapshot.value, studentNumber);
+  return { id: SETTINGS_ID, value, updated_at: snapshot.updated_at, scope: 'student' as const, readManifest: manifest,
+    ...(snapshot.readVersion ? { readVersion: snapshot.readVersion } : {}),
+    ...(snapshot.readMarker ? { readMarker: snapshot.readMarker } : {}),
+    storagePatch: createStorageProjectionPatch(snapshot, value, complete) };
+};
 const loadStudentRow = async (url: string, key: string, studentNumber: number, overview = false) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
@@ -533,6 +551,25 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           }
           const row = await withStorageRequestTiming(async timing => {
             try { return await loadTeacherChanges(configuration, known); }
+            finally { response.setHeader('Server-Timing', formatServerTiming(Date.now() - startedAt, timing)); }
+          });
+          if (row.storagePatch.complete && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {
+            const { value: _value, ...compact } = row;
+            response.status(200).json({ ...compact, encoding: 'storage-patch' });
+          } else response.status(200).json(row);
+          return;
+        }
+        if (!shouldLoadFullRow && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-changes' && value === '1')
+          && request.query?.overview !== '1' && process.env.STORAGE_PROTOCOL_VERSION === '2'
+          && process.env.STORAGE_STUDENT_CHANGES === '1' && session.studentNumber !== TEST_STUDENT_NUMBER) {
+          let known: Record<string, string> | null;
+          try {
+            known = parseStudentReadManifest(Object.entries(request.headers ?? {}).find(([name]) => name.toLowerCase() === 'x-storage-read-manifest')?.[1], session.studentNumber);
+          } catch {
+            response.status(400).json({ error: 'STORAGE_INVALID_READ_MANIFEST' }); return;
+          }
+          const row = await withStorageRequestTiming(async timing => {
+            try { return await loadStudentChanges(configuration.url, configuration.key, session.studentNumber, known); }
             finally { response.setHeader('Server-Timing', formatServerTiming(Date.now() - startedAt, timing)); }
           });
           if (row.storagePatch.complete && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {

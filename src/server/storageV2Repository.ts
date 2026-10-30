@@ -1,4 +1,5 @@
 import { measureStorageRequest } from './storageRequestTiming.js';
+import { parseReadManifest } from '../lib/storageReadManifest.js';
 import { StorageReadBusyError } from './storageReadPriority.js';
 import { createHash } from 'node:crypto';
 import { normalizeAuctionItems } from '../lib/currency.js';
@@ -281,6 +282,15 @@ export const loadScopedStorageSnapshotForRead = (configuration: StorageConfigura
     });
     scopedSnapshotReads.set(identity, read);
     return read;
+};
+
+/** Student GET only: the parts of a scope whose selector digest differs from the known manifest. */
+export const loadScopedStorageChangesForRead = async (configuration: StorageConfiguration, scope: StorageScope, known: Record<string, string> | null): Promise<{
+    manifest: Record<string, string>; snapshot: ScopedStorageSnapshot; complete: boolean;
+}> => {
+    const body = await studentReadRequest(configuration, 'storage_load_scope_changes', { p_scope: parseStorageScope(scope), p_known: known });
+    if (!isStorageRecord(body) || typeof body.complete !== 'boolean' || (known === null && !body.complete)) return invalid();
+    return { manifest: parseReadManifest(body.manifest), snapshot: parseScopedStorageSnapshot(body.snapshot), complete: body.complete };
 };
 
 type ScopedStoragePoll = { updatedAt: string; readMarker: string } & ({ unchanged: true } | { readVersion: string });

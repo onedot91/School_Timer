@@ -37,6 +37,8 @@ let settingsCacheGeneration = 0;
 let settingsActorContext: StorageResponseContext | undefined;
 let studentReadState: { version: string; updatedAt: string; marker?: string } | undefined;
 let teacherReadManifest: Record<string, string> | undefined;
+// Digests of the student scope parts already in the projection cache; the server then sends only changed parts.
+let studentReadManifest: Record<string, string> | undefined;
 let teacherChangesSupported = false;
 let sharedSettingsRead: {
   actorGeneration: number;
@@ -69,6 +71,7 @@ const synchronizeSettingsActor = (): StorageResponseContext => {
   if (settingsActorContext?.generation !== context.generation) {
     invalidateSharedSettingsCache();
     teacherReadManifest = undefined;
+    studentReadManifest = undefined;
     teacherChangesSupported = false;
     settingsActorContext = context;
   }
@@ -236,10 +239,10 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext, overview 
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const manifest = context.actor === '0' ? teacherReadManifest : undefined;
+    const manifest = context.actor === '0' ? teacherReadManifest : overview ? undefined : studentReadManifest;
     const received = parseSettingsRow(await fetchJson(context.actor === '0' ? '/api/shared-settings?changes=1'
       : overview ? '/api/shared-settings?overview=1' : '/api/shared-settings', {
-      headers: { 'X-Storage-Projection': '1', 'X-Storage-Compact': '1',
+      headers: { 'X-Storage-Projection': '1', 'X-Storage-Compact': '1', ...(context.actor !== '0' && !overview ? { 'X-Storage-Changes': '1' } : {}),
         ...(manifest ? { 'X-Storage-Read-Manifest': JSON.stringify(manifest) } : {}) },
     }, true));
     if (received?.readManifest && !received.storagePatch?.complete && !manifest) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
@@ -250,7 +253,9 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext, overview 
     const isFresh = !currentTimestamp || (row?.updated_at && compareStorageTimestamps(row.updated_at, currentTimestamp) >= 0);
     if (generation === settingsCacheGeneration && isFresh && received?.readScope !== 'overview' && (row?.scope === 'full' || row?.scope === 'student')) {
       cachedWritableSharedSettingsRow = row;
-      teacherReadManifest = received?.readManifest && received.updated_at === row.updated_at ? received.readManifest : undefined;
+      const nextManifest = received?.readManifest && received.updated_at === row.updated_at ? received.readManifest : undefined;
+      if (context.actor === '0') teacherReadManifest = nextManifest;
+      else studentReadManifest = nextManifest;
       if (context.actor === '0') teacherChangesSupported = received?.readManifest !== undefined;
       studentReadState = received?.scope === 'student' && received.readVersion && received.updated_at === row.updated_at
         ? { version: received.readVersion, updatedAt: received.updated_at, marker: received.readMarker } : undefined;
