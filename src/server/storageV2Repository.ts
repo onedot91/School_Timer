@@ -500,3 +500,23 @@ export const commitAuctionBidAndLoad = async (
     return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
         ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, mutation.snapshot.scope) } : {}) };
 };
+
+/** Teacher grants and exact sets, decided against locked wallets in one database call. */
+export const commitTeacherCurrencyAndLoad = async (configuration: StorageConfiguration, command: {
+    readonly actorKey: string; readonly requestId: string; readonly action: string; readonly payload: unknown;
+    readonly scope: StorageScope; readonly createdAt: string;
+    readonly studentNumbers: readonly number[]; readonly amount: number; readonly expectedBalance?: number;
+}): Promise<{ fallback: true } | { saved: boolean; result?: unknown; snapshot?: ScopedStorageSnapshot; rejected?: string }> => {
+    const body = await request(configuration, 'storage_teacher_currency', { p_command: {
+        actorKey: command.actorKey, requestId: command.requestId, action: command.action,
+        payloadHash: storagePayloadHash(command.action, command.payload), studentNumbers: command.studentNumbers,
+        amount: command.amount, ...(command.expectedBalance === undefined ? {} : { expectedBalance: command.expectedBalance }),
+        scope: parseStorageScope(command.scope), createdAt: command.createdAt,
+    } });
+    if (!isStorageRecord(body)) return invalid();
+    if (body.fallback === true) return { fallback: true };
+    if (body.rejected === 'CURRENCY_BALANCE_CHANGED') return { saved: false, rejected: body.rejected };
+    if (typeof body.saved !== 'boolean') return invalid();
+    return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
+        ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, command.scope) } : {}) };
+};

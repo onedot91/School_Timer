@@ -1,8 +1,8 @@
 import type { DeviceSession, RequestHeaders } from './deviceSession.js';
 import { applyStudentStorageCommand } from './studentStorageCommands.js';
-import { applyTeacherStorageCommand } from './teacherStorageCommands.js';
+import { applyTeacherStorageCommand, atomicTeacherCurrencyCommand, TeacherStorageCommandError } from './teacherStorageCommands.js';
 import {
-  commitAuctionBidAndLoad, commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
+  commitAuctionBidAndLoad, commitScopedStorageMutationAndLoad, commitTeacherCurrencyAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
   type StorageConfiguration, type StorageReceipt,
 } from './storageV2Repository.js';
 import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
@@ -133,8 +133,23 @@ const runStorageCommand = async (
     };
     const createdAt = new Date().toISOString();
     const maxAttempts = action === 'student.auction.bid' ? 24 : 5;
+    let atomicCurrency = effectiveSession.role === 'teacher' && process.env.STORAGE_ATOMIC_TEACHER_CURRENCY === '1'
+      ? atomicTeacherCurrencyCommand(action, payload) : null;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
+        if (atomicCurrency) {
+          const saved = await commitTeacherCurrencyAndLoad(configuration, {
+            actorKey: commandActor, requestId, action, payload, scope, createdAt, ...atomicCurrency });
+          if ('fallback' in saved) atomicCurrency = null;
+          else {
+            if (saved.rejected) throw new TeacherStorageCommandError(saved.rejected, 409);
+            if (!saved.saved) throw new StorageRepositoryError(503, 'STORAGE_SERIALIZATION_RETRY');
+            const current = saved.snapshot;
+            if (!current) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
+            response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed', value: project(current.value), updatedAt: current.updated_at, result: saved.result ?? null });
+            return;
+          }
+        }
         const prepared = await prepareStorageCommand(configuration, commandActor, requestId, scope, { action, payload });
         const { receipt } = prepared;
         let snapshot = prepared.snapshot;
