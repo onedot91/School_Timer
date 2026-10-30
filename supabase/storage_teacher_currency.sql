@@ -41,9 +41,13 @@ begin
     if receipt.action<>action_value or receipt.payload_hash<>payload_hash_value then raise exception 'STORAGE_REQUEST_REUSED'; end if;
     return jsonb_build_object('saved',true,'result',receipt.result,'snapshot',public.storage_load_scope(scope));
   end if;
-  -- A student without a history container takes the general path, which also writes the container.
+  -- The general path handles a student without a history container (it writes the container) and
+  -- grants to a student with pending teacher deductions (a grant first cancels them, newest first).
   if exists(select 1 from unnest(students) s(n) where not exists(select 1 from public.storage_resources r
-    where r.resource_key='/currencyHistory/'||s.n and not r.deleted and r.value->>'kind'='array')) then
+    where r.resource_key='/currencyHistory/'||s.n and not r.deleted and r.value->>'kind'='array'))
+    or (action_value='teacher.currency.adjust' and exists(select 1 from public.storage_resources r
+      where r.resource_key in(select '/studentEconomy/'||n from unnest(students) n) and not r.deleted
+        and jsonb_typeof(r.value#>'{data,pendingDeductions}')='array' and r.value#>'{data,pendingDeductions}'<>'[]'::jsonb)) then
     return jsonb_build_object('fallback',true);
   end if;
 

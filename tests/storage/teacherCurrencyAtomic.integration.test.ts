@@ -146,7 +146,7 @@ test('real PostgreSQL: one-call teacher grants and sets match the general path, 
     assert.deepEqual(fresh.calls.slice(0, 2), ['storage_teacher_currency', 'storage_prepare_command']);
     assert.equal(balance(23), 1005);
 
-    // A grant settles queued teacher deductions in the same transaction, as on the general path.
+    // A grant to a student with queued teacher deductions keeps the general path, which cancels them first.
     const pending = () => JSON.parse(query("select coalesce(value#>'{data,pendingDeductions}','[]') from storage_resources where resource_key='/studentEconomy/14';"))
       .map((item: { amount: number }) => item.amount);
     assert.equal((await call('atomic-set-low-0001', 'teacher.currency.set', { studentNumbers: [14], amount: 2, expectedBalance: 1000 })).status, 200);
@@ -154,7 +154,7 @@ test('real PostgreSQL: one-call teacher grants and sets match the general path, 
     assert.equal(queuedResult.status, 200, JSON.stringify(queuedResult.body));
     assert.deepEqual([balance(14), pending()], [0, [8]]);
     const settled = await call('atomic-settle-0001', 'teacher.currency.adjust', { studentNumbers: [14], amount: 5 });
-    assert.deepEqual([settled.status, settled.calls], [200, ['storage_teacher_currency']]);
+    assert.deepEqual([settled.status, settled.calls.slice(0, 2)], [200, ['storage_teacher_currency', 'storage_prepare_command']]);
     assert.deepEqual([balance(14), pending()], [0, [3]]);
     const settledValue = isStorageRecord(settled.body) && isStorageRecord(settled.body.value) ? settled.body.value : {};
     assert.deepEqual(settledValue.currencyBalances, { 14: 0 });
