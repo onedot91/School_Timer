@@ -46,6 +46,23 @@ const preserveLife = (before: unknown, after: unknown, referenceAt: string, with
   return next;
 };
 
+/** Grants and exact sets that the database can decide against locked wallets; other currency commands return null. */
+export const atomicTeacherCurrencyCommand = (action: string, payload: unknown): {
+  studentNumbers: number[]; amount: number; expectedBalance?: number;
+} | null => {
+  if (action !== 'teacher.currency.adjust' && action !== 'teacher.currency.set') return null;
+  if (!isStorageRecord(payload)) return invalid();
+  const studentNumbers = students(payload.studentNumbers);
+  const amount = integer(payload.amount, action === 'teacher.currency.adjust' ? -CURRENCY_BALANCE_MAX : 0, CURRENCY_BALANCE_MAX);
+  if (action === 'teacher.currency.adjust') return amount > 0 ? { studentNumbers, amount } : null;
+  const expectedBalance = payload.expectedBalance;
+  // The general path treats any other expected value as a changed balance.
+  if (typeof expectedBalance !== 'number' || !Number.isInteger(expectedBalance) || expectedBalance < 0 || expectedBalance > CURRENCY_BALANCE_MAX) {
+    throw new TeacherStorageCommandError('CURRENCY_BALANCE_CHANGED', 409);
+  }
+  return { studentNumbers, amount, expectedBalance };
+};
+
 export const applyTeacherStorageCommand = (
   currentValue: unknown, action: string, payload: unknown,
   context: { readonly requestId: string; readonly createdAt: string },

@@ -20,7 +20,7 @@ export interface PendingTeacherCurrencyAdjustment {
 }
 
 /** Clicks within this quiet period are saved as one request. */
-export const TEACHER_CURRENCY_BATCH_DELAY_MS = 700;
+export const TEACHER_CURRENCY_BATCH_DELAY_MS = 300;
 
 const clampDelta = (delta: number): number => Math.max(-CURRENCY_BALANCE_MAX, Math.min(CURRENCY_BALANCE_MAX, delta));
 
