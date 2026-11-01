@@ -198,3 +198,18 @@ test('+ 조정은 여러 대기 항목을 최신순으로 줄이며 다른 학�
   assert.ok(scope.resources.some(entry => entry.path === '/studentEconomy/14'));
   assert.ok(scope.writeResources.some(entry => entry.path === '/studentEconomy/14'));
 });
+
+test('화폐 조정은 즉시 차감과 대기·자동 차감에서 편지를 만들지 않는다', () => {
+  const existing = { letters: [{ id: 'existing', recipient: 14, senderLabel: '선생님', title: '기존 편지', content: '내용', createdAt, readAt: null }] };
+  const adjustment = { ...input, teacherReason: '화폐 조정' };
+  const immediate = applyTeacherCurrencyDeductionsInSettings({ currencyBalances: { '14': 20 }, studentLife: existing }, adjustment).value;
+  assert.equal(normalizeCurrencyBalances(immediate.currencyBalances)['14'], 10);
+  assert.deepEqual(immediate.studentLife, existing);
+  const pending = applyTeacherCurrencyDeductionsInSettings({ currencyBalances: { '14': 2 }, studentLife: existing }, adjustment).value;
+  assert.equal(state(pending).pendingDeductions.length, 1);
+  assert.deepEqual(pending.studentLife, existing);
+  const settled = settlePendingTeacherDeductionsInSettings({ ...pending, currencyBalances: { '14': 12 } }, createdAt);
+  assert.equal(normalizeCurrencyBalances(settled.currencyBalances)['14'], 2);
+  assert.equal(state(settled).pendingDeductions.length, 0);
+  assert.deepEqual(settled.studentLife, existing);
+});

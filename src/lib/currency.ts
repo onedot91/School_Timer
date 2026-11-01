@@ -524,7 +524,7 @@ export const applyTeacherCurrencyDeductionInSettings = (
     ...history,
     [studentKey]: [historyEntry, ...(history[studentKey] ?? [])],
   });
-  const nextLife = createTeacherCurrencyDeductionLetter(current.studentLife, {
+  const nextLife = normalizedReason === '화폐 조정' ? current.studentLife : createTeacherCurrencyDeductionLetter(current.studentLife, {
     studentNumber, amount, teacherReason: normalizedReason, requestId, createdAt,
     depositDeduction: deduction.depositDeduction,
     investmentDeduction: deduction.investmentDeduction,
@@ -620,7 +620,7 @@ export const queueTeacherCurrencyDeductionInSettings = (
       pendingDeductions: [...state.pendingDeductions, { id: requestId, settlementRequestId, amount, teacherReason: reason, createdAt }],
       processedRequestIds: [...state.processedRequestIds, requestId].slice(-24),
     } },
-    studentLife: createStudentLetter(normalizeStudentLifeState(value.studentLife), {
+    studentLife: reason === '화폐 조정' ? value.studentLife : createStudentLetter(normalizeStudentLifeState(value.studentLife), {
       id: `teacher-pending-letter-${settlementRequestId}`, recipient: studentNumber, senderLabel: '선생님', senderStudentNumber: null,
       title: '고마 차감 대기', content: `${amount}고마 차감 대기\n\n차감 사유\n: ${reason}\n\n보유 고마·예금·증권사 투자금에서 가능한 만큼 자동으로 차감돼요.`, createdAt,
     }),
