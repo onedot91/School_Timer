@@ -53,7 +53,7 @@ for (const scenario of [
     sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-10-15', lastChangeAmount: 0, lastStage: 'flat' },
   } }, wallet: 0, pending: 0 },
 ]) {
-  test(`teacher negative adjustment persists deduction state and letters (${scenario.name}) exactly once`, () => environment(async (call, fixture) => {
+  test(`teacher negative adjustment persists deduction state without letters (${scenario.name}) exactly once`, () => environment(async (call, fixture) => {
     const request = command(`negative-adjustment-${scenario.name}`, 'teacher.currency.adjust', { studentNumbers: [6], amount: -scenario.amount });
     const response = await call(0, 'POST', request);
     assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -64,7 +64,7 @@ for (const scenario of [
     if (scenario.name === 'deposit') assert.equal(economy.deposit, 50);
     if (scenario.name === 'investment') assert.equal(economy.investments.sunny.currentAmount, 50);
     assert.ok(isStorageRecord(saved.studentLife) && Array.isArray(saved.studentLife.letters));
-    assert.equal(saved.studentLife.letters.filter(letter => isStorageRecord(letter) && letter.recipient === 6).length, 1);
+    assert.equal(saved.studentLife.letters.filter(letter => isStorageRecord(letter) && letter.recipient === 6).length, 0);
     assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['4'], 100);
     assert.deepEqual(normalizeStudentEconomyStates(saved.studentEconomy)['4'], normalizeStudentEconomyStates({ 4: { deposit: 234 } })['4']);
     assert.deepEqual(saved.studentLife.letters.filter(letter => isStorageRecord(letter) && letter.recipient !== 6), initial().studentLife.letters);
