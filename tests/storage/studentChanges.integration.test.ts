@@ -39,12 +39,12 @@ test('real PostgreSQL: student change reads match full reads after shared, own, 
     for (const file of ['app_settings.sql', 'classword.sql', 'library_competition.sql', 'storage_v2.sql', 'storage_today_friend_v2.sql', 'storage_rewards_v2.sql',
       'newspaper_questions.sql', 'storage_classword_v2.sql', 'storage_audit_v2.sql', 'storage_scoped_v2.sql', 'storage_read_performance.sql',
       'storage_library_placement_v2.sql', 'storage_scoped_polling.sql', 'storage_scope_history_read_performance.sql', 'storage_scoped_read_execution.sql', 'storage_snapshot_execution.sql',
-      'storage_ancestor_locks.sql', 'storage_command_round_trips.sql', 'storage_scope_read_buffers.sql', 'storage_student_read_gate.sql', 'storage_student_changes.sql']) {
+      'storage_ancestor_locks.sql', 'storage_command_round_trips.sql', 'storage_scope_read_buffers.sql', 'storage_student_read_gate.sql', 'storage_student_changes.sql', 'storage_teacher_history_window.sql', 'storage_student_history_window.sql']) {
       query(await readFile(new URL(`../../supabase/${file}`, import.meta.url), 'utf8'));
     }
     const contracts = () => query("select jsonb_agg(jsonb_build_array(proname,md5(prosrc),proconfig) order by proname,oid) from pg_proc where pronamespace='public'::regnamespace;");
     const beforeReapply = contracts();
-    query(await readFile(new URL('../../supabase/storage_student_changes.sql', import.meta.url), 'utf8'));
+    query(await readFile(new URL('../../supabase/storage_student_history_window.sql', import.meta.url), 'utf8'));
     assert.equal(contracts(), beforeReapply);
 
     const at = '2026-10-30T00:00:00.000Z';
@@ -153,6 +153,33 @@ test('real PostgreSQL: student change reads match full reads after shared, own, 
     assert.deepEqual(patchOf(wallet.body).wallets.map(row => row.balance), [1003]);
     assert.deepEqual(patchOf(wallet.body).historyStudents, [5]);
 
+    // Old coin history stays in the ledger but is sent only within the recent window, for every read.
+    query("select storage_apply_wallet_delta(5,'old-grant-5',1,'manual',now()-interval '40 days','old-grant-5');");
+    const windowed = await step();
+    const entryIds = (body: unknown) => patchOf(body).history.map(row => row.entry_id);
+    assert.ok(entryIds(windowed.body).includes('grant-5'));
+    assert.ok(!entryIds(windowed.body).includes('old-grant-5'));
+    assert.ok(!entryIds((await read(5)).body).includes('old-grant-5'));
+    assert.equal(query("select count(*) from wallet_ledger where entry_id='old-grant-5';"), '1');
+    assert.deepEqual(patchOf(windowed.body).wallets.map(row => row.balance), [1004]);
+    assert.deepEqual(JSON.parse(query('select storage_reconcile_wallets();')), []);
+
+    // A student save answers with the recent window too; the server still used the full ledger.
+    let saveStatus = 0, saveBody: unknown;
+    const saveResponse = { setHeader() {}, status(value: number) { saveStatus = value; return this; }, json(value: unknown) { saveBody = value; } };
+    await handler({ method: 'POST', headers: { cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber: 5 }, secret)}`, 'sec-fetch-site': 'same-origin', 'x-storage-projection': '1' },
+      body: { protocolVersion: 2, requestId: 'student-window-save', action: 'student.emotion.save', payload: { emotionId: 'happy', comment: '', selfMessage: '' } } }, saveResponse);
+    assert.equal(saveStatus, 200, JSON.stringify(saveBody));
+    assert.ok(isStorageRecord(saveBody));
+    const savedIds = entryIds(saveBody);
+    assert.ok(savedIds.includes('grant-5') && !savedIds.includes('old-grant-5'));
+    const savedValue = isStorageRecord(saveBody.value) ? saveBody.value : {};
+    assert.ok(!JSON.stringify(savedValue.currencyHistory).includes('old-grant-5'));
+    assert.equal(query("select count(*) from wallet_ledger where entry_id='old-grant-5';"), '1');
+    assert.deepEqual(JSON.parse(query('select storage_reconcile_wallets();')), []);
+    manifest = Reflect.get(await read(5).then(result => result.body), 'readManifest') as Record<string, string>;
+    apply(await read(5));
+
     // Mail addressed to the student is detected; mail to others is not.
     writeResource('/studentLife/letters/@letter-x', 'studentLife', 5, { kind: 'value', parentKey: '/studentLife/letters', member: '@letter-x', order: 99, data: { id: 'letter-x', recipient: 5, content: '새 편지', createdAt: at } });
     assert.ok(patchOf((await step()).body).resources.some(row => row.resource_key === '/studentLife/letters/@letter-x'));
@@ -167,6 +194,11 @@ test('real PostgreSQL: student change reads match full reads after shared, own, 
     assert.equal(legacy.status, 200);
     assert.deepEqual(legacy.calls, ['storage_load_scope_student']);
     assert.equal(Reflect.get(legacy.body, 'readManifest'), undefined);
+
+    // Rolling the window back restores the full history without touching the ledger.
+    process.env.STORAGE_STUDENT_CHANGES = '1';
+    query(await readFile(new URL('../../supabase/storage_student_history_window_rollback.sql', import.meta.url), 'utf8'));
+    assert.ok(patchOf((await read(5)).body).history.some(row => row.entry_id === 'old-grant-5'));
 
     for (const role of ['anon', 'authenticated']) assert.equal(query(`select has_function_privilege('${role}','storage_load_scope_changes_student(jsonb,jsonb)','execute');`), 'f');
     assert.equal(query("select has_function_privilege('service_role','storage_load_scope_changes_student(jsonb,jsonb)','execute');"), 't');

@@ -174,6 +174,18 @@ test('학생 예금은 학생 지갑·경제 상태·새 원장만 트랜잭션�
   });
 });
 
+test('학생 경제 응답의 입출금 기록은 최근 기간만 보내고 저장 기록은 그대로 둔다', async () => {
+  const oldEntry = { id: 'old-economy-entry', studentNumber: 1, delta: 5, before: 140, after: 145, reason: 'manual', createdAt: '2020-01-01T00:00:00.000Z' };
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' }, 'deposit-recent-history');
+    assert.equal(result.statusCode, 200);
+    const body = JSON.stringify(result.body);
+    assert.ok(!body.includes('old-economy-entry'));
+    assert.ok(body.includes('currency-economy-deposit-recent-history-1'));
+    assert.ok(JSON.stringify(db.value().currencyHistory).includes('old-economy-entry'));
+  }, { ...previousValue, currencyHistory: { ...previousValue.currencyHistory, 1: [oldEntry] } });
+});
+
 test('대출·상환 처리 기록은 예금 이동 문구와 독립된 거래 유형과 금액을 보관한다', async () => {
   await withFixture(async (db) => {
     const borrowed = await act(1, { type: 'borrow', amount: 40, dateKey: '2026-10-01' }, 'loan-history-borrow-1');

@@ -5,6 +5,30 @@ import type { RequestHeaders } from './deviceSession.js';
 export const supportsStorageProjection = (headers: RequestHeaders | undefined): boolean =>
   Object.entries(headers ?? {}).some(([key, value]) => key.toLowerCase() === 'x-storage-projection' && value === '1');
 
+const DAY_MS = 86_400_000, KST_OFFSET_MS = 9 * 3_600_000;
+/** Matches SQL storage_teacher_history_since: 13 days before today's Korean midnight. */
+export const recentHistorySince = (now = Date.now()): number =>
+  Math.floor((now + KST_OFFSET_MS) / DAY_MS) * DAY_MS - 13 * DAY_MS - KST_OFFSET_MS;
+
+const isOlderHistoryEntry = (entry: unknown, since: number): boolean => {
+  const createdAt = isStorageRecord(entry) ? Date.parse(String(entry.createdAt)) : NaN;
+  return Number.isFinite(createdAt) && createdAt < since;
+};
+
+/**
+ * Student screens use coin history only for today's and this week's checks. This trims only what is
+ * sent to the browser; commands still read and write the full ledger.
+ */
+export const withRecentHistory = <T extends StorageSnapshot | ScopedStorageSnapshot>(snapshot: T, now = Date.now()): T => {
+  const since = recentHistorySince(now);
+  const history = snapshot.value.currencyHistory;
+  return { ...snapshot,
+    ...(snapshot.history ? { history: snapshot.history.filter(row => !isOlderHistoryEntry(row.value.data, since)) } : {}),
+    value: isStorageRecord(history) ? { ...snapshot.value, currencyHistory: Object.fromEntries(Object.entries(history).map(([student, entries]) => [
+      student, Array.isArray(entries) ? entries.filter(entry => !isOlderHistoryEntry(entry, since)) : entries,
+    ])) } : snapshot.value };
+};
+
 export const createStorageProjectionPatch = (
   snapshot: StorageSnapshot | ScopedStorageSnapshot, projected: Record<string, unknown>, complete = snapshot.kind !== 'scoped',
 ) => {

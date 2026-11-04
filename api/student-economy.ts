@@ -32,7 +32,7 @@ import {
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError, type ScopedStorageSnapshot } from '../src/server/storageV2Repository.js';
-import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
+import { createStorageProjectionPatch, withRecentHistory } from '../src/server/storageProjection.js';
 import { economyResultScope, economyStorageScope } from '../src/server/economyStorageScope.js';
 import { loadTeacherLoanReport } from '../src/server/teacherLoanHistoryRepository.js';
 import { TeacherLoanHistoryError } from '../src/lib/teacherLoanHistory.js';
@@ -414,9 +414,10 @@ const scopeEconomyResult = (value: unknown, studentNumber: number, role: 'teache
 };
 
 const currentEconomyResponse = async (
-  configuration: NonNullable<ReturnType<typeof getConfiguration>>, value: unknown, studentNumber: number, currentSnapshot?: ScopedStorageSnapshot,
+  configuration: NonNullable<ReturnType<typeof getConfiguration>>, role: 'teacher' | 'student', value: unknown, studentNumber: number, currentSnapshot?: ScopedStorageSnapshot,
 ) => {
-  const snapshot = currentSnapshot ?? await loadScopedStorageSnapshot(configuration, economyResultScope(studentNumber));
+  const loaded = currentSnapshot ?? await loadScopedStorageSnapshot(configuration, economyResultScope(studentNumber));
+  const snapshot = role === 'student' ? withRecentHistory(loaded) : loaded;
   const own = String(studentNumber), current = snapshot.value;
   const balance = normalizeCurrencyBalances(current.currencyBalances)[own];
   const history = normalizeCurrencyHistory(current.currencyHistory)[own] ?? [];
@@ -469,7 +470,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           committedAt: receipt.committedAt, result: scopeEconomyResult(receipt.result, studentNumber, 'student') } : { status: 'unknown' });
         return;
       }
-      response.status(200).json(receipt.found ? { status: 'committed', result: await currentEconomyResponse(configuration, receipt.result, studentNumber) } : { status: 'unknown' });
+      response.status(200).json(receipt.found ? { status: 'committed', result: await currentEconomyResponse(configuration, session.role, receipt.result, studentNumber) } : { status: 'unknown' });
     } catch (error) {
       logStorageFailure(error, { route: '/api/student-economy', stage: 'receipt', startedAt });
       response.status(error instanceof StorageRepositoryError ? error.status : 502).json({ error: error instanceof StorageRepositoryError ? error.code : 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' });
@@ -510,7 +511,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
       });
       if (!confirmed.found) return false;
-      response.status(200).json(await currentEconomyResponse(configuration, confirmed.result, parsed.studentNumber));
+      response.status(200).json(await currentEconomyResponse(configuration, session.role, confirmed.result, parsed.studentNumber));
       return true;
     };
     const scope = economyStorageScope(parsed.studentNumber, parsed.action, parsed.requestId);
@@ -522,7 +523,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         const prepared = await prepareStorageCommand(configuration, actorKey, parsed.requestId, scope, {
           action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
         }, economyResultScope(parsed.studentNumber));
-        if (prepared.receipt.found) { response.status(200).json(await currentEconomyResponse(configuration, prepared.receipt.result, parsed.studentNumber, prepared.snapshot)); return; }
+        if (prepared.receipt.found) { response.status(200).json(await currentEconomyResponse(configuration, session.role, prepared.receipt.result, parsed.studentNumber, prepared.snapshot)); return; }
         const current = prepared.snapshot;
         // The commit checks the same receipt under its lock; business rejection also confirms before responding.
         const mutation = createMutation(current.value, parsed.studentNumber, parsed.action, parsed.requestId, createdAt, characterDrawRoll, profileDrawRoll);
@@ -533,7 +534,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         }, economyResultScope(parsed.studentNumber));
         if (committed.saved) {
           if (!committed.snapshot) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
-          response.status(200).json(await currentEconomyResponse(configuration, committed.result, parsed.studentNumber, committed.snapshot)); return;
+          response.status(200).json(await currentEconomyResponse(configuration, session.role, committed.result, parsed.studentNumber, committed.snapshot)); return;
         }
       } catch (error) {
         const retryable = error instanceof StorageRepositoryError && error.code === 'STORAGE_SERIALIZATION_RETRY';
