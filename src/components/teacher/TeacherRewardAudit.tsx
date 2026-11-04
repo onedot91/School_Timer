@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { describeRewardAuditFailure, REWARD_AUDIT_FEATURES, RewardAuditRequestError, type RewardAuditFailure, type RewardAuditReport } from '../../lib/rewardAudit';
 import { loadRewardAuditReport } from '../../lib/rewardAuditClient';
-import { REWARD_AUDIT_INTERVAL_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
+import { REWARD_AUDIT_INTERVAL_MS, REWARD_AUDIT_START_DELAY_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
 import { useModalFocus } from '../../lib/useModalFocus';
 import TeacherLoadingState from './TeacherLoadingState';
 
@@ -38,7 +38,8 @@ export default function TeacherRewardAudit() {
     };
     refreshRef.current = refresh;
     const stop = startRewardAuditPolling({ refresh, visible: () => document.visibilityState === 'visible', visibilityEvents: document,
-      schedule: tick => { const timer = window.setInterval(tick, REWARD_AUDIT_INTERVAL_MS); return () => window.clearInterval(timer); }, now: Date.now });
+      schedule: tick => { const timer = window.setInterval(tick, REWARD_AUDIT_INTERVAL_MS); return () => window.clearInterval(timer); },
+      delayStart: start => { const timer = window.setTimeout(start, REWARD_AUDIT_START_DELAY_MS); return () => window.clearTimeout(timer); }, now: Date.now });
     return () => { disposed = true; stop(); manualRequest.current?.abort(); };
   }, []);
   const count = (report?.issues.length ?? 0) + (report?.walletMismatches.length ?? 0);
