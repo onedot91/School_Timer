@@ -175,3 +175,20 @@ test('저장 재시도 수는 있을 때만 Server-Timing에 붙고 중첩 측�
   assert.match(formatServerTiming(10, timing), /storage;dur=[\d.]+;desc="2 RPC", retry;desc="1"$/);
   assert.doesNotMatch(formatServerTiming(10, { calls: 1, duration: 1, retries: 0 }), /retry/);
 });
+
+test('학생에게 보내는 입출금 기록은 SQL과 같은 최근 기간으로 자르고 나머지 값은 그대로 둔다', async () => {
+  const { recentHistorySince, withRecentHistory } = await import('../../src/server/storageProjection.js');
+  // 2026-11-04 01:00 KST is still November 4 in Korea, then 13 days back to Korean midnight.
+  const now = Date.parse('2026-11-03T16:00:00.000Z');
+  assert.equal(new Date(recentHistorySince(now)).toISOString(), '2026-10-21T15:00:00.000Z');
+  const row = (id: string, createdAt: unknown) => ({ resource_key: `/currencyHistory/5/@${id}`, student_number: 5, entry_id: id, sort_order: 0,
+    value: { kind: 'value' as const, parentKey: '/currencyHistory/5', member: `@${id}`, data: { id, createdAt } } });
+  const snapshot = { kind: 'full' as const, updated_at: '2026-11-04T00:00:00.000Z', revisions: {}, resources: [], wallets: [], deletedKeys: [], retained: true,
+    history: [row('edge', '2026-10-21T15:00:00.000Z'), row('old', '2026-10-21T14:59:59.999Z'), row('unknown', 'not-a-date')],
+    value: { retained: 'keep', currencyHistory: { 5: [{ id: 'edge', createdAt: '2026-10-21T15:00:00.000Z' }, { id: 'old', createdAt: '2026-10-21T14:59:59.999Z' }] } } };
+  const trimmed = withRecentHistory(snapshot as never, now) as unknown as typeof snapshot;
+  assert.deepEqual(trimmed.history.map(entry => entry.entry_id), ['edge', 'unknown']);
+  assert.deepEqual(trimmed.value.currencyHistory[5].map(entry => entry.id), ['edge']);
+  assert.equal(trimmed.value.retained, 'keep');
+  assert.equal(snapshot.history.length, 3, '원본 스냅샷은 바꾸지 않는다');
+});

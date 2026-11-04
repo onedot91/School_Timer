@@ -7,7 +7,7 @@ import {
 } from './storageV2Repository.js';
 import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
 import { AUCTION_ITEM_IDS, normalizeAuctionBids } from '../lib/currency.js';
-import { createStorageProjectionPatch, supportsStorageProjection } from './storageProjection.js';
+import { createStorageProjectionPatch, supportsStorageProjection, withRecentHistory } from './storageProjection.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { requiresStudentEditRevisions } from './storageClientContract.js';
 import { logStorageFailure } from './storageFailureDiagnostics.js';
@@ -100,6 +100,11 @@ const runStorageCommand = async (
     const commandActor = teacherAuction ? `teacher:0:student:${target}` : actorKey(session);
     const project = (value: unknown): Record<string, unknown> => effectiveSession.role === 'teacher'
       ? isStorageRecord(value) ? value : {} : projectStudentValue(value, effectiveSession.studentNumber);
+    const projection = (snapshot: Parameters<typeof createStorageProjectionPatch>[0]) => {
+      const sent = session.role === 'student' ? withRecentHistory(snapshot) : snapshot;
+      const value = project(sent.value);
+      return { storagePatch: createStorageProjectionPatch(sent, value), value };
+    };
     if (request.method === 'GET') {
       const requestId = request.query?.requestId;
       if (!validId(requestId)) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
@@ -109,7 +114,7 @@ const runStorageCommand = async (
       if (request.query?.receiptOnly === '1') { response.status(200).json(receiptStatus(receipt)); return; }
       const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, effectiveSession, true);
       const snapshot = await loadScopedStorageSnapshot(configuration, scope);
-      response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result,
+      response.status(200).json({ ...projection(snapshot), status: 'committed', updatedAt: snapshot.updated_at, result: receipt.result,
         ...('action' in receipt ? { action: receipt.action } : {}), ...('payloadHash' in receipt ? { payloadHash: receipt.payloadHash } : {}) });
       return;
     }
@@ -127,8 +132,7 @@ const runStorageCommand = async (
       const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
       if (!receipt.found) return false;
       const current = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
-      response.status(200).json({ ...receiptStatus(receipt), storagePatch: createStorageProjectionPatch(current, project(current.value)),
-        value: project(current.value), updatedAt: current.updated_at });
+      response.status(200).json({ ...receiptStatus(receipt), ...projection(current), updatedAt: current.updated_at });
       return true;
     };
     const createdAt = new Date().toISOString();
@@ -146,7 +150,7 @@ const runStorageCommand = async (
             if (!saved.saved) throw new StorageRepositoryError(503, 'STORAGE_SERIALIZATION_RETRY');
             const current = saved.snapshot;
             if (!current) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
-            response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed', value: project(current.value), updatedAt: current.updated_at, result: saved.result ?? null });
+            response.status(200).json({ ...projection(current), status: 'committed', updatedAt: current.updated_at, result: saved.result ?? null });
             return;
           }
         }
@@ -154,7 +158,7 @@ const runStorageCommand = async (
         const { receipt } = prepared;
         let snapshot = prepared.snapshot;
         if (receipt.found) {
-          response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
+          response.status(200).json({ ...projection(snapshot), status: 'committed', updatedAt: snapshot.updated_at, result: receipt.result });
           return;
         }
         if (action === 'student.failure.create') {
@@ -193,7 +197,7 @@ const runStorageCommand = async (
         if (saved.saved) {
           const current = saved.snapshot;
           if (!current) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
-          response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed',value: project(current.value),updatedAt: current.updated_at,result: saved.result ?? mutation.result });
+          response.status(200).json({ ...projection(current), status: 'committed',updatedAt: current.updated_at,result: saved.result ?? mutation.result });
           return;
         }
       } catch (error) {
