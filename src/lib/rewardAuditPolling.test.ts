@@ -25,3 +25,21 @@ test('창 전환만으로는 다시 점검하지 않고 10분 주기를 지킨�
   now = REWARD_AUDIT_INTERVAL_MS; tick(); assert.equal(calls, 2, '느린 점검 뒤에도 다음 주기를 건너뛰지 않는다');
   stop();
 });
+
+test('첫 자동 점검은 시작 지연이 끝난 뒤에만 실행한다', () => {
+  const visibilityEvents = new EventTarget(); let visible = true; let tick = () => {}; let start = () => {}; let cleared = false;
+  let calls = 0;
+  const environment = { refresh: async () => { calls += 1; }, visible: () => visible, visibilityEvents,
+    schedule: (fn: () => void) => { tick = fn; return () => {}; }, delayStart: (fn: () => void) => { start = fn; return () => { cleared = true; }; }, now: () => 100_000 };
+  const stop = startRewardAuditPolling(environment);
+  assert.equal(calls, 0, '화면을 열자마자 시작하지 않는다');
+  visibilityEvents.dispatchEvent(new Event('visibilitychange')); tick();
+  assert.equal(calls, 0, '창 복귀와 주기도 지연을 앞당기지 않는다');
+  visible = false; start();
+  assert.equal(calls, 0, '숨겨진 화면에서는 시작하지 않는다');
+  visible = true; visibilityEvents.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(calls, 1, '화면으로 돌아오면 시작한다');
+  stop(); assert.equal(cleared, true);
+  const stopped = startRewardAuditPolling(environment); calls = 0; stopped(); start();
+  assert.equal(calls, 0, '화면을 닫은 뒤에는 시작하지 않는다');
+});
