@@ -112,16 +112,18 @@ begin
     -- Negative deltas do not re-enter settlement. Zero still records deposit-only deductions.
     perform public.storage_apply_wallet_delta(p_student_number, settlement_entry_id, -wallet_used, 'teacher_deduction', settled_at, settlement_id);
     select * into account from public.wallet_accounts where student_number = p_student_number;
-    letter_id := 'teacher-deduction-letter-' || settlement_id;
-    select coalesce(min((value->>'order')::double precision), 0) - 1 into letter_order from public.storage_resources
-      where not deleted and value->>'parentKey' = '/studentLife/letters';
-    letter := jsonb_build_object('id', letter_id, 'recipient', p_student_number, 'senderLabel', '선생님', 'senderStudentNumber', null,
-      'replyToId', null, 'title', '고마 차감 안내', 'content', '선생님이 ' || amount || '고마를 차감했어요.' || E'\n\n차감 사유\n: '
-      || (item->>'teacherReason') || case when deposit_used > 0 then E'\n\n보유 고마가 부족해 ' || deposit_used || '고마는 예금에서 사용했어요.' else '' end
-      || case when investment_used > 0 then E'\n\n' || investment_used || '고마는 증권사 투자금에서 사용했어요.' else '' end,
-      'createdAt', stamp, 'readAt', null);
-    perform public.storage_write_resource('/studentLife/letters/@' || letter_id, 'studentLife', null,
-      jsonb_build_object('kind', 'value', 'parentKey', '/studentLife/letters', 'member', '@' || letter_id, 'order', letter_order, 'data', letter));
+    if btrim(item->>'teacherReason') <> '화폐 조정' then
+      letter_id := 'teacher-deduction-letter-' || settlement_id;
+      select coalesce(min((value->>'order')::double precision), 0) - 1 into letter_order from public.storage_resources
+        where not deleted and value->>'parentKey' = '/studentLife/letters';
+      letter := jsonb_build_object('id', letter_id, 'recipient', p_student_number, 'senderLabel', '선생님', 'senderStudentNumber', null,
+        'replyToId', null, 'title', '고마 차감 안내', 'content', '선생님이 ' || amount || '고마를 차감했어요.' || E'\n\n차감 사유\n: '
+        || (item->>'teacherReason') || case when deposit_used > 0 then E'\n\n보유 고마가 부족해 ' || deposit_used || '고마는 예금에서 사용했어요.' else '' end
+        || case when investment_used > 0 then E'\n\n' || investment_used || '고마는 증권사 투자금에서 사용했어요.' else '' end,
+        'createdAt', stamp, 'readAt', null);
+      perform public.storage_write_resource('/studentLife/letters/@' || letter_id, 'studentLife', null,
+        jsonb_build_object('kind', 'value', 'parentKey', '/studentLife/letters', 'member', '@' || letter_id, 'order', letter_order, 'data', letter));
+    end if;
     if amount < pending_amount then exit; end if;
   end loop;
 end;
