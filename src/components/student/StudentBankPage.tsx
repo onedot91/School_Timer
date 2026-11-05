@@ -80,7 +80,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
   const [depositAmount, setDepositAmount] = useState('');
   const [loanAmount, setLoanAmount] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
-  const [recipientNumber, setRecipientNumber] = useState(studentNumber === 1 ? '2' : '1');
+  const [recipientNumber, setRecipientNumber] = useState('');
   const [activeModal, setActiveModal] = useState<BankModal>(null);
   const [pendingAction, setPendingAction] = useState<PendingBankAction | null>(null);
   const today = getKoreanDateKey();
@@ -179,7 +179,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>오늘 보낼 수 있는 횟수</small><strong>하루 1회</strong></div>
             <b className="student-bank-outcome">최대 30고마 · 한 명</b>
           </div>
-          <button type="button" disabled={isSaving || hasTransferredToday} onClick={() => setActiveModal('transfer')}><StableLabel busy={pendingAction === 'transfer'} busyLabel="처리 중" label={'송금 (고마 보내기)'} /></button>
+          <button type="button" disabled={isSaving || hasTransferredToday} onClick={() => { setRecipientNumber(''); setActiveModal('transfer'); }}><StableLabel busy={pendingAction === 'transfer'} busyLabel="처리 중" label={'송금 (고마 보내기)'} /></button>
         </article>
       </div>
       <StudentConfirmDialog
@@ -209,7 +209,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
           <div className="student-bank-modal-form">
             <label className="student-bank-amount-field" htmlFor="student-bank-transfer-amount" data-invalid={transferIssue.highlightedTerm || transferIssue.lineMessage ? 'true' : undefined}><span>보낼 고마</span><input id="student-bank-transfer-amount" type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} aria-invalid={transferIssue.highlightedTerm || transferIssue.lineMessage ? true : undefined} aria-describedby={transferIssue.describedBy} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
             <AmountIssue id="student-bank-transfer-issue" issue={transferIssue.lineMessage} />
-            <label className="student-bank-recipient" htmlFor="student-bank-transfer-recipient"><span>받는 학생</span><select id="student-bank-transfer-recipient" value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
+            <label className="student-bank-recipient" htmlFor="student-bank-transfer-recipient"><span>받는 학생</span><select id="student-bank-transfer-recipient" value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}><option value="" disabled>학생 선택</option>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
             <BankRuleList rules={STUDENT_BANK_RULES.transfer} highlightedTerm={transferIssue.highlightedTerm} highlightId="student-bank-transfer-rule" />
           </div>
         ) : null}
