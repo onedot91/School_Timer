@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { describeRewardAuditFailure, REWARD_AUDIT_FEATURES, RewardAuditRequestError, type RewardAuditFailure, type RewardAuditReport } from '../../lib/rewardAudit';
 import { loadRewardAuditReport } from '../../lib/rewardAuditClient';
-import { REWARD_AUDIT_INTERVAL_MS, REWARD_AUDIT_START_DELAY_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
+import { isRewardAuditQuietTime, REWARD_AUDIT_INTERVAL_MS, REWARD_AUDIT_START_DELAY_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
 import { useModalFocus } from '../../lib/useModalFocus';
 import TeacherLoadingState from './TeacherLoadingState';
 
@@ -47,9 +47,10 @@ export default function TeacherRewardAudit() {
   const wallets = (report?.walletMismatches ?? []).filter(item => student === 'all' || String(item.studentNumber) === student);
   const refresh = () => { manualRequest.current?.abort(); const request = new AbortController(); manualRequest.current = request; void refreshRef.current(request.signal); };
   const failure = error ? describeRewardAuditFailure(error) : null;
-  if (count === 0 && !error && !isOpen) return null;
+  // Automatic checks pause during class, so the button stays until a result exists.
+  if (count === 0 && !error && !isOpen && (report || !isRewardAuditQuietTime(Date.now()))) return null;
   return <>
-    <button ref={returnFocusRef} className="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning={count > 0 || !!error} type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-label={count > 0 ? `보상 점검 확인 필요 ${count}건` : '보상 점검'}>
+    <button ref={returnFocusRef} className="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning={count > 0 || !!error} type="button" onClick={() => { setIsOpen(true); if (!report && !loading) refresh(); }} aria-haspopup="dialog" aria-label={count > 0 ? `보상 점검 확인 필요 ${count}건` : '보상 점검'}>
       <ClipboardCheck size={18} aria-hidden="true" /><span>보상 점검</span>{count > 0 ? <b>{count}</b> : null}{error ? <span>!</span> : null}
     </button>
     {isOpen && createPortal(<div className="teacher-save-warning-backdrop teacher-settings-theme" onClick={() => setIsOpen(false)}>

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { REWARD_AUDIT_INTERVAL_MS, startRewardAuditPolling } from './rewardAuditPolling.js';
+import { isRewardAuditQuietTime, REWARD_AUDIT_INTERVAL_MS, startRewardAuditPolling } from './rewardAuditPolling.js';
+
+const SATURDAY = Date.parse('2026-11-07T11:00:00+09:00');
 
 test('자동 점검은 겹치지 않으며 화면 숨김·종료 시 중단하고 복귀 시 다시 조회한다', async () => {
   const visibilityEvents = new EventTarget(); let visible = true; let tick = () => {}; let cleared = false;
   const signals: AbortSignal[] = []; const pending: (() => void)[] = [];
   const refresh = (signal: AbortSignal) => { signals.push(signal); return new Promise<void>(resolve => { pending.push(resolve); }); };
-  const stop = startRewardAuditPolling({ refresh, visible: () => visible, visibilityEvents, schedule: fn => { tick = fn; return () => { cleared = true; }; }, now: () => 100_000 });
+  const stop = startRewardAuditPolling({ refresh, visible: () => visible, visibilityEvents, schedule: fn => { tick = fn; return () => { cleared = true; }; }, now: () => SATURDAY });
   assert.equal(signals.length, 1); tick(); assert.equal(signals.length, 1);
   visible = false; visibilityEvents.dispatchEvent(new Event('visibilitychange')); assert.equal(signals[0].aborted, true);
   visible = true; visibilityEvents.dispatchEvent(new Event('visibilitychange')); assert.equal(signals.length, 2);
@@ -15,14 +17,14 @@ test('자동 점검은 겹치지 않으며 화면 숨김·종료 시 중단하�
 });
 
 test('창 전환만으로는 다시 점검하지 않고 10분 주기를 지킨다', async () => {
-  const visibilityEvents = new EventTarget(); let now = 0; let tick = () => {};
+  const visibilityEvents = new EventTarget(); let now = SATURDAY; let tick = () => {};
   let calls = 0;
   const stop = startRewardAuditPolling({ refresh: async () => { calls += 1; now += 8_000; }, visible: () => true, visibilityEvents,
     schedule: fn => { tick = fn; return () => {}; }, now: () => now });
   await Promise.resolve(); await Promise.resolve(); assert.equal(calls, 1);
-  now = 60_000; visibilityEvents.dispatchEvent(new Event('visibilitychange'));
+  now = SATURDAY + 60_000; visibilityEvents.dispatchEvent(new Event('visibilitychange'));
   assert.equal(calls, 1, '1분 뒤 화면 복귀는 점검을 다시 시작하지 않는다');
-  now = REWARD_AUDIT_INTERVAL_MS; tick(); assert.equal(calls, 2, '느린 점검 뒤에도 다음 주기를 건너뛰지 않는다');
+  now = SATURDAY + REWARD_AUDIT_INTERVAL_MS; tick(); assert.equal(calls, 2, '느린 점검 뒤에도 다음 주기를 건너뛰지 않는다');
   stop();
 });
 
@@ -30,7 +32,7 @@ test('첫 자동 점검은 시작 지연이 끝난 뒤에만 실행한다', () =
   const visibilityEvents = new EventTarget(); let visible = true; let tick = () => {}; let start = () => {}; let cleared = false;
   let calls = 0;
   const environment = { refresh: async () => { calls += 1; }, visible: () => visible, visibilityEvents,
-    schedule: (fn: () => void) => { tick = fn; return () => {}; }, delayStart: (fn: () => void) => { start = fn; return () => { cleared = true; }; }, now: () => 100_000 };
+    schedule: (fn: () => void) => { tick = fn; return () => {}; }, delayStart: (fn: () => void) => { start = fn; return () => { cleared = true; }; }, now: () => SATURDAY };
   const stop = startRewardAuditPolling(environment);
   assert.equal(calls, 0, '화면을 열자마자 시작하지 않는다');
   visibilityEvents.dispatchEvent(new Event('visibilitychange')); tick();
@@ -42,4 +44,23 @@ test('첫 자동 점검은 시작 지연이 끝난 뒤에만 실행한다', () =
   stop(); assert.equal(cleared, true);
   const stopped = startRewardAuditPolling(environment); calls = 0; stopped(); start();
   assert.equal(calls, 0, '화면을 닫은 뒤에는 시작하지 않는다');
+});
+
+test('평일 수업 시간에는 자동 점검을 멈추고 끝나면 다음 주기에 실행한다', () => {
+  const at = (iso: string) => Date.parse(iso);
+  assert.equal(isRewardAuditQuietTime(at('2026-11-05T07:59:00+09:00')), false, '목요일 수업 전');
+  assert.equal(isRewardAuditQuietTime(at('2026-11-05T08:00:00+09:00')), true, '목요일 8시');
+  assert.equal(isRewardAuditQuietTime(at('2026-11-05T15:59:00+09:00')), true, '목요일 수업 끝 직전');
+  assert.equal(isRewardAuditQuietTime(at('2026-11-05T16:00:00+09:00')), false, '목요일 16시');
+  assert.equal(isRewardAuditQuietTime(at('2026-11-07T11:00:00+09:00')), false, '토요일');
+  assert.equal(isRewardAuditQuietTime(at('2026-11-08T23:30:00Z')), true, 'UTC 일요일이어도 한국은 월요일 8시 30분');
+
+  const visibilityEvents = new EventTarget(); let now = at('2026-11-05T15:50:00+09:00'); let tick = () => {}; let calls = 0;
+  const stop = startRewardAuditPolling({ refresh: async () => { calls += 1; }, visible: () => true, visibilityEvents,
+    schedule: fn => { tick = fn; return () => {}; }, now: () => now });
+  visibilityEvents.dispatchEvent(new Event('visibilitychange')); tick();
+  assert.equal(calls, 0, '수업 시간에는 자동으로 시작하지 않는다');
+  now = at('2026-11-05T16:00:00+09:00'); tick();
+  assert.equal(calls, 1, '수업이 끝나면 다음 주기에 시작한다');
+  stop();
 });
