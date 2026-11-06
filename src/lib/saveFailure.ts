@@ -31,7 +31,7 @@ export const SAVE_FAILURE_OPERATIONS = ['classword_entry', 'classword_quiz', 'ne
   'deposit', 'withdraw', 'save', 'open_deposit', 'close_deposit', 'claim_deposit', 'borrow', 'repay',
   'transfer', 'buy_item', 'draw_character', 'choose_draw_character', 'select_character', 'claim_halloween_character',
   'buy_house', 'select_house', 'buy_custom_house_coupon', 'register_custom_house', 'invest', 'withdraw_investment',
-  'settle_investments', 'draw_profile', 'select_profile'] as const;
+  'settle_investments', 'settle_overdue_loan', 'draw_profile', 'select_profile'] as const;
 export type SaveFailureDiagnostics = {
   operation?: typeof SAVE_FAILURE_OPERATIONS[number];
   receiptOutcome?: 'unknown' | 'error' | 'not_attempted';

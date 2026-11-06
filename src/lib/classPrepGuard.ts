@@ -20,6 +20,7 @@ const ECONOMY_ACTION_STARTS_NEW_WORK: Record<StudentEconomyAction['type'], boole
   claim_deposit: true,
   borrow: true,
   repay: true,
+  settle_overdue_loan: false,
   transfer: true,
   buy_item: true,
   draw_character: true,

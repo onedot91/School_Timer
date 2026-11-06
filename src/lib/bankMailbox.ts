@@ -56,13 +56,20 @@ export const createBankMailboxLetters = ({
   studentNumber,
   requestId,
   createdAt,
+  overdueLoan,
 }: {
   readonly action: StudentEconomyAction;
+  readonly overdueLoan?: { repayment: number; penalty: number };
   readonly studentNumber: number;
   readonly requestId: string;
   readonly createdAt: string;
 }): readonly BankMailboxLetter[] => {
   const requestKey = requestId.slice(-36);
+  if (action.type === 'settle_overdue_loan' && overdueLoan) {
+    const { repayment, penalty } = overdueLoan;
+    return [bankerLetter(`bank-${requestKey}-overdue`, studentNumber, '은행 중요 알림이 왔꿀!',
+      `꿀꿀, 대출을 갚기로 한 날이 지났어요. 갚을 ${repayment}고마와 연체 벌금 ${penalty}고마, 모두 ${repayment + penalty}고마를 차감 대기에 넣었꿀! 지갑·예금·투자금에서 가능한 만큼 가져가고, 부족한 고마는 나중에 생기면 가져가요. 벌금은 한 번만 붙어요.`, createdAt)];
+  }
   if (action.type === 'claim_deposit') {
     return [bankerLetter(
       `bank-${requestKey}-deposit-mature`,

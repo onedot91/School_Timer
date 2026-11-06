@@ -152,6 +152,27 @@ const withFixture = async (run: (db: ReturnType<typeof fixture>) => Promise<void
   try { await run(db); } finally { globalThis.fetch = originalFetch; }
 });
 
+test('연체 전환은 학생 범위 상태와 돝돝 편지를 함께 저장하고 재접속해도 중복하지 않는다', async () => {
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'settle_overdue_loan' }, 'overdue-api-request-1');
+    assert.equal(result.statusCode, 200);
+    const current = db.value();
+    assert.ok(isStorageRecord(current.studentEconomy) && isStorageRecord(current.studentEconomy['1']));
+    assert.equal(current.studentEconomy['1'].loan, 0);
+    const pending = current.studentEconomy['1'].pendingDeductions;
+    assert.ok(Array.isArray(pending));
+    assert.equal(pending[0].amount, 61);
+    const letters = normalizeStudentLifeState(current.studentLife).letters;
+    assert.equal(letters.filter(letter => letter.senderLabel === '은행원 돝돝').length, 1);
+    assert.match(letters[0].content, /연체 벌금 6고마/);
+    assert.deepEqual(current.studentEconomy['2'], previousValue.studentEconomy[2]);
+    assert.deepEqual(Reflect.get(current.currencyHistory as object, '2'), previousValue.currencyHistory[2]);
+    assert.equal((await act(1, { type: 'settle_overdue_loan' }, 'overdue-api-request-2')).statusCode, 200);
+    assert.equal(normalizeStudentLifeState(db.value().studentLife).letters.length, letters.length);
+  }, { ...previousValue, studentEconomy: { ...previousValue.studentEconomy,
+    1: { loan: 55, loanPrincipal: 50, loanDueDate: '2020-01-01' } } });
+});
+
 test('학생 예금은 학생 지갑·경제 상태·새 원장만 트랜잭션으로 저장한다', async () => {
   await withFixture(async (db) => {
     const result = await act(1, { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' }, 'deposit-request-1');
