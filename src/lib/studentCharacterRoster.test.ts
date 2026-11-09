@@ -17,8 +17,8 @@ test('등록된 이동 캐릭터를 번호에 연결하고 미등록 번호는 �
   assert.deepEqual(roster.find((slot) => slot.studentNumber === 20)?.characters.map(({ id }) => id), ['student-20-rocket']);
 });
 
-test('등록된 교실 캐릭터는 멘트와 고유 ID를 가진다', () => {
-  assert.equal(STUDENT_CHARACTERS.every(({ speech }) => typeof speech === 'string' && speech.trim().length > 0), true);
+test('등록된 교실 캐릭터는 멘트 또는 말풍선 이미지와 고유 ID를 가진다', () => {
+  assert.equal(STUDENT_CHARACTERS.every(({ speech, speechImageSrc }) => Boolean(speech?.trim() || speechImageSrc)), true);
   assert.equal(new Set(STUDENT_CHARACTERS.map(({ id }) => id)).size, STUDENT_CHARACTERS.length);
 });
 
@@ -36,17 +36,30 @@ test('교사 캐릭터 카드에는 자캐 이름을 표시하지 않는다', as
 
 test('추가 캐릭터는 기존 캐릭터와 함께 번호에 연결된다', () => {
   const roster = getStudentCharacterRoster();
-  for (const studentNumber of [1, 2, 3, 4, 5, 8, 9, 12, 15, 18, 22, 23]) {
+  for (const studentNumber of [1, 3, 4, 5, 8, 9, 15, 18, 22, 23]) {
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 2);
   }
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters.length, 1);
-  for (const studentNumber of [7, 11, 13, 21]) {
+  for (const studentNumber of [2, 7, 11, 12, 13, 21]) {
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 3);
   }
   assert.deepEqual(roster.find((slot) => slot.studentNumber === 10)?.characters.map(({ id }) => id), ['student-10-magic-bear', 'student-10-additional']);
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters[0]?.speech, '안뇽하슈아!');
   assert.equal(roster.find((slot) => slot.studentNumber === 11)?.characters[2]?.speech, '어디 최 씨예요?');
   assert.equal(roster.flatMap(({ characters }) => characters).length, STUDENT_CHARACTERS.length);
+});
+
+test('12번 노란 캐릭터의 멘트를 등록한다', () => {
+  const character = STUDENT_CHARACTERS.find(({ id }) => id === 'student-12-dough-eater');
+  assert.equal(character?.speech, '반죽이를 꼭 먹을거야!');
+  assert.equal(character?.creatorName, '12번');
+});
+
+test('2번 우주 조종사는 별도 멘트 없이 말풍선 이미지를 사용한다', () => {
+  const character = STUDENT_CHARACTERS.find(({ id }) => id === 'student-2-astronaut');
+  assert.equal(character?.speech, undefined);
+  assert.equal(character?.speechImageSrc, '/student-characters/character-2-additional-2-speaking.png');
+  assert.deepEqual(character?.walkTransform, { right: 'none', left: 'none' });
 });
 
 test('12번 추가 캐릭터는 좌우 멘트를 따로 표시하고 방향을 유지한다', () => {

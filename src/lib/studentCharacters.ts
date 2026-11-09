@@ -26,6 +26,26 @@ export const STUDENT_CHARACTER_WALK_SECONDS = 34;
 
 export const STUDENT_CHARACTERS: StudentCharacter[] = [
   {
+    id: 'student-12-dough-eater',
+    name: '노란 자캐',
+    creatorName: '12번',
+    imageSrc: '/student-characters/character-12-additional-2.png',
+    alt: '12번 학생이 만든 노란 캐릭터',
+    themeColor: '#A6C84A',
+    speech: '반죽이를 꼭 먹을거야!',
+    walkTransform: { right: 'none', left: 'none' },
+  },
+  {
+    id: 'student-2-astronaut',
+    name: '우주 조종사 자캐',
+    creatorName: '2번',
+    imageSrc: '/student-characters/character-2-additional-2.png',
+    speechImageSrc: '/student-characters/character-2-additional-2-speaking.png',
+    speechImageAlt: '쉿 말풍선이 있는 2번 우주 조종사 캐릭터',
+    alt: '2번 학생이 만든 우주 조종사 캐릭터',
+    walkTransform: { right: 'none', left: 'none' },
+  },
+  {
     id: 'student-1-tiger',
     name: '호랑이 자캐',
     creatorName: '1번',

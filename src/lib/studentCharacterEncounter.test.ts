@@ -1,8 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { shouldCharactersGreet } from './studentCharacterEncounter.js';
+import { getDoughEncounter, shouldCharactersGreet } from './studentCharacterEncounter.js';
 const a = { lane: '-1', direction: 'right', left: 800, right: 1000 };
 const b = { lane: '-1', direction: 'left', left: 1010, right: 1210 };
+test('반죽이와 노란 캐릭터의 조합만 먹는 연출 대상이다', () => {
+  const expected = { eater: 'student-12-dough-eater', dough: 'student-12-clover' };
+  assert.deepEqual(getDoughEncounter(expected.eater, expected.dough), expected);
+  assert.deepEqual(getDoughEncounter(expected.dough, expected.eater), expected);
+  assert.equal(getDoughEncounter(expected.eater, 'student-12-additional'), null);
+  assert.equal(getDoughEncounter(expected.dough, undefined), null);
+});
+test('먹는 연출은 두 이미지가 충분히 겹칠 때 시작한다', () => {
+  assert.equal(shouldCharactersGreet(a, { ...b, left: 980, right: 1180 }, 1920, .32), false);
+  assert.equal(shouldCharactersGreet(a, { ...b, left: 925, right: 1125 }, 1920, .32), true);
+  assert.equal(shouldCharactersGreet(a, { ...b, left: 925, right: 1125, direction: 'right' }, 1920, .32), false);
+  assert.equal(shouldCharactersGreet(a, { ...b, left: 925, right: 1125, lane: '1' }, 1920, .32), false);
+});
 test('1920px 화면에서 같은 경로의 마주 오는 캐릭터는 인사한다', () => {
   assert.equal(shouldCharactersGreet(a, b, 1920), true);
   assert.equal(shouldCharactersGreet(b, a, 1920), true);

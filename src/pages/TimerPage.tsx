@@ -3899,8 +3899,10 @@ function StudentCharacterShowcase({
         if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
         // 토네이도에 날려 화면 밖으로 사라졌으면 끝까지 걸은 것처럼 다음 캐릭터로 넘긴다.
         if (event.animationName === 'studentCharacterTornadoBlown') onWalkComplete();
+        if (event.animationName === 'studentCharacterEaten') onWalkComplete();
       }}
       data-direction={direction}
+      data-character-id={character.id}
       data-walk-style={character.walkStyle}
       data-walk-lane={lane}
       aria-label={`${modeLabel} 자캐`}
@@ -3936,6 +3938,15 @@ function StudentCharacterShowcase({
                 draggable={false}
                 onError={() => onImageError(character.id)}
               />
+              {character.id === 'student-12-dough-eater' ? (
+                <img
+                  src="/student-characters/character-12-eating-wide.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="student-character-image student-character-eating-image"
+                  draggable={false}
+                />
+              ) : null}
               </div>
             </div>
           </div>
@@ -10392,10 +10403,10 @@ export default function TimerPage() {
                           <span className="teacher-shop-character-bubble" key={bubble.text} style={{ left: bubble.left, top: bubble.top }}>{bubble.text}</span>
                         ))}
                         {character
-                          ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
+                          ? <img src={!character.speech && character.speechImageSrc ? character.speechImageSrc : character.imageSrc} alt={!character.speech && character.speechImageAlt ? character.speechImageAlt : character.alt} width={192} height={192} loading="lazy" decoding="async" />
                           : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
                       </div>
-                      {!character?.speechBubbles ? <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
+                      {!character?.speechBubbles && (speech !== null || !character?.speechImageSrc) ? <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
                         {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
                       </p> : null}
                     </div>
