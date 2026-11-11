@@ -19,6 +19,7 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
+import { SpecialMotionSchedule } from '../components/teacher/studentCharacterSpecialMotion';
 import { TeacherHalloweenPumpkin, TeacherHalloweenScenery } from '../components/teacher/TeacherHalloweenDecor';
 import { getTeacherSeasonalTheme } from '../lib/seasonalTheme';
 import StudentCharacterPeek from '../components/teacher/StudentCharacterPeek';
@@ -8456,6 +8457,8 @@ export default function TimerPage() {
     setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => pending.has(index) ? cycle + 1 : cycle));
   };
   const studentCharacterWalkLocksRef = useRef(new Map<number, StudentCharacterWalkLock<StudentCharacterWalker>>());
+  const specialMotionScheduleRef = useRef<SpecialMotionSchedule | null>(null);
+  if (!specialMotionScheduleRef.current) specialMotionScheduleRef.current = new SpecialMotionSchedule();
   const visibleStudentCharacterIds = new Set(visibleStudentCharacters.map((character) => character.id));
   const getStudentCharacterWalker = (
     streamIndex: number,
@@ -11772,7 +11775,7 @@ export default function TimerPage() {
         {noticeBanner}
         <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {!isSettingsOpen && !isSettingsMaterialMounted ? (
-            <StudentCharacterStage>
+            <StudentCharacterStage specialSchedule={specialMotionScheduleRef.current}>
               {activeStudentCharacterWalkers.map((walker) => (
                 <React.Fragment key={walker.renderKey}>
                   <StudentCharacterShowcase

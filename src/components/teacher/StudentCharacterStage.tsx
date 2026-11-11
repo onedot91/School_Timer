@@ -1,20 +1,23 @@
 import { getDoughEncounter, shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
 import { useEffect, useRef, type ReactNode } from 'react';
 import specialMotions from './studentCharacterSpecialMotions.json';
-import { shouldSelectSpecialMotion } from './studentCharacterSpecialMotion';
+import { SpecialMotionSchedule } from './studentCharacterSpecialMotion';
 
 type SpecialMotion = { src: string; scale: number; dx: number; dy: number };
 const motions: Record<string, SpecialMotion> = specialMotions;
 
-export default function StudentCharacterStage({ children }: { children: ReactNode }) {
+export default function StudentCharacterStage({ children, specialSchedule }: { children: ReactNode; specialSchedule?: SpecialMotionSchedule }) {
   const stage = useRef<HTMLDivElement>(null);
+  const fallbackSchedule = useRef<SpecialMotionSchedule | null>(null);
+  if (!fallbackSchedule.current) fallbackSchedule.current = new SpecialMotionSchedule();
+  const schedule = specialSchedule ?? fallbackSchedule.current;
   useEffect(() => {
     const root = stage.current;
     if (!root) return;
     const previousCenters = new WeakMap<HTMLElement, number>();
     const encounters = new WeakMap<HTMLElement, WeakSet<HTMLElement>>();
     const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' | 'eat' | 'special' }>();
-    const specialChoices = new WeakMap<HTMLElement, { motion: SpecialMotion; ready: boolean } | null>();
+    const specialChoices = new WeakMap<HTMLElement, { motion: SpecialMotion; ready: boolean; generation: number } | null>();
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
     const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
@@ -167,11 +170,14 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       }
       nodes.forEach(node => {
         if (!specialChoices.has(node)) {
+          const box = getImageBox(node);
+          if (box.right <= 0 || box.left >= innerWidth) return;
           const motion = motions[node.dataset.specialImageName ?? ''];
-          if (!motion || !shouldSelectSpecialMotion()) {
+          const selected = schedule.recordAppearance();
+          if (!motion || !selected) {
             specialChoices.set(node, null);
           } else {
-            const choice = { motion, ready: false };
+            const choice = { motion, ready: false, generation: schedule.generation };
             specialChoices.set(node, choice);
             const image = new Image();
             image.onload = () => { choice.ready = true; };
@@ -179,7 +185,7 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
           }
         }
         const choice = specialChoices.get(node);
-        if (!choice?.ready || active.get(node) !== undefined || node.dataset.spacingWait || isBlown(node) || node.dataset.eaten) return;
+        if (!choice?.ready || choice.generation !== schedule.generation || active.get(node) !== undefined || node.dataset.spacingWait || isBlown(node) || node.dataset.eaten) return;
         const box = getImageBox(node);
         const center = (box.left + box.right) / 2;
         if (center < innerWidth * .35 || center > innerWidth * .65) return;
@@ -195,6 +201,7 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
         node.dataset.specialMotion = 'true';
         specialChoices.set(node, null);
         active.set(node, { start: now, kind: 'special' });
+        schedule.complete();
       });
       // "뭐지?" 돌아보기는 모서리 빼꼼이 나올 때만 한다(onPeek). 혼자 걷다 갑자기 돌아보지 않는다.
       positions.forEach(({ node, box }) => {
@@ -207,6 +214,6 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       active.forEach((_, node) => clear(node));
       root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
     };
-  }, []);
+  }, [schedule]);
   return <div ref={stage} className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">{children}</div>;
 }

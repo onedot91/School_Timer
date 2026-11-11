@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
-import { shouldSelectSpecialMotion } from '../components/teacher/studentCharacterSpecialMotion.js';
+import { SpecialMotionSchedule } from '../components/teacher/studentCharacterSpecialMotion.js';
 import { STUDENT_CHARACTERS } from './studentCharacters.js';
 import motions from '../components/teacher/studentCharacterSpecialMotions.json' with { type: 'json' };
 
-test('특별 모션은 각 등장에 대해 5%만 선택한다', () => {
-  assert.equal(shouldSelectSpecialMotion(0), true);
-  assert.equal(shouldSelectSpecialMotion(0.049999), true);
-  assert.equal(shouldSelectSpecialMotion(0.05), false);
-  assert.equal(shouldSelectSpecialMotion(0.99), false);
+test('특별 모션은 10~15번째 등장 중 선택하고 재생되면 다시 센다', () => {
+  for (let target = 10; target <= 15; target += 1) {
+    const schedule = new SpecialMotionSchedule(() => (target - 10) / 6);
+    for (let count = 1; count < target; count += 1) assert.equal(schedule.recordAppearance(), false);
+    assert.equal(schedule.recordAppearance(), true);
+    assert.equal(schedule.recordAppearance(), true, '재생하지 못하면 다음 등장에도 대기한다');
+    assert.equal(schedule.generation, 0);
+    schedule.complete();
+    assert.equal(schedule.generation, 1);
+    assert.equal(schedule.recordAppearance(), false);
+  }
 });
 
 test('교실 캐릭터마다 사용할 수 있는 모션 파일이 있다', () => {
