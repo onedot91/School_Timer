@@ -31283,6 +31283,15 @@ body {
 
 }
 .student-character-gesture { width: 100%; display: grid; place-items: center; transform-origin: center bottom; }
+.student-character-gesture { position: relative; }
+.student-character-showcase[data-special-motion],
+.student-character-showcase[data-special-motion] .student-character-path,
+.student-character-showcase[data-special-motion] .student-character-frame,
+.student-character-showcase[data-special-motion] .student-character-gesture { animation-play-state: paused !important; }
+.student-character-showcase[data-special-motion] .student-character-image,
+.student-character-showcase[data-special-motion] .student-character-speech { visibility: hidden; }
+.student-character-special { position: absolute; inset: 0; display: grid; place-items: center; transform: var(--student-character-image-transform); background-size: 0 0; background-repeat: no-repeat; }
+.student-character-special::before { content: ''; width: 100%; aspect-ratio: 1; background-image: inherit; background-size: 400% 200%; background-position: inherit; background-repeat: no-repeat; transform: translate(var(--special-x), var(--special-y)) scale(var(--special-scale)); }
 .student-character-showcase[data-spacing-wait],
 .student-character-showcase[data-spacing-wait] .student-character-path,
 .student-character-showcase[data-spacing-wait] .student-character-frame,

@@ -3903,6 +3903,7 @@ function StudentCharacterShowcase({
       }}
       data-direction={direction}
       data-character-id={character.id}
+      data-special-image-name={character.imageSrc.split('/').pop()}
       data-walk-style={character.walkStyle}
       data-walk-lane={lane}
       aria-label={`${modeLabel} 자캐`}

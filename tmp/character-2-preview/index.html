@@ -1,0 +1,16 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>2번 캐릭터 이동 테스트</title><link rel="stylesheet" href="/src/index.css"><style>
+body { margin:0; background:#f4f3e9; color:#304d3c; font-family:sans-serif; }
+.preview { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; }
+h1 { font-size:1.4rem; font-weight:700; } .preview-stage { position:relative; overflow:hidden; width:min(960px,94vw); height:min(480px,65vh); border:2px solid #dce4d4; border-radius:24px; background:#fffef8; }
+.preview-note { color:#657866; font-size:.95rem; }
+.test-walker { --student-character-walk-size:160px; --student-character-walk-scale:1; --student-character-spawn-scale:1; --student-character-walk-start-top:75%; --student-character-walk-mid-top-a:75%; --student-character-walk-mid-top-b:75%; --student-character-walk-end-top:75%; --student-character-walk-duration:12s; --student-character-walk-delay:0s; --student-character-walk-easing:linear; --student-character-bob-duration:1.7s; --student-character-bob-lift:4px; --student-character-bob-tilt:2deg; --student-character-depth-start:18; --student-character-depth-mid-a:18; --student-character-depth-mid-b:18; --student-character-depth-end:18; --student-character-image-transform:none; --student-character-ground-clearance:0px; position:absolute; top:0; left:0; width:160px; animation:previewAcross 12s linear both; }
+.test-walker .student-character-path { animation:none; transform:translateY(220px); }
+.test-walker .student-character-image { width:100%; max-height:230px; object-fit:contain; }
+@keyframes previewAcross { from { transform:translateX(-180px); } to { transform:translateX(min(960px,94vw)); } }
+</style></head><body><div id="root"></div><script type="module">
+import React, {useEffect,useState} from 'react';
+import {createRoot} from 'react-dom/client';
+const h=React.createElement;
+function Demo(){ const [round,setRound]=useState(0); useEffect(()=>{const timer=setInterval(()=>setRound(n=>n+1),12000);return()=>clearInterval(timer)},[]); const speaking=round%2===1; return h('main',{className:'preview'},h('h1',null,'2번 캐릭터 이동 테스트'),h('div',{className:'preview-stage'},h('div',{key:round,className:'student-character-showcase test-walker'},h('div',{className:'student-character-path'},h('div',{className:'student-character-scale'},h('div',{className:'student-character-spawn-scale'},h('div',{className:'student-character-frame'},h('div',{className:'student-character-gesture'},h('img',{className:'student-character-image',src:speaking?'/student-characters/character-2-additional-2-speaking.png':'/student-characters/character-2-additional-2.png',alt:speaking?'쉿 말풍선이 있는 2번 우주 조종사':'2번 우주 조종사',draggable:false})))))))),h('div',{className:'preview-note'},speaking?'쉿 말풍선이 나타나는 이동':'말풍선 없이 지나가는 이동'))}
+createRoot(document.getElementById('root')).render(h(Demo));
+</script></body></html>
