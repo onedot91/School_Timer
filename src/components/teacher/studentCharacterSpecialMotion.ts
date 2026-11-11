@@ -10,7 +10,7 @@ export class SpecialMotionSchedule {
   }
 
   private nextTarget(): number {
-    return 10 + Math.min(5, Math.max(0, Math.floor(this.random() * 6)));
+    return 5 + Math.min(3, Math.max(0, Math.floor(this.random() * 4)));
   }
 
   recordAppearance(): boolean {

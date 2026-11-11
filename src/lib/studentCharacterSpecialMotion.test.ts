@@ -5,9 +5,9 @@ import { SpecialMotionSchedule } from '../components/teacher/studentCharacterSpe
 import { STUDENT_CHARACTERS } from './studentCharacters.js';
 import motions from '../components/teacher/studentCharacterSpecialMotions.json' with { type: 'json' };
 
-test('특별 모션은 10~15번째 등장 중 선택하고 재생되면 다시 센다', () => {
-  for (let target = 10; target <= 15; target += 1) {
-    const schedule = new SpecialMotionSchedule(() => (target - 10) / 6);
+test('특별 모션은 5~8번째 등장 중 선택하고 재생되면 다시 센다', () => {
+  for (let target = 5; target <= 8; target += 1) {
+    const schedule = new SpecialMotionSchedule(() => (target - 5) / 4);
     for (let count = 1; count < target; count += 1) assert.equal(schedule.recordAppearance(), false);
     assert.equal(schedule.recordAppearance(), true);
     assert.equal(schedule.recordAppearance(), true, '재생하지 못하면 다음 등장에도 대기한다');
