@@ -1,23 +1,32 @@
-import { shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
+import { getDoughEncounter, shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
 import { useEffect, useRef, type ReactNode } from 'react';
+import specialMotions from './studentCharacterSpecialMotions.json';
+import { SpecialMotionSchedule } from './studentCharacterSpecialMotion';
 
-export default function StudentCharacterStage({ children }: { children: ReactNode }) {
+type SpecialMotion = { src: string; scale: number; dx: number; dy: number };
+const motions: Record<string, SpecialMotion> = specialMotions;
+
+export default function StudentCharacterStage({ children, specialSchedule }: { children: ReactNode; specialSchedule?: SpecialMotionSchedule }) {
   const stage = useRef<HTMLDivElement>(null);
+  const fallbackSchedule = useRef<SpecialMotionSchedule | null>(null);
+  if (!fallbackSchedule.current) fallbackSchedule.current = new SpecialMotionSchedule();
+  const schedule = specialSchedule ?? fallbackSchedule.current;
   useEffect(() => {
     const root = stage.current;
     if (!root) return;
     const previousCenters = new WeakMap<HTMLElement, number>();
     const encounters = new WeakMap<HTMLElement, WeakSet<HTMLElement>>();
-    const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' }>();
+    const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' | 'eat' | 'special' }>();
+    const specialChoices = new WeakMap<HTMLElement, { motion: SpecialMotion; ready: boolean; generation: number } | null>();
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
     const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
     // 토네이도 바람이 닿는 거리 안에 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 토네이도가 가는 쪽으로 날아간다.
     // 같은 방향으로 가던 캐릭터도, 마주 오던 캐릭터도 겹칠 때까지 기다리지 않는다.
     const sweepTornadoes = () => {
-      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node));
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten && active.get(node)?.kind !== 'eat');
       const isOnScreen = (box: DOMRect) => box.left + box.width / 2 > 0 && box.left + box.width / 2 < innerWidth;
-      nodes.filter(isTornado).forEach(tornado => {
+      nodes.filter(node => isTornado(node) && active.get(node)?.kind !== 'special').forEach(tornado => {
         const tornadoBox = getImageBox(tornado);
         if (!isOnScreen(tornadoBox)) return;
         const tornadoCenter = tornadoBox.left + tornadoBox.width / 2;
@@ -39,6 +48,8 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       delete node.dataset.encounterPhase;
       delete node.dataset.greetingSpeaker;
       delete node.dataset.lookFlip;
+      delete node.dataset.specialMotion;
+      node.querySelector('.student-character-special')?.remove();
       active.delete(node);
     };
     // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
@@ -50,7 +61,7 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       let nearest: { node: HTMLElement; distance: number; center: number } | null = null;
       root.querySelectorAll<HTMLElement>('.student-character-showcase').forEach(node => {
         // 토네이도는 멈추지 않고, 날아가는 캐릭터는 돌아볼 틈이 없다.
-        if (active.has(node) || isTornado(node) || isBlown(node)) return;
+        if (active.has(node) || isTornado(node) || isBlown(node) || node.dataset.eaten) return;
         const box = (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
         if (box.right <= 0 || box.left >= innerWidth) return;
         const center = box.left + box.width / 2;
@@ -75,13 +86,20 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
         active.forEach((_, node) => clear(node));
         return;
       }
-      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node));
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten);
       active.forEach((action, node) => {
         const age = now - action.start;
         // "뭐지?"는 빼꼼이 다 나와 있는 동안 읽을 수 있게 약 2.6초 보여 준다.
-        if (!node.isConnected || age >= (action.kind === 'look' ? 3200 : 2200)) clear(node);
+        if (!node.isConnected || age >= (action.kind === 'special' ? 1200 : action.kind === 'look' ? 3200 : action.kind === 'eat' ? 2500 : 2200)) clear(node);
+        else if (action.kind === 'special') {
+          const frame = Math.min(7, Math.floor(age / 150));
+          const sprite = node.querySelector<HTMLElement>('.student-character-special');
+          if (sprite) sprite.style.backgroundPosition = `${(frame % 4) * 100 / 3}% ${Math.floor(frame / 4) * 100}%`;
+        }
         else {
-          const phase = age < 250 ? 'pause' : age < (action.kind === 'look' ? 2850 : 1800) ? 'act' : 'settle';
+          const phase = action.kind === 'eat'
+            ? (age < 1200 ? 'act' : 'settle')
+            : age < 250 ? 'pause' : age < (action.kind === 'look' ? 2850 : 1800) ? 'act' : 'settle';
           if (node.dataset.encounterPhase !== phase) node.dataset.encounterPhase = phase;
         }
       });
@@ -108,12 +126,16 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       for (let i = 0; i < positions.length; i++) {
         for (let j = i + 1; j < positions.length; j++) {
           const a = positions[i], b = positions[j];
+          if (active.get(a.node)?.kind === 'special' || active.get(b.node)?.kind === 'special') continue;
           if (active.get(a.node)?.kind === 'greet' || active.get(b.node)?.kind === 'greet') continue;
+          if (active.get(a.node)?.kind === 'eat' || active.get(b.node)?.kind === 'eat') continue;
           if (isTornado(a.node) || isTornado(b.node) || isBlown(a.node) || isBlown(b.node)) continue;
+          const meal = getDoughEncounter(a.node.dataset.characterId, b.node.dataset.characterId);
           if (!shouldCharactersGreet(
             { lane: a.node.dataset.walkLane, direction: a.node.dataset.direction, left: a.box.left, right: a.box.right, previousCenter: previousCenters.get(a.node) },
             { lane: b.node.dataset.walkLane, direction: b.node.dataset.direction, left: b.box.left, right: b.box.right, previousCenter: previousCenters.get(b.node) },
             innerWidth,
+            meal ? .32 : .6,
           )) continue;
           if (encounters.get(a.node)?.has(b.node)) continue;
           const partners = encounters.get(a.node) ?? new WeakSet<HTMLElement>();
@@ -122,6 +144,21 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
           const reversePartners = encounters.get(b.node) ?? new WeakSet<HTMLElement>();
           reversePartners.add(a.node);
           encounters.set(b.node, reversePartners);
+          if (meal) {
+            const eater = a.node.dataset.characterId === meal.eater ? a : b;
+            const dough = eater === a ? b : a;
+            clear(eater.node);
+            clear(dough.node);
+            delete eater.node.dataset.spacingWait;
+            delete dough.node.dataset.spacingWait;
+            dough.node.style.setProperty('--student-character-eat-direction', eater.box.left < dough.box.left ? '-1' : '1');
+            dough.node.dataset.eaten = 'true';
+            eater.node.dataset.encounter = 'eat';
+            eater.node.dataset.encounterPhase = 'act';
+            eater.node.dataset.grown = 'true';
+            active.set(eater.node, { start: now, kind: 'eat' });
+            continue;
+          }
           for (const { node } of [a, b]) {
             clear(node);
             node.dataset.greetingSpeaker = 'true';
@@ -131,6 +168,41 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
           }
         }
       }
+      nodes.forEach(node => {
+        if (!specialChoices.has(node)) {
+          const box = getImageBox(node);
+          if (box.right <= 0 || box.left >= innerWidth) return;
+          const motion = motions[node.dataset.specialImageName ?? ''];
+          const selected = schedule.recordAppearance();
+          if (!motion || !selected) {
+            specialChoices.set(node, null);
+          } else {
+            const choice = { motion, ready: false, generation: schedule.generation };
+            specialChoices.set(node, choice);
+            const image = new Image();
+            image.onload = () => { choice.ready = true; };
+            image.src = motion.src;
+          }
+        }
+        const choice = specialChoices.get(node);
+        if (!choice?.ready || choice.generation !== schedule.generation || active.get(node) !== undefined || node.dataset.spacingWait || isBlown(node) || node.dataset.eaten) return;
+        const box = getImageBox(node);
+        const center = (box.left + box.right) / 2;
+        if (center < innerWidth * .35 || center > innerWidth * .65) return;
+        const gesture = node.querySelector<HTMLElement>('.student-character-gesture');
+        if (!gesture) return;
+        const sprite = document.createElement('span');
+        sprite.className = 'student-character-special';
+        sprite.style.backgroundImage = `url("${choice.motion.src}")`;
+        sprite.style.setProperty('--special-scale', String(choice.motion.scale));
+        sprite.style.setProperty('--special-x', `${choice.motion.dx}%`);
+        sprite.style.setProperty('--special-y', `${choice.motion.dy}%`);
+        gesture.appendChild(sprite);
+        node.dataset.specialMotion = 'true';
+        specialChoices.set(node, null);
+        active.set(node, { start: now, kind: 'special' });
+        schedule.complete();
+      });
       // "뭐지?" 돌아보기는 모서리 빼꼼이 나올 때만 한다(onPeek). 혼자 걷다 갑자기 돌아보지 않는다.
       positions.forEach(({ node, box }) => {
         previousCenters.set(node, box.left + box.width / 2);
@@ -142,6 +214,6 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       active.forEach((_, node) => clear(node));
       root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
     };
-  }, []);
+  }, [schedule]);
   return <div ref={stage} className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">{children}</div>;
 }

@@ -627,10 +627,10 @@ export const queueTeacherCurrencyDeductionInSettings = (
   };
 };
 
-export const settlePendingTeacherDeductionsInSettings = (value: Record<string, unknown>, createdAt = new Date().toISOString()): Record<string, unknown> => {
+export const settlePendingTeacherDeductionsInSettings = (value: Record<string, unknown>, createdAt = new Date().toISOString(), studentNumbers: readonly number[] = CURRENCY_STUDENT_NUMBERS): Record<string, unknown> => {
   const record = (input: unknown): Record<string, unknown> => input && typeof input === 'object' && !Array.isArray(input) ? Object.fromEntries(Object.entries(input)) : {};
   let next = value;
-  for (const studentNumber of CURRENCY_STUDENT_NUMBERS) {
+  for (const studentNumber of studentNumbers) {
     const state = getStudentEconomyState(normalizeStudentEconomyStates(next.studentEconomy), studentNumber);
     for (const pending of state.pendingDeductions) {
       const current = getStudentEconomyState(normalizeStudentEconomyStates(next.studentEconomy), studentNumber);

@@ -19,6 +19,7 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
+import { SpecialMotionSchedule } from '../components/teacher/studentCharacterSpecialMotion';
 import { TeacherHalloweenPumpkin, TeacherHalloweenScenery } from '../components/teacher/TeacherHalloweenDecor';
 import { getTeacherSeasonalTheme } from '../lib/seasonalTheme';
 import StudentCharacterPeek from '../components/teacher/StudentCharacterPeek';
@@ -31,7 +32,7 @@ import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStat
 import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, LoaderCircle, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, MotionConfig, useMotionValue, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -251,6 +252,7 @@ import {
   type AuctionItem,
   type CurrencyBalances,
 } from '../lib/currency';
+import { getWeeklyAuctionCloseCycle } from '../lib/weeklyAuctionCycle';
 import {
   getClassroomRoleAssignments,
   applyClassroomRoleMissionResultInSettings,
@@ -3899,8 +3901,11 @@ function StudentCharacterShowcase({
         if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
         // 토네이도에 날려 화면 밖으로 사라졌으면 끝까지 걸은 것처럼 다음 캐릭터로 넘긴다.
         if (event.animationName === 'studentCharacterTornadoBlown') onWalkComplete();
+        if (event.animationName === 'studentCharacterEaten') onWalkComplete();
       }}
       data-direction={direction}
+      data-character-id={character.id}
+      data-special-image-name={character.imageSrc.split('/').pop()}
       data-walk-style={character.walkStyle}
       data-walk-lane={lane}
       aria-label={`${modeLabel} 자캐`}
@@ -3936,6 +3941,15 @@ function StudentCharacterShowcase({
                 draggable={false}
                 onError={() => onImageError(character.id)}
               />
+              {character.id === 'student-12-dough-eater' ? (
+                <img
+                  src="/student-characters/character-12-eating-wide.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="student-character-image student-character-eating-image"
+                  draggable={false}
+                />
+              ) : null}
               </div>
             </div>
           </div>
@@ -4431,6 +4445,12 @@ export default function TimerPage() {
   const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(() => new Set());
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
   const [isWeeklyAuctionClosing, setIsWeeklyAuctionClosing] = useState(false);
+  const [isWeeklyAuctionCloseSlow, setIsWeeklyAuctionCloseSlow] = useState(false);
+  useEffect(() => {
+    if (!isWeeklyAuctionClosing) { setIsWeeklyAuctionCloseSlow(false); return undefined; }
+    const timer = window.setTimeout(() => setIsWeeklyAuctionCloseSlow(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [isWeeklyAuctionClosing]);
   const weeklyAuctionClosingRef = useRef(false);
   const [weeklyAuctionCloseStatus, setWeeklyAuctionCloseStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [weeklyAuctionCloseMessage, setWeeklyAuctionCloseMessage] = useState('');
@@ -7618,12 +7638,10 @@ export default function TimerPage() {
     setWeeklyAuctionCloseMessage('주간 경매 마감 중…');
     try {
       if (isSupabaseSettingsEnabled) {
-        const today = new Date();
-        const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7);
-        const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+        const { cycleKey } = getWeeklyAuctionCloseCycle();
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } });
         const alreadySettled = isStorageRecord(saved.result) && saved.result.settled === false;
-        const message = alreadySettled ? '이번 주 경매는 이미 마감되었습니다.' : '주간 경매 마감이 완료되었습니다.';
+        const message = alreadySettled ? '이 주 경매는 이미 마감되었습니다.' : '주간 경매 마감이 완료되었습니다.';
         setWeeklyAuctionCloseStatus('success');
         if (!saved.value) {
           teacherRefreshPendingRef.current = true;
@@ -8444,6 +8462,8 @@ export default function TimerPage() {
     setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => pending.has(index) ? cycle + 1 : cycle));
   };
   const studentCharacterWalkLocksRef = useRef(new Map<number, StudentCharacterWalkLock<StudentCharacterWalker>>());
+  const specialMotionScheduleRef = useRef<SpecialMotionSchedule | null>(null);
+  if (!specialMotionScheduleRef.current) specialMotionScheduleRef.current = new SpecialMotionSchedule();
   const visibleStudentCharacterIds = new Set(visibleStudentCharacters.map((character) => character.id));
   const getStudentCharacterWalker = (
     streamIndex: number,
@@ -10392,10 +10412,10 @@ export default function TimerPage() {
                           <span className="teacher-shop-character-bubble" key={bubble.text} style={{ left: bubble.left, top: bubble.top }}>{bubble.text}</span>
                         ))}
                         {character
-                          ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
+                          ? <img src={!character.speech && character.speechImageSrc ? character.speechImageSrc : character.imageSrc} alt={!character.speech && character.speechImageAlt ? character.speechImageAlt : character.alt} width={192} height={192} loading="lazy" decoding="async" />
                           : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
                       </div>
-                      {!character?.speechBubbles ? <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
+                      {!character?.speechBubbles && (speech !== null || !character?.speechImageSrc) ? <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
                         {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
                       </p> : null}
                     </div>
@@ -11220,7 +11240,12 @@ export default function TimerPage() {
             disabled={isWeeklyAuctionClosing}
             className="settings-frame-primary"
           >
-            {isWeeklyAuctionClosing ? '마감 중…' : '주간 경매 마감'}
+            {isWeeklyAuctionClosing ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <LoaderCircle size={16} aria-hidden="true" className="motion-safe:animate-spin" />
+                마감 중…
+              </span>
+            ) : '주간 경매 마감'}
           </button>
         )}
         details={(
@@ -11247,8 +11272,13 @@ export default function TimerPage() {
             className={`text-center text-[length:var(--type-body-sm)] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[var(--teacher-urgent)]' : 'text-[var(--teacher-accent)]'}`}
             role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
           >
-            {weeklyAuctionCloseMessage}
+            {isWeeklyAuctionClosing && isWeeklyAuctionCloseSlow ? '저장 중이에요. 화면을 닫지 말고 기다려 주세요.' : weeklyAuctionCloseMessage}
           </p>
+        ) : null}
+        {isWeeklyAuctionClosing ? (
+          <div className="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-[var(--teacher-border)]" role="progressbar" aria-label="주간 경매 마감 진행 중">
+            <div className="h-full w-1/3 rounded-full bg-[var(--teacher-accent)] motion-safe:animate-[weeklyCloseSlide_1.2s_ease-in-out_infinite] motion-reduce:w-full motion-reduce:opacity-60" />
+          </div>
         ) : null}
       <section
         className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
@@ -11760,7 +11790,7 @@ export default function TimerPage() {
         {noticeBanner}
         <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {!isSettingsOpen && !isSettingsMaterialMounted ? (
-            <StudentCharacterStage>
+            <StudentCharacterStage specialSchedule={specialMotionScheduleRef.current}>
               {activeStudentCharacterWalkers.map((walker) => (
                 <React.Fragment key={walker.renderKey}>
                   <StudentCharacterShowcase
@@ -13553,7 +13583,7 @@ export default function TimerPage() {
             {pendingAuctionAction ? (() => {
               const actionCopy = {
                 weeklyClose: {
-                  title: '이번 주 경매를 마감할까요?',
+                  title: `${getWeeklyAuctionCloseCycle().label} 경매를 마감할까요?`,
                   body: '물품·입찰가 초기화 → 예금 원금·이자 지급 → 보유 주식 전량 매각 → 세금 징수 → 주급 지급',
                   action: '주간 마감',
                 },
@@ -13600,9 +13630,19 @@ export default function TimerPage() {
                         disabled={isWeeklyAuctionClosing}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
-                        {isWeeklyAuctionClosing ? '마감 중…' : actionCopy.action}
+                        {isWeeklyAuctionClosing ? (
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <LoaderCircle size={16} aria-hidden="true" className="motion-safe:animate-spin" />
+                            마감 중…
+                          </span>
+                        ) : actionCopy.action}
                       </button>
                     </div>
+                    {isWeeklyAuctionClosing && isWeeklyAuctionCloseSlow ? (
+                      <p className="mt-3 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-accent)]" role="status">
+                        저장 중이에요. 화면을 닫지 말고 기다려 주세요.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               );

@@ -440,6 +440,7 @@ export type StudentEconomyAction =
   | { type: 'claim_deposit'; depositId: string; dateKey: string }
   | { type: 'borrow'; amount: number; dateKey?: string }
   | { type: 'repay'; amount: number }
+  | { type: 'settle_overdue_loan' }
   | { type: 'transfer'; amount: number; recipientNumber: number; dateKey: string }
   | { type: 'buy_item'; itemId: StudentShopItemId }
   | { type: 'draw_character' }
@@ -462,6 +463,7 @@ export interface StudentEconomyResult {
   applied: boolean;
   /** 지갑과 본인 예금·투자·대출 사이에서 옮긴 원금(지갑 기준 부호). 이자·투자 손익은 포함하지 않는다. */
   ownAccountAmount: number;
+  overdueLoan?: { repayment: number; penalty: number };
 }
 
 export interface StudentEconomyTaxResult {
@@ -1106,6 +1108,27 @@ export const applyStudentEconomyAction = ({
     if (availableWallet < amount) throw new Error('INSUFFICIENT_AVAILABLE_CURRENCY');
     nextWallet -= amount;
   };
+
+  if (action.type === 'settle_overdue_loan') {
+    if (state.loan === 0 || !state.loanDueDate || state.loanDueDate >= todayDateKey) {
+      return { state, wallet, reason, message: '', applied: false, ownAccountAmount: 0 };
+    }
+    const penalty = Math.round(state.loan / 10);
+    const pending = {
+      id: requestId,
+      settlementRequestId: `pending-${crypto.randomUUID()}`,
+      amount: state.loan + penalty,
+      teacherReason: `대출 기한 지남 · 상환 ${state.loan}고마 + 벌금 ${penalty}고마`,
+      createdAt: new Date().toISOString(),
+    };
+    return {
+      state: { ...state, loan: 0, loanPrincipal: 0, loanDueDate: null,
+        pendingDeductions: [...state.pendingDeductions, pending],
+        processedRequestIds: [...state.processedRequestIds, requestId].slice(-MAX_PROCESSED_REQUESTS) },
+      wallet, reason, message: '연체 금액을 차감 대기로 옮겼습니다.', applied: true, ownAccountAmount: 0,
+      overdueLoan: { repayment: state.loan, penalty },
+    };
+  }
 
   if (action.type === 'open_deposit') {
     if (!Number.isInteger(action.amount) || action.amount < STUDENT_DEPOSIT_MINIMUM) {

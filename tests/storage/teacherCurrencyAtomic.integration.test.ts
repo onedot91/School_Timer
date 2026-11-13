@@ -5,6 +5,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import handler from '../../api/shared-settings.js';
+import economyHandler from '../../api/student-economy.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { splitStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 import { createStudentEconomyState } from '../../src/lib/studentEconomy.js';
@@ -50,6 +51,10 @@ test('real PostgreSQL: one-call teacher grants and sets match the general path, 
       studentLife: { letters: [] },
       retained: 'synthetic untouched data',
     };
+    source.currencyBalances['13'] = 2;
+    source.studentEconomy['13'] = { ...createStudentEconomyState(), loan: 55, loanPrincipal: 50,
+      loanDueDate: '2020-01-01', deposit: 3,
+      deposits: [{ id: 'overdue-fixture', principal: 3, interest: 0, openedOn: '2020-01-01', maturityDate: '2020-01-03' }] };
     const encoded = splitStorageState(source);
     query(`insert into app_settings(id,value,updated_at) values('school-timer-main',${json(source)},${literal(at)});
       select storage_set_maintenance(true);
@@ -163,6 +168,25 @@ test('real PostgreSQL: one-call teacher grants and sets match the general path, 
     assert.deepEqual(concurrent.map(result => result.status), Array(6).fill(200));
     assert.deepEqual([balance(10), balance(11)], [1006, 1006]);
 
+    // Student login moves old debt into pending deductions; the same commit consumes available assets.
+    const overdueCall = async (id: string) => {
+      let status = 0, body: unknown;
+      const response = { setHeader() {}, status(code: number) { status = code; return this; }, json(value: unknown) { body = value; } };
+      const token = createDeviceSessionToken({ role: 'student', studentNumber: 13 }, secret);
+      await economyHandler({ method: 'POST', headers: { cookie: `__Host-school-timer-device=${token}`,
+        'sec-fetch-site': 'same-origin', 'x-storage-projection': '1' }, body: { protocolVersion: 2,
+        studentNumber: 13, requestId: id, action: { type: 'settle_overdue_loan' } } }, response);
+      assert.equal(status, 200, JSON.stringify(body));
+    };
+    await overdueCall('overdue-login-0001');
+    assert.equal(balance(13), 0);
+    const overdue = JSON.parse(query("select value->'data' from storage_resources where resource_key='/studentEconomy/13';"));
+    assert.equal(overdue.loan, 0);
+    assert.equal(overdue.deposit, 0);
+    assert.equal(overdue.pendingDeductions[0].amount, 56);
+    await overdueCall('overdue-login-0001');
+    await overdueCall('overdue-login-0002');
+    assert.equal(query("select count(*) from storage_resources where not deleted and value#>>'{data,senderLabel}'='은행원 돝돝' and value#>>'{data,recipient}'='13';"), '1');
     assert.deepEqual(JSON.parse(query('select storage_reconcile_wallets();')), []);
     assert.equal(JSON.parse(query("select value->'data' from storage_resources where resource_key='/retained';")), source.retained);
     for (const role of ['anon', 'authenticated']) assert.equal(query(`select has_function_privilege('${role}','storage_teacher_currency(jsonb)','execute');`), 'f');

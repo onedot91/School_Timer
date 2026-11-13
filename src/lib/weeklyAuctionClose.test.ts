@@ -8,6 +8,7 @@ import { normalizeStudentEconomyStates } from './studentEconomy.js';
 import { StorageCommandError, type StorageCommandResult } from './storageCommandClient.js';
 import { classifySaveFailure } from './saveFailure.js';
 import { isStorageRecord } from './teacherStorageCommand.js';
+import { getWeeklyAuctionCloseCycle } from './weeklyAuctionCycle.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const start = source.indexOf('  const completeWeeklyAuctionCycle =');
@@ -29,7 +30,7 @@ const fixture = (shared = true, localSave = true, snapshot: Record<string, unkno
     isSupabaseSettingsEnabled: shared, crypto, AUCTION_ITEM_IDS,
     normalizeAuctionItems, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards,
     normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeStudentEconomyStates, createWeeklyCurrencyCycle,
-    classifySaveFailure, StorageCommandError, isStorageRecord,
+    classifySaveFailure, StorageCommandError, isStorageRecord, getWeeklyAuctionCloseCycle,
     weeklyAuctionClosingRef: { current: false }, teacherRefreshPendingRef: { current: false },
     teacherSettingsBaseRef: { current: {} }, teacherSettingsPersistedBaseRef: { current: {} },
     lastSharedSettingsUpdatedAtRef: { current: null },

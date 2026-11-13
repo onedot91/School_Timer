@@ -61,6 +61,7 @@ const ACTION_TYPES = new Set([
   'claim_deposit',
   'borrow',
   'repay',
+  'settle_overdue_loan',
   'transfer',
   'buy_item',
   'draw_character',
@@ -328,7 +329,7 @@ const createDomainMutation = (
   }
 
   const nextStudentLife = result.applied
-    ? [...createBankMailboxLetters({ action, studentNumber, requestId, createdAt }), ...(houseLetter ? [houseLetter] : [])].reduce(
+    ? [...createBankMailboxLetters({ action, studentNumber, requestId, createdAt, overdueLoan: result.overdueLoan }), ...(houseLetter ? [houseLetter] : [])].reduce(
         (life, letter) => createStudentLetter(life, letter),
         studentLife,
       )

@@ -25,6 +25,7 @@ export const economyStorageScope = (
     resources.push(selector); writeResources.push(selector); revisionKeys.add(selector.path);
   };
   const requestKey = requestId.slice(-36);
+  if (action.type === 'settle_overdue_loan') addLetter(`bank-${requestKey}-overdue`);
   if (action.type === 'borrow') addLetter(`bank-${requestKey}-loan`);
   if (action.type === 'claim_deposit') addLetter(`bank-${requestKey}-deposit-mature`);
   if (action.type === 'transfer' && Number.isInteger(action.recipientNumber) && action.recipientNumber >= 1 && action.recipientNumber <= 23) {

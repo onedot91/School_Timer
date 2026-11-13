@@ -1,3 +1,4 @@
+import { settlePendingTeacherDeductionsInSettings } from '../lib/currency';
 import { appDataMode } from '../lib/dataMode';
 import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
@@ -2240,7 +2241,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         savedEconomyStates = { ...snapshot.studentEconomy, [studentKey]: result.state };
         const currentStudentLife = loadStoredStudentLifeState();
         savedStudentLife = result.applied
-          ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt: bankMailCreatedAt }).reduce(
+          ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt: bankMailCreatedAt, overdueLoan: result.overdueLoan }).reduce(
               (life, letter) => createStudentLetter(life, letter),
               currentStudentLife,
             )
@@ -2281,6 +2282,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           });
           savedStudentLife = createStudentLetter(savedStudentLife, houseLetter);
         }
+        if (action.type === 'settle_overdue_loan' && result.applied) {
+          const settled = settlePendingTeacherDeductionsInSettings({ currencyBalances: nextBalances,
+            currencyHistory: savedHistory, studentEconomy: savedEconomyStates, studentLife: savedStudentLife }, bankMailCreatedAt, [studentNumber]);
+          nextBalances = normalizeCurrencyBalances(settled.currencyBalances);
+          savedHistory = normalizeCurrencyHistory(settled.currencyHistory);
+          savedEconomyStates = normalizeStudentEconomyStates(settled.studentEconomy);
+          savedStudentLife = normalizeStudentLifeState(settled.studentLife);
+        }
         savedBalances = nextBalances;
         if (!storeStudentPetSnapshot({
           ...snapshot,
@@ -2317,6 +2326,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setIsEconomySaving(false);
     }
   };
+
+  const overdueAttemptRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (appDataMode === 'readonly' || isLoading || isEconomySaving || !(hasLoadedSharedSettingsRef.current || hasLoadedOverviewRef.current)) return;
+    const due = studentEconomy.loanDueDate;
+    if (!due || studentEconomy.loan <= 0 || due >= getKoreanDateKey()) return;
+    const key = `${studentNumber}:${due}:${studentEconomy.loan}`;
+    if (overdueAttemptRef.current === key) return;
+    overdueAttemptRef.current = key;
+    void runStudentEconomyAction({ type: 'settle_overdue_loan' });
+  }, [studentNumber, studentEconomy.loanDueDate, studentEconomy.loan, isLoading, isEconomySaving]);
 
   const isSavePending = useSyncExternalStore(subscribeSaveProgress, getSaveProgress, getServerSaveProgress);
   const isStudentActionPending = isLoading

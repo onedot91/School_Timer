@@ -45,7 +45,7 @@ export const getStudentEconomyRejectionMessage = (code: string, actionType: Stud
 };
 
 export const shouldToastStudentEconomyResult = (actionType: StudentEconomyAction['type']): boolean => (
-  !DIALOG_OWNED_ACTION_TYPES.has(actionType)
+  actionType !== 'settle_overdue_loan' && !DIALOG_OWNED_ACTION_TYPES.has(actionType)
 );
 
 const STUDENT_PROFILE_REJECTION_REASONS: ReadonlySet<StudentProfilePurchaseReason> = new Set([

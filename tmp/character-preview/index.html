@@ -1,0 +1,23 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>반죽이 만남 테스트</title><link rel="stylesheet" href="/src/index.css"><style>
+body { margin: 0; background: #f4f3e9; color: #304d3c; font-family: sans-serif; }
+.preview { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; }
+h1 { font-size: 1.4rem; font-weight: 700; } .preview-stage { position: relative; overflow: hidden; width: min(960px, 94vw); height: min(480px, 65vh); border: 2px solid #dce4d4; border-radius: 24px; background: #fffef8; }
+.test-walker { --student-character-walk-scale: 1; --student-character-spawn-scale: 1; --student-character-bob-duration: 1.7s; --student-character-bob-lift: 4px; --student-character-bob-tilt: 2deg; position: absolute; width: clamp(100px, 17vw, 170px); min-width: 0; top: 35%; left: 0; transform: none; animation-duration: 4s; animation-timing-function: linear; animation-fill-mode: forwards; }
+.test-walker.test-eater { animation-name: previewEater; } .test-walker.test-dough { animation-name: previewDough; }
+.test-walker .student-character-path { transform: none; animation: none; } .test-walker .student-character-frame { min-height: 0; max-height: none; }
+.test-walker .student-character-image { width: 100%; height: auto; max-height: 220px; object-fit: contain; transform: none; }
+@keyframes previewEater { from { left: 5%; } to { left: 43%; } } @keyframes previewDough { from { left: 78%; } to { left: 48%; } }
+.preview-note { color: #657866; font-size: .95rem; } @media (prefers-reduced-motion: reduce) { .test-walker { animation-duration: 4s !important; } }
+</style></head><body><div id="root"></div><script type="module">
+import React, { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import StudentCharacterStage from '/src/components/teacher/StudentCharacterStage.tsx';
+const h = React.createElement;
+function Demo() {
+ const [round, setRound] = useState(0); const [eaten, setEaten] = useState(false);
+ useEffect(() => { const timer = setInterval(() => { setEaten(false); setRound(n => n + 1); }, 8500); return () => clearInterval(timer); }, []);
+ const figure = (id, direction, image, style) => h('div', { className: `student-character-showcase test-walker ${style}`, 'data-character-id': id, 'data-direction': direction, 'data-walk-lane': '0', onAnimationEnd: e => { if (e.animationName === 'studentCharacterEaten') setEaten(true); } }, h('div', {className:'student-character-path'}, h('div', {className:'student-character-scale'}, h('div', {className:'student-character-spawn-scale'}, h('div', {className:'student-character-frame'}, h('div', {className:'student-character-gesture'}, h('img', {className:'student-character-image', src:image, alt: id === 'student-12-clover' ? '반죽이' : '노란 캐릭터'}), id === 'student-12-dough-eater' && h('img', {className:'student-character-image student-character-eating-image', src:'/student-characters/character-12-eating-wide.png', alt:'', 'aria-hidden':true})))))));
+ return h('main',{className:'preview'}, h('h1',null,'반죽이 만남 테스트'), h('div',{className:'preview-stage'},h(StudentCharacterStage,{key:round}, figure('student-12-dough-eater','right','/student-characters/character-12-additional-2.png','test-eater'), !eaten && figure('student-12-clover','left','/student-characters/character-12.png','test-dough'))),h('div',{className:'preview-note'},'연출이 반복돼요'));
+}
+createRoot(document.getElementById('root')).render(h(Demo));
+</script></body></html>

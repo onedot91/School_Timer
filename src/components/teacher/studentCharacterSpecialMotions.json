@@ -1,0 +1,284 @@
+{
+  "character-1.png": {
+    "src": "/student-character-motions/motion-character-1-transparent.png",
+    "scale": 1.228,
+    "dx": -1.25,
+    "dy": -7.42
+  },
+  "character-1-additional.png": {
+    "src": "/student-character-motions/motion-character-1-additional.png",
+    "scale": 1.047,
+    "dx": -0.25,
+    "dy": 3.37
+  },
+  "character-2-additional-2.png": {
+    "src": "/student-character-motions/motion-character-2-additional-2.png",
+    "scale": 1.091,
+    "dx": -5.36,
+    "dy": 1.56
+  },
+  "character-2.png": {
+    "src": "/student-character-motions/motion-character-2.png",
+    "scale": 1.296,
+    "dx": -2.78,
+    "dy": -10.45
+  },
+  "character-2-additional.png": {
+    "src": "/student-character-motions/motion-character-2-additional.png",
+    "scale": 1.033,
+    "dx": 0.4,
+    "dy": 0.79
+  },
+  "character-3.png": {
+    "src": "/student-character-motions/motion-character-3-transparent.png",
+    "scale": 1.025,
+    "dx": 1.74,
+    "dy": 0.35
+  },
+  "character-3-additional.png": {
+    "src": "/student-character-motions/motion-character-3-additional.png",
+    "scale": 1.143,
+    "dx": 0.2,
+    "dy": 1.28
+  },
+  "character-4.png": {
+    "src": "/student-character-motions/motion-character-4.png",
+    "scale": 1.268,
+    "dx": 0.6,
+    "dy": -14.0
+  },
+  "character-4-additional.png": {
+    "src": "/student-character-motions/motion-character-4-additional.png",
+    "scale": 1.187,
+    "dx": 0.27,
+    "dy": 0.38
+  },
+  "character-5.png": {
+    "src": "/student-character-motions/motion-character-5.png",
+    "scale": 1.082,
+    "dx": -0.12,
+    "dy": 0.94
+  },
+  "character-5-additional.png": {
+    "src": "/student-character-motions/motion-character-5-additional-dynamic-v2.png",
+    "scale": 1.107,
+    "dx": 0.4,
+    "dy": 6.4
+  },
+  "character-6.png": {
+    "src": "/student-character-motions/motion-character-6.png",
+    "scale": 0.958,
+    "dx": -1.55,
+    "dy": 2.1
+  },
+  "character-6-additional.png": {
+    "src": "/student-character-motions/motion-character-6-additional-dynamic-v2.png",
+    "scale": 1.334,
+    "dx": 0.5,
+    "dy": -8.77
+  },
+  "character-7.png": {
+    "src": "/student-character-motions/motion-character-7.png",
+    "scale": 1.04,
+    "dx": 0.0,
+    "dy": 14.0
+  },
+  "character-7-additional.png": {
+    "src": "/student-character-motions/motion-character-7-additional-dynamic-v2.png",
+    "scale": 1.083,
+    "dx": -0.19,
+    "dy": 14.0
+  },
+  "character-7-additional-2.png": {
+    "src": "/student-character-motions/motion-character-7-additional-2.png",
+    "scale": 1.089,
+    "dx": -0.12,
+    "dy": -5.79
+  },
+  "character-8.png": {
+    "src": "/student-character-motions/motion-character-8.png",
+    "scale": 1.107,
+    "dx": 0.25,
+    "dy": 2.15
+  },
+  "character-8-additional.png": {
+    "src": "/student-character-motions/motion-character-8-additional.png",
+    "scale": 1.101,
+    "dx": -1.12,
+    "dy": -2.86
+  },
+  "character-9.png": {
+    "src": "/student-character-motions/motion-character-9-cutout.png",
+    "scale": 1.057,
+    "dx": 0.0,
+    "dy": 3.1
+  },
+  "character-9-additional.png": {
+    "src": "/student-character-motions/motion-character-9-additional.png",
+    "scale": 1.101,
+    "dx": 0.72,
+    "dy": 0.29
+  },
+  "character-10.png": {
+    "src": "/student-character-motions/motion-character-10.png",
+    "scale": 1.264,
+    "dx": -1.71,
+    "dy": -1.2
+  },
+  "character-10-additional.png": {
+    "src": "/student-character-motions/motion-character-10-additional.png",
+    "scale": 1.191,
+    "dx": 0.4,
+    "dy": -3.56
+  },
+  "character-11.png": {
+    "src": "/student-character-motions/motion-character-11-transparent.png",
+    "scale": 1.112,
+    "dx": 0.07,
+    "dy": -1.97
+  },
+  "character-11-additional.png": {
+    "src": "/student-character-motions/motion-character-11-additional.png",
+    "scale": 1.15,
+    "dx": -0.8,
+    "dy": -4.17
+  },
+  "character-11-additional-2.png": {
+    "src": "/student-character-motions/motion-character-11-additional-2.png",
+    "scale": 0.916,
+    "dx": 0.36,
+    "dy": 14.0
+  },
+  "character-12-additional-2.png": {
+    "src": "/student-character-motions/motion-character-12-additional-2.png",
+    "scale": 1.059,
+    "dx": 2.23,
+    "dy": 0.78
+  },
+  "character-12.png": {
+    "src": "/student-character-motions/motion-character-12-transparent.png",
+    "scale": 1.152,
+    "dx": -1.71,
+    "dy": -2.04
+  },
+  "character-12-additional.png": {
+    "src": "/student-character-motions/motion-character-12-additional-dynamic-v2.png",
+    "scale": 1.293,
+    "dx": 2.68,
+    "dy": 2.17
+  },
+  "character-13.png": {
+    "src": "/student-character-motions/motion-character-13.png",
+    "scale": 1.184,
+    "dx": -4.41,
+    "dy": -1.57
+  },
+  "character-13-additional.png": {
+    "src": "/student-character-motions/motion-character-13-additional-dynamic-v2.png",
+    "scale": 1.349,
+    "dx": 0.23,
+    "dy": -5.94
+  },
+  "character-13-additional-2.png": {
+    "src": "/student-character-motions/motion-character-13-additional-2.png",
+    "scale": 1.121,
+    "dx": -0.24,
+    "dy": -0.63
+  },
+  "character-14-additional.png": {
+    "src": "/student-character-motions/motion-character-14-additional.png",
+    "scale": 1.023,
+    "dx": 0.28,
+    "dy": 4.85
+  },
+  "character-15.png": {
+    "src": "/student-character-motions/motion-character-15-dynamic-v2.png",
+    "scale": 1.281,
+    "dx": -0.54,
+    "dy": -7.54
+  },
+  "character-15-additional.png": {
+    "src": "/student-character-motions/motion-character-15-additional.png",
+    "scale": 1.037,
+    "dx": 0.59,
+    "dy": 4.21
+  },
+  "character-16.png": {
+    "src": "/student-character-motions/motion-character-16.png",
+    "scale": 1.184,
+    "dx": -0.13,
+    "dy": -0.64
+  },
+  "character-17-additional.png": {
+    "src": "/student-character-motions/motion-character-17-additional-dynamic-v2.png",
+    "scale": 1.4,
+    "dx": -2.62,
+    "dy": -9.12
+  },
+  "character-18.png": {
+    "src": "/student-character-motions/motion-character-18.png",
+    "scale": 1.128,
+    "dx": -0.51,
+    "dy": -1.09
+  },
+  "character-18-additional.png": {
+    "src": "/student-character-motions/motion-character-18-additional.png",
+    "scale": 1.157,
+    "dx": -0.21,
+    "dy": -3.61
+  },
+  "character-19-additional.png": {
+    "src": "/student-character-motions/motion-character-19-additional.png",
+    "scale": 1.345,
+    "dx": 0.2,
+    "dy": -6.01
+  },
+  "character-20.png": {
+    "src": "/student-character-motions/motion-character-20.png",
+    "scale": 1.254,
+    "dx": 1.44,
+    "dy": -7.27
+  },
+  "character-21.png": {
+    "src": "/student-character-motions/motion-character-21-dynamic-v2.png",
+    "scale": 1.173,
+    "dx": -1.32,
+    "dy": -0.73
+  },
+  "character-21-additional.png": {
+    "src": "/student-character-motions/motion-character-21-additional.png",
+    "scale": 0.949,
+    "dx": 0.25,
+    "dy": 8.91
+  },
+  "character-21-additional-2.png": {
+    "src": "/student-character-motions/motion-character-21-additional-2-dynamic-v2.png",
+    "scale": 1.134,
+    "dx": -0.26,
+    "dy": -9.7
+  },
+  "character-22.png": {
+    "src": "/student-character-motions/motion-character-22-transparent-v2.png",
+    "scale": 0.968,
+    "dx": 3.17,
+    "dy": 3.85
+  },
+  "character-22-additional.png": {
+    "src": "/student-character-motions/motion-character-22-additional-transparent-v2.png",
+    "scale": 1.106,
+    "dx": 0.08,
+    "dy": 4.4
+  },
+  "character-23.png": {
+    "src": "/student-character-motions/motion-character-23-transparent.png",
+    "scale": 1.106,
+    "dx": 0.83,
+    "dy": -0.07
+  },
+  "character-23-additional.png": {
+    "src": "/student-character-motions/motion-character-23-additional.png",
+    "scale": 1.1,
+    "dx": 0.48,
+    "dy": 3.2
+  }
+}
