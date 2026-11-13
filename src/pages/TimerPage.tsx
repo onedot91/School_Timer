@@ -252,6 +252,7 @@ import {
   type AuctionItem,
   type CurrencyBalances,
 } from '../lib/currency';
+import { getWeeklyAuctionCloseCycle } from '../lib/weeklyAuctionCycle';
 import {
   getClassroomRoleAssignments,
   applyClassroomRoleMissionResultInSettings,
@@ -7631,12 +7632,10 @@ export default function TimerPage() {
     setWeeklyAuctionCloseMessage('주간 경매 마감 중…');
     try {
       if (isSupabaseSettingsEnabled) {
-        const today = new Date();
-        const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7);
-        const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+        const { cycleKey } = getWeeklyAuctionCloseCycle();
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } });
         const alreadySettled = isStorageRecord(saved.result) && saved.result.settled === false;
-        const message = alreadySettled ? '이번 주 경매는 이미 마감되었습니다.' : '주간 경매 마감이 완료되었습니다.';
+        const message = alreadySettled ? '이 주 경매는 이미 마감되었습니다.' : '주간 경매 마감이 완료되었습니다.';
         setWeeklyAuctionCloseStatus('success');
         if (!saved.value) {
           teacherRefreshPendingRef.current = true;
@@ -13568,7 +13567,7 @@ export default function TimerPage() {
             {pendingAuctionAction ? (() => {
               const actionCopy = {
                 weeklyClose: {
-                  title: '이번 주 경매를 마감할까요?',
+                  title: `${getWeeklyAuctionCloseCycle().label} 경매를 마감할까요?`,
                   body: '물품·입찰가 초기화 → 예금 원금·이자 지급 → 보유 주식 전량 매각 → 세금 징수 → 주급 지급',
                   action: '주간 마감',
                 },
