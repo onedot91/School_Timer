@@ -32,7 +32,7 @@ import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStat
 import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, LoaderCircle, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, MotionConfig, useMotionValue, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -4445,6 +4445,12 @@ export default function TimerPage() {
   const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(() => new Set());
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
   const [isWeeklyAuctionClosing, setIsWeeklyAuctionClosing] = useState(false);
+  const [isWeeklyAuctionCloseSlow, setIsWeeklyAuctionCloseSlow] = useState(false);
+  useEffect(() => {
+    if (!isWeeklyAuctionClosing) { setIsWeeklyAuctionCloseSlow(false); return undefined; }
+    const timer = window.setTimeout(() => setIsWeeklyAuctionCloseSlow(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [isWeeklyAuctionClosing]);
   const weeklyAuctionClosingRef = useRef(false);
   const [weeklyAuctionCloseStatus, setWeeklyAuctionCloseStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [weeklyAuctionCloseMessage, setWeeklyAuctionCloseMessage] = useState('');
@@ -11234,7 +11240,12 @@ export default function TimerPage() {
             disabled={isWeeklyAuctionClosing}
             className="settings-frame-primary"
           >
-            {isWeeklyAuctionClosing ? '마감 중…' : '주간 경매 마감'}
+            {isWeeklyAuctionClosing ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <LoaderCircle size={16} aria-hidden="true" className="motion-safe:animate-spin" />
+                마감 중…
+              </span>
+            ) : '주간 경매 마감'}
           </button>
         )}
         details={(
@@ -11261,8 +11272,13 @@ export default function TimerPage() {
             className={`text-center text-[length:var(--type-body-sm)] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[var(--teacher-urgent)]' : 'text-[var(--teacher-accent)]'}`}
             role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
           >
-            {weeklyAuctionCloseMessage}
+            {isWeeklyAuctionClosing && isWeeklyAuctionCloseSlow ? '저장 중이에요. 화면을 닫지 말고 기다려 주세요.' : weeklyAuctionCloseMessage}
           </p>
+        ) : null}
+        {isWeeklyAuctionClosing ? (
+          <div className="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-[var(--teacher-border)]" role="progressbar" aria-label="주간 경매 마감 진행 중">
+            <div className="h-full w-1/3 rounded-full bg-[var(--teacher-accent)] motion-safe:animate-[weeklyCloseSlide_1.2s_ease-in-out_infinite] motion-reduce:w-full motion-reduce:opacity-60" />
+          </div>
         ) : null}
       <section
         className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
@@ -13614,9 +13630,19 @@ export default function TimerPage() {
                         disabled={isWeeklyAuctionClosing}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
-                        {isWeeklyAuctionClosing ? '마감 중…' : actionCopy.action}
+                        {isWeeklyAuctionClosing ? (
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <LoaderCircle size={16} aria-hidden="true" className="motion-safe:animate-spin" />
+                            마감 중…
+                          </span>
+                        ) : actionCopy.action}
                       </button>
                     </div>
+                    {isWeeklyAuctionClosing && isWeeklyAuctionCloseSlow ? (
+                      <p className="mt-3 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-accent)]" role="status">
+                        저장 중이에요. 화면을 닫지 말고 기다려 주세요.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               );

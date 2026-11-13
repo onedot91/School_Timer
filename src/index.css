@@ -32446,3 +32446,8 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
     box-shadow: var(--student-card-hover-shadow, 0 .55rem 1.2rem color-mix(in srgb, var(--apple-accent-pressed) 13%, transparent));
   }
 }
+
+@keyframes weeklyCloseSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
