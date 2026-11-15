@@ -20,7 +20,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
     const specialChoices = new WeakMap<HTMLElement, { motion: SpecialMotion; ready: boolean; generation: number } | null>();
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
-    const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
+    const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-base-image') ?? node).getBoundingClientRect();
     // 토네이도 바람이 닿는 거리 안에 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 토네이도가 가는 쪽으로 날아간다.
     // 같은 방향으로 가던 캐릭터도, 마주 오던 캐릭터도 겹칠 때까지 기다리지 않는다.
     const sweepTornadoes = () => {
@@ -49,7 +49,6 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       delete node.dataset.greetingSpeaker;
       delete node.dataset.lookFlip;
       delete node.dataset.specialMotion;
-      node.querySelector('.student-character-special')?.remove();
       active.delete(node);
     };
     // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
@@ -62,7 +61,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       root.querySelectorAll<HTMLElement>('.student-character-showcase').forEach(node => {
         // 토네이도는 멈추지 않고, 날아가는 캐릭터는 돌아볼 틈이 없다.
         if (active.has(node) || isTornado(node) || isBlown(node) || node.dataset.eaten) return;
-        const box = (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
+        const box = getImageBox(node);
         if (box.right <= 0 || box.left >= innerWidth) return;
         const center = box.left + box.width / 2;
         const distance = Math.abs(center - detail.x);
@@ -103,7 +102,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
           if (node.dataset.encounterPhase !== phase) node.dataset.encounterPhase = phase;
         }
       });
-      const positions = nodes.map(node => ({ node, box: (node.querySelector('.student-character-image') ?? node).getBoundingClientRect() }));
+      const positions = nodes.map(node => ({ node, box: getImageBox(node) }));
       const waiting = new Set<HTMLElement>();
       for (let i = 0; i < positions.length; i++) {
         for (let j = i + 1; j < positions.length; j++) {
@@ -189,15 +188,13 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
         const box = getImageBox(node);
         const center = (box.left + box.right) / 2;
         if (center < innerWidth * .35 || center > innerWidth * .65) return;
-        const gesture = node.querySelector<HTMLElement>('.student-character-gesture');
-        if (!gesture) return;
-        const sprite = document.createElement('span');
-        sprite.className = 'student-character-special';
+        const sprite = node.querySelector<HTMLElement>('.student-character-special');
+        if (!sprite) return;
         sprite.style.backgroundImage = `url("${choice.motion.src}")`;
+        sprite.style.backgroundPosition = '0% 0%';
         sprite.style.setProperty('--special-scale', String(choice.motion.scale));
         sprite.style.setProperty('--special-x', `${choice.motion.dx}%`);
         sprite.style.setProperty('--special-y', `${choice.motion.dy}%`);
-        gesture.appendChild(sprite);
         node.dataset.specialMotion = 'true';
         specialChoices.set(node, null);
         active.set(node, { start: now, kind: 'special' });

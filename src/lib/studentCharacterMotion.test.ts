@@ -71,6 +71,16 @@ test('캐릭터는 화면 안에서 페이드하지 않고 이동 완료 후 교
   assert.doesNotMatch(timerPage, /animationDelaySeconds: -\(shiftedElapsedSeconds/);
 });
 
+test('말풍선과 특별 모션은 걷는 그림의 바닥을 기준으로 겹쳐 표시한다', () => {
+  const artwork = timerPage.slice(timerPage.indexOf('className="student-character-artwork"'), timerPage.indexOf('export default function TimerPage'));
+  assert.match(artwork, /src=\{character\.imageSrc\}[\s\S]*?student-character-base-image/);
+  assert.match(artwork, /src=\{character\.speechImageSrc\}[\s\S]*?student-character-speech-image/);
+  assert.match(artwork, /student-character-pose-layer[\s\S]*?<span className="student-character-special"/);
+  assert.match(css, /\.student-character-image \{[^}]*object-position: center bottom/);
+  assert.match(css, /\.student-character-pose-layer \{[^}]*position: absolute;[^}]*inset: 0/);
+  assert.match(css, /\.student-character-speech-image,\s*\.student-character-special \{[^}]*bottom: 0;[^}]*width: max\(100cqw, 100cqh\);[^}]*aspect-ratio: 1/);
+});
+
 test('인사 높이는 이미지 크기가 아닌 같은 이동 경로로 판단한다', () => {
   const stage = readFileSync(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
   assert.match(timerPage, /data-walk-lane=\{lane\}/);

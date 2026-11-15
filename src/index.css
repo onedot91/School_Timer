@@ -9103,7 +9103,7 @@ h3 {
   width: 100%;
   max-height: min(34vh, 18rem);
   object-fit: contain;
-  transform: var(--student-character-image-transform);
+  object-position: center bottom;
   filter: drop-shadow(0 12px 14px rgba(47, 36, 28, 0.18));
 }
 
@@ -31282,16 +31282,43 @@ body {
 }
 
 }
-.student-character-gesture { width: 100%; display: grid; place-items: center; transform-origin: center bottom; }
-.student-character-gesture { position: relative; }
+.student-character-gesture { width: 100%; transform-origin: center bottom; }
+.student-character-artwork { position: relative; width: 100%; transform: var(--student-character-image-transform); }
+.student-character-pose-layer { position: absolute; inset: 0; z-index: 2; container-type: size; }
+/* A square fitted to the walking image's bottom edge, sized for portrait and landscape artwork. */
+.student-character-speech-image,
+.student-character-special {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: max(100cqw, 100cqh);
+  max-height: none;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  transition: opacity 100ms linear;
+}
+.student-character-base-image { transition: opacity 100ms linear; }
+.student-character-speech-image { opacity: 0; }
+.student-character-artwork[data-speaking] .student-character-base-image { opacity: 0; }
+.student-character-artwork[data-speaking] .student-character-speech-image { opacity: 1; }
+/* The speech bubble extends above the heart artwork. Align the heart itself to the walking pose. */
+.student-character-showcase[data-character-id="student-9-heart"] .student-character-speech-image {
+  transform: translate(0.84%, -17.1%) scale(1.405);
+}
 .student-character-showcase[data-special-motion],
 .student-character-showcase[data-special-motion] .student-character-path,
 .student-character-showcase[data-special-motion] .student-character-frame,
 .student-character-showcase[data-special-motion] .student-character-gesture { animation-play-state: paused !important; }
-.student-character-showcase[data-special-motion] .student-character-image,
 .student-character-showcase[data-special-motion] .student-character-speech { visibility: hidden; }
-.student-character-special { position: absolute; inset: 0; display: grid; place-items: center; transform: var(--student-character-image-transform); background-size: 0 0; background-repeat: no-repeat; }
-.student-character-special::before { content: ''; width: 100%; aspect-ratio: 1; background-image: inherit; background-size: 400% 200%; background-position: inherit; background-repeat: no-repeat; transform: translate(var(--special-x), var(--special-y)) scale(var(--special-scale)); }
+.student-character-showcase[data-special-motion] .student-character-artwork .student-character-image { opacity: 0; }
+.student-character-special {
+  z-index: 2;
+  opacity: 0;
+  background-size: 400% 200%;
+  background-repeat: no-repeat;
+  transform: translate(var(--special-x, 0%), var(--special-y, 0%)) scale(var(--special-scale, 1));
+}
+.student-character-showcase[data-special-motion] .student-character-special { opacity: 1; }
 .student-character-showcase[data-spacing-wait],
 .student-character-showcase[data-spacing-wait] .student-character-path,
 .student-character-showcase[data-spacing-wait] .student-character-frame,
@@ -31301,8 +31328,7 @@ body {
 .student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-gesture { transform: scaleX(-1); }
 .student-character-showcase[data-encounter] .student-character-speech { visibility: hidden; }
 .student-character-showcase[data-character-id="student-12-dough-eater"] { z-index: 100 !important; }
-.student-character-showcase[data-character-id="student-12-dough-eater"] .student-character-image { grid-area: 1 / 1; }
-.student-character-eating-image { visibility: hidden; }
+.student-character-eating-image { position: absolute; inset: 0; height: 100%; visibility: hidden; }
 .student-character-showcase[data-encounter="eat"][data-encounter-phase="act"] .student-character-eating-image {
   visibility: visible;
   animation: studentCharacterChew .4s steps(1, end) infinite;

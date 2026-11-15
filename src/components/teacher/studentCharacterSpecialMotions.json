@@ -45,7 +45,7 @@
     "src": "/student-character-motions/motion-character-4.png",
     "scale": 1.268,
     "dx": 0.6,
-    "dy": -14.0
+    "dy": -15.56
   },
   "character-4-additional.png": {
     "src": "/student-character-motions/motion-character-4-additional.png",
@@ -81,13 +81,13 @@
     "src": "/student-character-motions/motion-character-7.png",
     "scale": 1.04,
     "dx": 0.0,
-    "dy": 14.0
+    "dy": 15.22
   },
   "character-7-additional.png": {
     "src": "/student-character-motions/motion-character-7-additional-dynamic-v2.png",
     "scale": 1.083,
     "dx": -0.19,
-    "dy": 14.0
+    "dy": 17.63
   },
   "character-7-additional-2.png": {
     "src": "/student-character-motions/motion-character-7-additional-2.png",
@@ -147,7 +147,7 @@
     "src": "/student-character-motions/motion-character-11-additional-2.png",
     "scale": 0.916,
     "dx": 0.36,
-    "dy": 14.0
+    "dy": 18.77
   },
   "character-12-additional-2.png": {
     "src": "/student-character-motions/motion-character-12-additional-2.png",

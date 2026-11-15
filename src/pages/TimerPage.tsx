@@ -3853,16 +3853,14 @@ function StudentCharacterShowcase({
   lane: number;
 }) {
   const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
+  const [isSpeechImageReady, setIsSpeechImageReady] = useState(false);
   const modeLabel =
     timerType === 'lunch'
       ? '점심시간'
       : timerType === 'break'
         ? '쉬는시간'
         : '일정 없음';
-  const shouldUseSpeechImage = shouldSpeak && Boolean(character.speechImageSrc);
-  const characterImageSrc = shouldUseSpeechImage ? character.speechImageSrc || character.imageSrc : character.imageSrc;
-  const characterImageAlt =
-    shouldUseSpeechImage && character.speechImageAlt ? character.speechImageAlt : character.alt;
+  const shouldUseSpeechImage = shouldSpeak && isSpeechImageReady;
   const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
     '--student-character-lane': lane,
@@ -3934,22 +3932,36 @@ function StudentCharacterShowcase({
                 </span>
               ) : null}
               <div className="student-character-gesture">
-              <img
-                src={characterImageSrc}
-                alt={characterImageAlt}
-                className="student-character-image"
-                draggable={false}
-                onError={() => onImageError(character.id)}
-              />
-              {character.id === 'student-12-dough-eater' ? (
-                <img
-                  src="/student-characters/character-12-eating-wide.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="student-character-image student-character-eating-image"
-                  draggable={false}
-                />
-              ) : null}
+                <div className="student-character-artwork" data-speaking={shouldUseSpeechImage || undefined}>
+                  <img
+                    src={character.imageSrc}
+                    alt={shouldUseSpeechImage ? character.speechImageAlt ?? character.alt : character.alt}
+                    className="student-character-image student-character-base-image"
+                    draggable={false}
+                    onError={() => onImageError(character.id)}
+                  />
+                  {character.id === 'student-12-dough-eater' ? (
+                    <img
+                      src="/student-characters/character-12-eating-wide.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="student-character-image student-character-eating-image"
+                      draggable={false}
+                    />
+                  ) : null}
+                  <div className="student-character-pose-layer" aria-hidden="true">
+                    {character.speechImageSrc ? (
+                      <img
+                        src={character.speechImageSrc}
+                        alt=""
+                        className="student-character-image student-character-speech-image"
+                        draggable={false}
+                        onLoad={() => setIsSpeechImageReady(true)}
+                      />
+                    ) : null}
+                    <span className="student-character-special" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
