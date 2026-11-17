@@ -2,7 +2,7 @@ import { settlePendingTeacherDeductionsInSettings } from '../lib/currency';
 import { appDataMode } from '../lib/dataMode';
 import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
-import { confirmStudentAuctionBidDraft, loadStudentStorageDraft, isRejectedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
+import { confirmStudentAuctionBidDraft, confirmStudentStorageDraft, loadStudentStorageDraft, isRejectedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
 import { StorageCommandError } from '../lib/storageCommandClient';
 import { captureStorageResponseContext, isStorageResponseContextCurrent, readLatestStorageProjection, readStorageRevisions } from '../lib/storageResponseOrder';
 import { createStudentEmotionConflictSnapshot, type StudentEmotionConflictSnapshot, type StudentEmotionSaveConflict } from '../lib/studentEmotionConflict';
@@ -1007,6 +1007,22 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
       clearStudentStorageFormDraft(studentNumber, 'student.failure.create');
+      return true;
+    } catch (error) {
+      if (error instanceof Error) return false;
+      throw error;
+    } finally {
+      setIsStudentLifeSaving(false);
+    }
+  };
+
+  const confirmPendingStudentFailureStory = async () => {
+    if (isStudentLifeSaving || !isSupabaseSettingsEnabled) return false;
+    setIsStudentLifeSaving(true);
+    try {
+      const response = await confirmStudentStorageDraft(studentNumber, 'student.failure.create');
+      if (!response) return false;
+      applySharedSettingsValue(response.value, response.updatedAt);
       return true;
     } catch (error) {
       if (error instanceof Error) return false;
@@ -2582,6 +2598,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             hasPendingFailureSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.failure.create')}
             onFailureDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.failure.create', draft)}
             onCreateFailure={createStudentFailureStory}
+            onConfirmPendingFailure={confirmPendingStudentFailureStory}
             onStampFailure={stampStudentFailureStory}
             initialFailureBoardOpen={activeStudentView === 'library-failure-board'}
             onBack={() => navigateStudentView('overview')}

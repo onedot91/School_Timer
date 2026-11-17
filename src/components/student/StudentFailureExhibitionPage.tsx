@@ -20,6 +20,7 @@ interface StudentFailureExhibitionPageProps {
   readonly stories: readonly FailureStory[];
   readonly isSaving: boolean;
   readonly onCreate: (failure: string, lesson: string) => Promise<boolean>;
+  readonly onConfirmPending?: () => Promise<boolean>;
   readonly onStamp: (storyId: string, stampId: FailureStampId) => Promise<boolean>;
   readonly onOpenBookshelf: () => void;
   readonly onBack: () => void;
@@ -61,6 +62,7 @@ export default function StudentFailureExhibitionPage({
   stories,
   isSaving,
   onCreate,
+  onConfirmPending,
   onStamp,
   onOpenBookshelf,
   onBack,
@@ -259,6 +261,7 @@ export default function StudentFailureExhibitionPage({
           onDraftChange={(draft) => { hasEditedComposer.current = true; setComposerDraft(draft); onDraftChange?.(draft); }}
           isSaving={isSaving}
           onCreate={onCreate}
+          onConfirmPending={onConfirmPending}
           onClose={closeComposer}
           onSaved={() => {
             hasEditedComposer.current = true;

@@ -209,6 +209,18 @@ export const confirmStudentAuctionBidDraft = (studentNumber: number, itemId: str
   });
 };
 
+/** Confirms the stored request with its own ID and payload; never sends the current form input. */
+export const confirmStudentStorageDraft = (studentNumber: number, action: string, entityId = action) => {
+  const context = captureStorageResponseContext();
+  return serializeStudentSave(studentNumber, async () => {
+    await drafts.ready();
+    assertActor(studentNumber, context);
+    const pending = drafts.load(scopeFor(studentNumber, action, entityId));
+    if (!pending || isRejectedStudentStorageDraft(studentNumber, action, entityId)) return null;
+    return executeStudentCommand(studentNumber, action, pending.draft.payload, entityId, context);
+  });
+};
+
 const ECONOMY_DRAFT_ACTION = 'student.economy';
 export const hasUnconfirmedStudentEconomyDraft = (studentNumber: number) => hasUnconfirmedStudentStorageDraft(studentNumber, ECONOMY_DRAFT_ACTION);
 

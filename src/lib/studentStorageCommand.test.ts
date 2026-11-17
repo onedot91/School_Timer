@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { confirmStudentAuctionBidDraft, loadStudentStorageDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, discardRejectedStudentStorageDraft, isRejectedStudentStorageDraft, saveStudentStorageFormDraftDurably } from './studentStorageCommand.js';
+import { confirmStudentAuctionBidDraft, confirmStudentStorageDraft, loadStudentStorageDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, discardRejectedStudentStorageDraft, isRejectedStudentStorageDraft, saveStudentStorageFormDraftDurably } from './studentStorageCommand.js';
 import { createStudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
 import { createStudentSaveDraftStore } from './studentSaveDraft.js';
@@ -523,5 +523,31 @@ test('이전 입찰이 서버에서 확실히 거절되면 현재 금액으로 �
     await executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'rejected-item', amount: 103 }, 'rejected-item');
     assert.equal(posts[0].requestId, posts[1].requestId);
     assert.notEqual(posts[2].requestId, posts[0].requestId);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test('실패 전시 미확인 요청은 창을 열 때 원래 ID와 내용으로만 확인하고 해제한다', async () => {
+  const previousFetch = globalThis.fetch, bodies: Record<string, unknown>[] = [];
+  let succeeding = false;
+  globalThis.fetch = async (_url, init) => {
+    if (init?.method !== 'POST') return Response.json({ status: 'unknown' });
+    bodies.push(JSON.parse(String(init.body)));
+    return succeeding ? success() : Response.json({ error: 'TEMPORARY' }, { status: 502 });
+  };
+  const payload = { failure: '줄넘기를 놓쳤어요', lesson: '천천히 해볼래요' };
+  try {
+    assert.equal(await confirmStudentStorageDraft(19, 'student.failure.create'), null);
+    assert.equal(bodies.length, 0);
+    saveStudentStorageFormDraft(19, 'student.failure.create', payload);
+    await assert.rejects(executeStudentStorageCommand(19, 'student.failure.create', payload), /CONFIRMATION_REQUIRED/);
+    assert.equal(hasUnconfirmedStudentStorageDraft(19, 'student.failure.create'), true);
+    saveStudentStorageFormDraft(19, 'student.failure.create', { ...payload, failure: '다른 내용' });
+    succeeding = true;
+    const result = await confirmStudentStorageDraft(19, 'student.failure.create');
+    assert.ok(result);
+    assert.equal(bodies.length, 2);
+    assert.equal(bodies[1].requestId, bodies[0].requestId);
+    assert.equal(canonicalStorageJson(bodies[1].payload), canonicalStorageJson(bodies[0].payload));
+    assert.equal(hasUnconfirmedStudentStorageDraft(19, 'student.failure.create'), false);
   } finally { globalThis.fetch = previousFetch; }
 });

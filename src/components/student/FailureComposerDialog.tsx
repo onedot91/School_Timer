@@ -10,6 +10,7 @@ interface FailureComposerDialogProps {
   readonly onDraftChange?: (draft: StoryDraft) => void;
   readonly isSaving: boolean;
   readonly onCreate: (failure: string, lesson: string) => Promise<boolean>;
+  readonly onConfirmPending?: () => Promise<boolean>;
   readonly onClose: () => void;
   readonly onSaved: () => void;
   readonly returnFocusRef: RefObject<HTMLButtonElement | null>;
@@ -28,6 +29,7 @@ export function FailureComposerDialog({
   onDraftChange,
   isSaving,
   onCreate,
+  onConfirmPending,
   onClose,
   onSaved,
   returnFocusRef,
@@ -38,6 +40,7 @@ export function FailureComposerDialog({
   const hasEdited = useRef(false);
   const mounted = useRef(true);
   const pendingSubmission = useRef<symbol | null>(null);
+  const hasAutoConfirmed = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; editGeneration.current++; };
@@ -47,7 +50,28 @@ export function FailureComposerDialog({
     editGeneration.current++;
     setDraft(savedDraft ?? EMPTY_DRAFT);
   }, [savedDraft?.failure, savedDraft?.lesson]);
+  const confirmPendingSave = async () => {
+    if (!onConfirmPending || isSaving || pendingSubmission.current) return;
+    const submission = Symbol();
+    pendingSubmission.current = submission;
+    try {
+      const confirmed = await onConfirmPending();
+      if (!mounted.current) return;
+      if (!confirmed) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
+      hasEdited.current = true; editGeneration.current++;
+      setDraft(EMPTY_DRAFT);
+      onSaved();
+    } catch {
+      if (mounted.current) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
+    } finally { if (pendingSubmission.current === submission) pendingSubmission.current = null; }
+  };
+  useEffect(() => {
+    if (!hasPendingSave || isSaving || hasAutoConfirmed.current || !onConfirmPending) return;
+    hasAutoConfirmed.current = true;
+    void confirmPendingSave();
+  }, [hasPendingSave, isSaving, onConfirmPending]);
   const submitDraft = async () => {
+    if (hasPendingSave && onConfirmPending) { await confirmPendingSave(); return; }
     if (isSaving || pendingSubmission.current || !draft.failure.trim() || !draft.lesson.trim()) return;
     const submission = Symbol();
     hasEdited.current = true;
@@ -147,7 +171,7 @@ export function FailureComposerDialog({
             />
           </label>
           {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveError}</p> : null}
-          <button type="submit" className="student-primary-action" disabled={isSaving || !canSubmit}>
+          <button type="submit" className="student-primary-action" disabled={isSaving || (!canSubmit && !(hasPendingSave && onConfirmPending))}>
             <Send aria-hidden="true" /><StableLabel busy={isSaving} busyLabel="저장하는 중" label={hasPendingSave ? '저장 다시 확인' : '자랑하기'} />
           </button>
         </form>
