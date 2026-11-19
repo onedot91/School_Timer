@@ -47,9 +47,9 @@ test('쫓아가기는 반죽이 옆 같은 높이에서 멈추고 거리에 맞�
   const fromLeft = getDoughChasePlan({ left: 100, right: 300, bottom: 600 }, dough);
   assert.equal(fromLeft.dx, 1100 - 120 - 200);
   assert.equal(fromLeft.dy, -180);
-  assert.ok(fromLeft.durationMs > 600 && fromLeft.durationMs <= 2400);
+  assert.ok(fromLeft.durationMs > 700 && fromLeft.durationMs <= 2600);
   const fromRight = getDoughChasePlan({ left: 1500, right: 1700, bottom: 420 }, dough);
   assert.equal(fromRight.dx, 1100 + 120 - 1600);
   assert.equal(fromRight.dy, 0);
-  assert.equal(getDoughChasePlan({ left: 960, right: 1160, bottom: 420 }, dough).durationMs, 600);
+  assert.equal(getDoughChasePlan({ left: 960, right: 1160, bottom: 420 }, dough).durationMs, 700);
 });

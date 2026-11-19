@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import specialMotions from './studentCharacterSpecialMotions.json';
 import { SpecialMotionSchedule } from './studentCharacterSpecialMotion';
 
+const WALK_ANIMATIONS = ['studentCharacterWalkAcross', 'studentCharacterWalkDepth', 'studentCharacterWalkPath'];
 type SpecialMotion = { src: string; scale: number; dx: number; dy: number };
 const motions: Record<string, SpecialMotion> = specialMotions;
 
@@ -57,10 +58,34 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
     const reset = (node: HTMLElement) => {
       clear(node);
       delete node.dataset.chasing;
+      delete node.dataset.chaseOffset;
       delete node.dataset.doughTarget;
-      node.style.removeProperty('--student-character-chase-x');
-      node.style.removeProperty('--student-character-chase-y');
-      node.style.removeProperty('--student-character-chase-duration');
+      for (const name of ['x', 'y', 'x-duration', 'y-duration']) node.style.removeProperty(`--student-character-chase-${name}`);
+    };
+    // 걷기 애니메이션 시점을 지금 보이는 가로 위치로 옮겨, 쫓아간 자리에서 바로 이어 걷게 한다.
+    const continueWalkFromHere = (node: HTMLElement): boolean => {
+      if (typeof node.getAnimations !== 'function') return false;
+      const walks = node.getAnimations({ subtree: true }).filter((animation): animation is CSSAnimation =>
+        animation instanceof CSSAnimation && WALK_ANIMATIONS.includes(animation.animationName));
+      const across = walks.find(animation => animation.animationName === 'studentCharacterWalkAcross');
+      const duration = Number(across?.effect?.getComputedTiming().duration);
+      if (!across || !Number.isFinite(duration) || duration <= 0) return false;
+      const visibleLeft = node.getBoundingClientRect().left;
+      node.style.setProperty('--student-character-chase-x-duration', '0ms');
+      node.style.setProperty('--student-character-chase-x', '0px');
+      const seek = (progress: number) => walks.forEach(animation => {
+        animation.currentTime = Number(animation.effect?.getComputedTiming().delay ?? 0) + progress * duration;
+      });
+      const rightward = node.dataset.direction !== 'left';
+      let low = 0, high = 1;
+      for (let step = 0; step < 24; step += 1) {
+        const middle = (low + high) / 2;
+        seek(middle);
+        if ((node.getBoundingClientRect().left < visibleLeft) === rightward) low = middle;
+        else high = middle;
+      }
+      seek((low + high) / 2);
+      return true;
     };
     const startMeal = (eater: HTMLElement, dough: HTMLElement, now: number) => {
       const eaterBox = getImageBox(eater);
@@ -77,12 +102,18 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       eater.dataset.grown = 'true';
       active.set(eater, { start: now, kind: 'eat' });
     };
-    // 다 먹은 노란 자캐는 원래 걷던 길로 돌아간 뒤 다시 걷는다.
+    // 다 먹은 노란 자캐는 먹은 자리(높이 포함)에서 그대로 앞으로 걷는다.
+    // 걷기 시점을 옮길 수 없는 브라우저에서만 가로 위치를 천천히 제 길로 맞춘 뒤 걷는다.
     const startReturn = (eater: HTMLElement, now: number) => {
-      const duration = Number.parseFloat(eater.style.getPropertyValue('--student-character-chase-duration')) || 1000;
+      if (continueWalkFromHere(eater)) {
+        clear(eater);
+        delete eater.dataset.chasing;
+        return;
+      }
+      const settle = 1400;
+      eater.style.setProperty('--student-character-chase-x-duration', `${settle}ms`);
       eater.style.setProperty('--student-character-chase-x', '0px');
-      eater.style.setProperty('--student-character-chase-y', '0px');
-      active.set(eater, { start: now, kind: 'return', duration });
+      active.set(eater, { start: now, kind: 'return', duration: settle });
     };
     // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
     const onPeek = (event: Event) => {
@@ -115,7 +146,12 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       // 일부 화면(앱 안 미리보기 등)은 보이는 중에도 hidden으로 알려 오므로 토네이도는 항상 판정한다.
       sweepTornadoes();
       if (document.hidden) {
-        active.forEach((_, node) => reset(node));
+        active.forEach((action, node) => {
+          // 다 먹어 가던 노란 자캐는 제 줄로 순간이동하지 않고 먹은 자리에서 이어 걷게 마무리한다.
+          if (action.kind === 'eat' && node.isConnected && node.dataset.chasing) { clear(node); startReturn(node, now); }
+          else if (action.kind === 'return') { clear(node); delete node.dataset.chasing; }
+          else reset(node);
+        });
         return;
       }
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten);
@@ -127,7 +163,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
             // 쫓아오던 노란 자캐가 사라지면 반죽이는 다시 걷는다.
             if (!action.partner?.isConnected || active.get(action.partner)?.kind !== 'chase') reset(node);
           } else if (age >= (action.duration ?? 0)) {
-            if (action.kind === 'return') reset(node);
+            if (action.kind === 'return') { clear(node); delete node.dataset.chasing; }
             else if (action.partner?.isConnected && !isBlown(action.partner) && !action.partner.dataset.eaten) startMeal(node, action.partner, now);
             else {
               if (action.partner) reset(action.partner);
@@ -229,10 +265,12 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
         }
         dough.node.dataset.doughTarget = 'true';
         active.set(dough.node, { start: now, kind: 'prey', partner: eater.node });
-        eater.node.style.setProperty('--student-character-chase-duration', `${plan.durationMs}ms`);
+        eater.node.style.setProperty('--student-character-chase-x-duration', `${plan.durationMs}ms`);
+        eater.node.style.setProperty('--student-character-chase-y-duration', `${plan.durationMs}ms`);
         eater.node.style.setProperty('--student-character-chase-x', `${plan.dx}px`);
         eater.node.style.setProperty('--student-character-chase-y', `${plan.dy}px`);
         eater.node.dataset.chasing = 'true';
+        eater.node.dataset.chaseOffset = 'true';
         active.set(eater.node, { start: now, kind: 'chase', duration: plan.durationMs, partner: dough.node });
       }
       nodes.forEach(node => {

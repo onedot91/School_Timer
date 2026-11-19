@@ -3899,7 +3899,7 @@ function StudentCharacterShowcase({
         if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
         // 토네이도에 날려 화면 밖으로 사라졌으면 끝까지 걸은 것처럼 다음 캐릭터로 넘긴다.
         if (event.animationName === 'studentCharacterTornadoBlown') onWalkComplete();
-        if (event.animationName === 'studentCharacterEaten') onWalkComplete();
+        if (event.animationName === 'studentCharacterEaten' || event.animationName === 'studentCharacterEatenFade') onWalkComplete();
       }}
       data-direction={direction}
       data-character-id={character.id}

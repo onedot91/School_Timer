@@ -46,13 +46,13 @@ export function canStartDoughChase(eater: CharacterBox, dough: CharacterBox, vie
 }
 
 // 노란 자캐가 지금 있는 쪽에서 반죽이 옆까지 가는 거리와 시간. 발끝을 반죽이와 맞춘다.
-export function getDoughChasePlan(eater: CharacterBox, dough: CharacterBox, speedPxPerSecond = 360): { dx: number; dy: number; durationMs: number } {
+export function getDoughChasePlan(eater: CharacterBox, dough: CharacterBox, speedPxPerSecond = 240): { dx: number; dy: number; durationMs: number } {
   const eaterCenter = (eater.left + eater.right) / 2;
   const doughCenter = (dough.left + dough.right) / 2;
   const side = eaterCenter >= doughCenter ? 1 : -1;
   const reach = ((eater.right - eater.left) + (dough.right - dough.left)) * .3;
   const dx = Math.round(doughCenter + side * reach - eaterCenter);
   const dy = Math.round(dough.bottom - eater.bottom);
-  const durationMs = Math.round(Math.min(2400, Math.max(600, Math.hypot(dx, dy) / speedPxPerSecond * 1000)));
+  const durationMs = Math.round(Math.min(2600, Math.max(700, Math.hypot(dx, dy) / speedPxPerSecond * 1000)));
   return { dx, dy, durationMs };
 }

@@ -26328,6 +26328,23 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     animation: none !important;
   }
 
+  /* 동작 줄이기: 노란 자캐는 순간이동하지 않고 걷듯이 반죽이에게 가며, 반죽이는 작아지지 않고 사라진다. */
+  .timer-main-shell .student-character-showcase[data-chase-offset] {
+    transition-duration: var(--student-character-chase-x-duration) !important;
+  }
+
+  .timer-main-shell .student-character-showcase[data-chase-offset] .student-character-path {
+    transition-duration: var(--student-character-chase-y-duration) !important;
+  }
+
+  .timer-main-shell .student-character-showcase[data-chasing]:not([data-encounter]) .student-character-frame {
+    animation-duration: var(--student-character-bob-duration) !important;
+  }
+
+  .timer-main-shell .student-character-showcase[data-eaten] .student-character-scale {
+    animation: studentCharacterEatenFade .6s ease-out forwards !important;
+  }
+
   }
 
 }
@@ -31328,15 +31345,30 @@ body {
 .student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-gesture { transform: scaleX(-1); }
 .student-character-showcase[data-encounter] .student-character-speech { visibility: hidden; }
 .student-character-showcase[data-character-id="student-12-dough-eater"] { z-index: 100 !important; }
-/* 한 화면에 반죽이가 보이면 노란 자캐가 반죽이 옆까지 달려가고, 반죽이는 그 자리에 멈춘다. */
+/* 한 화면에 반죽이가 보이면 노란 자캐가 종종걸음으로 반죽이 옆까지 가고, 반죽이는 멈춰서 떤다.
+   다 먹으면 그 자리에서 이어 걷고 높이만 천천히 제 길로 돌아간다. */
 .student-character-showcase[data-chasing],
 .student-character-showcase[data-chasing] .student-character-path,
 .student-character-showcase[data-dough-target],
 .student-character-showcase[data-dough-target] .student-character-path,
 .student-character-showcase[data-dough-target] .student-character-frame { animation-play-state: paused !important; }
-.student-character-showcase[data-chasing] .student-character-scale {
-  transform: translate(var(--student-character-chase-x, 0px), var(--student-character-chase-y, 0px)) scale(var(--student-character-walk-scale));
-  transition: transform var(--student-character-chase-duration, 1s) ease-in-out;
+.student-character-showcase[data-chase-offset] {
+  translate: var(--student-character-chase-x, 0px) 0;
+  transition: translate var(--student-character-chase-x-duration, 1s) cubic-bezier(.42, 0, .32, 1);
+}
+.student-character-showcase[data-chase-offset] .student-character-path {
+  translate: 0 var(--student-character-chase-y, 0px);
+  transition: translate var(--student-character-chase-y-duration, 1s) cubic-bezier(.42, 0, .32, 1);
+}
+.student-character-showcase[data-chasing]:not([data-encounter]) .student-character-frame {
+  animation-duration: calc(var(--student-character-bob-duration) * .5) !important;
+}
+.student-character-showcase[data-dough-target] .student-character-gesture {
+  animation: studentCharacterDoughTremble .14s ease-in-out infinite alternate;
+}
+@keyframes studentCharacterDoughTremble {
+  from { transform: translateX(-1.5px) rotate(-1.2deg); }
+  to { transform: translateX(1.5px) rotate(1.2deg); }
 }
 .student-character-showcase[data-grown] .student-character-speech { visibility: hidden; }
 .student-character-eating-image { position: absolute; inset: 0; height: 100%; visibility: hidden; }
@@ -31370,6 +31402,9 @@ body {
 .student-character-showcase[data-grown] .student-character-spawn-scale {
   transform: scale(calc(var(--student-character-spawn-scale) * 1.35));
   transition: transform 1.2s ease-out 1.2s;
+}
+@keyframes studentCharacterEatenFade {
+  to { opacity: 0; }
 }
 @keyframes studentCharacterEaten {
   to { transform: translateX(calc(var(--student-character-eat-direction) * 3rem)) scale(0); opacity: 0; }
