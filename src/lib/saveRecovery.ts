@@ -227,6 +227,8 @@ export const runSaveRecoveryPass = (actor: number, isCurrent: () => boolean = ()
 
 export const requestSaveRecovery = (actor: number): Promise<SaveRecoveryPassResult> => runSaveRecoveryPass(actor);
 
+export const SAVE_RECOVERY_FOCUS_WAKE_COOLDOWN_MS = 60_000;
+
 export const startSaveRecovery = (actor: number): (() => void) => {
   if (typeof window === 'undefined' || appDataMode !== 'production') return () => undefined;
   const context = captureStorageResponseContext();
@@ -267,7 +269,16 @@ export const startSaveRecovery = (actor: number): (() => void) => {
     if (running) { wakeRequested = true; return; }
     if (!timer) timer = setTimeout(() => void pass(), 250);
   };
-  const focus = () => { if (document.visibilityState !== 'hidden') wake(); };
+  // Chromebook tab switches fire focus constantly; each wake re-reads every pending receipt.
+  // Online recovery, explicit resumes and scheduled retries are not throttled.
+  let lastFocusWakeAt = Date.now();
+  const focus = () => {
+    if (document.visibilityState === 'hidden') return;
+    const now = Date.now();
+    if (now - lastFocusWakeAt < SAVE_RECOVERY_FOCUS_WAKE_COOLDOWN_MS) return;
+    lastFocusWakeAt = now;
+    wake();
+  };
   window.addEventListener('online', wake);
   window.addEventListener('focus', focus);
   document.addEventListener('visibilitychange', focus);
