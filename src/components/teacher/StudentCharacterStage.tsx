@@ -1,4 +1,4 @@
-import { getDoughEncounter, shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
+import { DOUGH_EATER_ID, DOUGH_ID, canStartDoughChase, getDoughChasePlan, getDoughEncounter, shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
 import { useEffect, useRef, type ReactNode } from 'react';
 import specialMotions from './studentCharacterSpecialMotions.json';
 import { SpecialMotionSchedule } from './studentCharacterSpecialMotion';
@@ -16,7 +16,9 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
     if (!root) return;
     const previousCenters = new WeakMap<HTMLElement, number>();
     const encounters = new WeakMap<HTMLElement, WeakSet<HTMLElement>>();
-    const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' | 'eat' | 'special' }>();
+    type Action = { start: number; kind: 'look' | 'greet' | 'eat' | 'special' | 'chase' | 'prey' | 'return'; duration?: number; partner?: HTMLElement };
+    const active = new Map<HTMLElement, Action>();
+    const isChaseKind = (kind: Action['kind'] | undefined) => kind === 'chase' || kind === 'prey' || kind === 'return';
     const specialChoices = new WeakMap<HTMLElement, { motion: SpecialMotion; ready: boolean; generation: number } | null>();
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
@@ -24,7 +26,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
     // 토네이도 바람이 닿는 거리 안에 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 토네이도가 가는 쪽으로 날아간다.
     // 같은 방향으로 가던 캐릭터도, 마주 오던 캐릭터도 겹칠 때까지 기다리지 않는다.
     const sweepTornadoes = () => {
-      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten && active.get(node)?.kind !== 'eat');
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten && active.get(node)?.kind !== 'eat' && !isChaseKind(active.get(node)?.kind));
       const isOnScreen = (box: DOMRect) => box.left + box.width / 2 > 0 && box.left + box.width / 2 < innerWidth;
       nodes.filter(node => isTornado(node) && active.get(node)?.kind !== 'special').forEach(tornado => {
         const tornadoBox = getImageBox(tornado);
@@ -50,6 +52,37 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       delete node.dataset.lookFlip;
       delete node.dataset.specialMotion;
       active.delete(node);
+    };
+    // 쫓아가기 위치를 걷던 경로로 되돌린다(화면이 가려지거나 무대가 정리될 때).
+    const reset = (node: HTMLElement) => {
+      clear(node);
+      delete node.dataset.chasing;
+      delete node.dataset.doughTarget;
+      node.style.removeProperty('--student-character-chase-x');
+      node.style.removeProperty('--student-character-chase-y');
+      node.style.removeProperty('--student-character-chase-duration');
+    };
+    const startMeal = (eater: HTMLElement, dough: HTMLElement, now: number) => {
+      const eaterBox = getImageBox(eater);
+      const doughBox = getImageBox(dough);
+      clear(eater);
+      clear(dough);
+      delete eater.dataset.spacingWait;
+      delete dough.dataset.spacingWait;
+      delete dough.dataset.doughTarget;
+      dough.style.setProperty('--student-character-eat-direction', eaterBox.left < doughBox.left ? '-1' : '1');
+      dough.dataset.eaten = 'true';
+      eater.dataset.encounter = 'eat';
+      eater.dataset.encounterPhase = 'act';
+      eater.dataset.grown = 'true';
+      active.set(eater, { start: now, kind: 'eat' });
+    };
+    // 다 먹은 노란 자캐는 원래 걷던 길로 돌아간 뒤 다시 걷는다.
+    const startReturn = (eater: HTMLElement, now: number) => {
+      const duration = Number.parseFloat(eater.style.getPropertyValue('--student-character-chase-duration')) || 1000;
+      eater.style.setProperty('--student-character-chase-x', '0px');
+      eater.style.setProperty('--student-character-chase-y', '0px');
+      active.set(eater, { start: now, kind: 'return', duration });
     };
     // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
     const onPeek = (event: Event) => {
@@ -82,14 +115,34 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
       // 일부 화면(앱 안 미리보기 등)은 보이는 중에도 hidden으로 알려 오므로 토네이도는 항상 판정한다.
       sweepTornadoes();
       if (document.hidden) {
-        active.forEach((_, node) => clear(node));
+        active.forEach((_, node) => reset(node));
         return;
       }
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node) && !node.dataset.eaten);
       active.forEach((action, node) => {
         const age = now - action.start;
+        if (isChaseKind(action.kind)) {
+          if (!node.isConnected) reset(node);
+          else if (action.kind === 'prey') {
+            // 쫓아오던 노란 자캐가 사라지면 반죽이는 다시 걷는다.
+            if (!action.partner?.isConnected || active.get(action.partner)?.kind !== 'chase') reset(node);
+          } else if (age >= (action.duration ?? 0)) {
+            if (action.kind === 'return') reset(node);
+            else if (action.partner?.isConnected && !isBlown(action.partner) && !action.partner.dataset.eaten) startMeal(node, action.partner, now);
+            else {
+              if (action.partner) reset(action.partner);
+              startReturn(node, now);
+            }
+          }
+          return;
+        }
         // "뭐지?"는 빼꼼이 다 나와 있는 동안 읽을 수 있게 약 2.6초 보여 준다.
-        if (!node.isConnected || age >= (action.kind === 'special' ? 1200 : action.kind === 'look' ? 3200 : action.kind === 'eat' ? 2500 : 2200)) clear(node);
+        if (!node.isConnected || age >= (action.kind === 'special' ? 1200 : action.kind === 'look' ? 3200 : action.kind === 'eat' ? 2500 : 2200)) {
+          if (action.kind === 'eat' && node.isConnected && node.dataset.chasing) {
+            clear(node);
+            startReturn(node, now);
+          } else reset(node);
+        }
         else if (action.kind === 'special') {
           const frame = Math.min(7, Math.floor(age / 150));
           const sprite = node.querySelector<HTMLElement>('.student-character-special');
@@ -128,6 +181,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
           if (active.get(a.node)?.kind === 'special' || active.get(b.node)?.kind === 'special') continue;
           if (active.get(a.node)?.kind === 'greet' || active.get(b.node)?.kind === 'greet') continue;
           if (active.get(a.node)?.kind === 'eat' || active.get(b.node)?.kind === 'eat') continue;
+          if (isChaseKind(active.get(a.node)?.kind) || isChaseKind(active.get(b.node)?.kind)) continue;
           if (isTornado(a.node) || isTornado(b.node) || isBlown(a.node) || isBlown(b.node)) continue;
           const meal = getDoughEncounter(a.node.dataset.characterId, b.node.dataset.characterId);
           if (!shouldCharactersGreet(
@@ -145,17 +199,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
           encounters.set(b.node, reversePartners);
           if (meal) {
             const eater = a.node.dataset.characterId === meal.eater ? a : b;
-            const dough = eater === a ? b : a;
-            clear(eater.node);
-            clear(dough.node);
-            delete eater.node.dataset.spacingWait;
-            delete dough.node.dataset.spacingWait;
-            dough.node.style.setProperty('--student-character-eat-direction', eater.box.left < dough.box.left ? '-1' : '1');
-            dough.node.dataset.eaten = 'true';
-            eater.node.dataset.encounter = 'eat';
-            eater.node.dataset.encounterPhase = 'act';
-            eater.node.dataset.grown = 'true';
-            active.set(eater.node, { start: now, kind: 'eat' });
+            startMeal(eater.node, (eater === a ? b : a).node, now);
             continue;
           }
           for (const { node } of [a, b]) {
@@ -166,6 +210,30 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
             active.set(node, { start: now, kind: 'greet' });
           }
         }
+      }
+      const eater = positions.find(({ node }) => node.dataset.characterId === DOUGH_EATER_ID);
+      const dough = positions.find(({ node }) => node.dataset.characterId === DOUGH_ID);
+      if (
+        eater && dough
+        && [eater, dough].every(({ node }) => { const kind = active.get(node)?.kind; return (kind === undefined || kind === 'look') && !isBlown(node) && !node.dataset.eaten; })
+        && !eater.node.dataset.grown
+        && !encounters.get(eater.node)?.has(dough.node)
+        && canStartDoughChase(eater.box, dough.box, innerWidth)
+      ) {
+        const plan = getDoughChasePlan(eater.box, dough.box);
+        encounters.set(eater.node, (encounters.get(eater.node) ?? new WeakSet<HTMLElement>()).add(dough.node));
+        encounters.set(dough.node, (encounters.get(dough.node) ?? new WeakSet<HTMLElement>()).add(eater.node));
+        for (const { node } of [eater, dough]) {
+          clear(node);
+          delete node.dataset.spacingWait;
+        }
+        dough.node.dataset.doughTarget = 'true';
+        active.set(dough.node, { start: now, kind: 'prey', partner: eater.node });
+        eater.node.style.setProperty('--student-character-chase-duration', `${plan.durationMs}ms`);
+        eater.node.style.setProperty('--student-character-chase-x', `${plan.dx}px`);
+        eater.node.style.setProperty('--student-character-chase-y', `${plan.dy}px`);
+        eater.node.dataset.chasing = 'true';
+        active.set(eater.node, { start: now, kind: 'chase', duration: plan.durationMs, partner: dough.node });
       }
       nodes.forEach(node => {
         if (!specialChoices.has(node)) {
@@ -208,7 +276,7 @@ export default function StudentCharacterStage({ children, specialSchedule }: { c
     return () => {
       window.clearInterval(timer);
       root.removeEventListener('studentcharacterpeek', onPeek);
-      active.forEach((_, node) => clear(node));
+      active.forEach((_, node) => reset(node));
       root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
     };
   }, [schedule]);

@@ -31328,6 +31328,17 @@ body {
 .student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-gesture { transform: scaleX(-1); }
 .student-character-showcase[data-encounter] .student-character-speech { visibility: hidden; }
 .student-character-showcase[data-character-id="student-12-dough-eater"] { z-index: 100 !important; }
+/* 한 화면에 반죽이가 보이면 노란 자캐가 반죽이 옆까지 달려가고, 반죽이는 그 자리에 멈춘다. */
+.student-character-showcase[data-chasing],
+.student-character-showcase[data-chasing] .student-character-path,
+.student-character-showcase[data-dough-target],
+.student-character-showcase[data-dough-target] .student-character-path,
+.student-character-showcase[data-dough-target] .student-character-frame { animation-play-state: paused !important; }
+.student-character-showcase[data-chasing] .student-character-scale {
+  transform: translate(var(--student-character-chase-x, 0px), var(--student-character-chase-y, 0px)) scale(var(--student-character-walk-scale));
+  transition: transform var(--student-character-chase-duration, 1s) ease-in-out;
+}
+.student-character-showcase[data-grown] .student-character-speech { visibility: hidden; }
 .student-character-eating-image { position: absolute; inset: 0; height: 100%; visibility: hidden; }
 .student-character-showcase[data-encounter="eat"][data-encounter-phase="act"] .student-character-eating-image {
   visibility: visible;
