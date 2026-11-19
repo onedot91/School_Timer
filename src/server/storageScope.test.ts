@@ -75,3 +75,22 @@ test('historical entries are never rewritten or reordered by scoped display norm
   assert.deepEqual(result.p_ledger, []);
   assert.deepEqual(result.p_wallets, []);
 });
+
+test('scoped response keeps the containers of a cancelled stamp on a classmate story', () => {
+  const scope: StorageScope = { resources: [{ path: '/studentLife/failureStories', students: [20] }], wallets: [20], history: [20],
+    writeResources: [{ path: '/studentLife/failureStories', students: [20] }], writeWallets: [20] };
+  const story = '/studentLife/failureStories/@synthetic-story-16';
+  const containers = [
+    { resource_key: '', category: 'root', owner_number: null, value: { kind: 'object', parentKey: null, member: '' } },
+    { resource_key: '/studentLife', category: 'studentLife', owner_number: null, value: { kind: 'object', parentKey: '', member: 'studentLife' } },
+    { resource_key: '/studentLife/failureStories', category: 'studentLife', owner_number: null, value: { kind: 'array', parentKey: '/studentLife', member: 'failureStories' } },
+    { resource_key: story, category: 'studentLife', owner_number: 16, value: { kind: 'object', parentKey: '/studentLife/failureStories', member: '@synthetic-story-16', order: 0 } },
+    { resource_key: `${story}/stamps`, category: 'studentLife', owner_number: 16, value: { kind: 'array', parentKey: story, member: 'stamps' } },
+  ];
+  const response = (deletedKeys: string[]) => ({ kind: 'scoped', scope, resources: containers, wallets: [], history: [], deletedKeys, orderingBounds: {},
+    updated_at: '2026-11-19T04:00:00Z', revisions: {} });
+  const parsed = parseScopedStorageSnapshot(response([`${story}/stamps/#{"stampId":"me-too","studentNumber":20}`]));
+  assert.deepEqual(parsed.resources.map(resource => resource.resource_key), containers.map(resource => resource.resource_key));
+  assert.throws(() => parseScopedStorageSnapshot(response([])), /STORAGE_INVALID_RESPONSE/);
+  assert.throws(() => parseScopedStorageSnapshot(response(['/studentPets/@synthetic/elsewhere'])), /STORAGE_INVALID_RESPONSE/);
+});

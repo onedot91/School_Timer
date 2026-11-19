@@ -170,7 +170,7 @@ export function FailureComposerDialog({
               onChange={(event) => updateDraft('lesson', event.target.value)}
             />
           </label>
-          {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveError}</p> : null}
+          {hasPendingSave || saveError ? <p role="status">{saveError || '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.'}</p> : null}
           <button type="submit" className="student-primary-action" disabled={isSaving || (!canSubmit && !(hasPendingSave && onConfirmPending))}>
             <Send aria-hidden="true" /><StableLabel busy={isSaving} busyLabel="저장하는 중" label={hasPendingSave ? '저장 다시 확인' : '자랑하기'} />
           </button>

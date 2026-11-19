@@ -3,7 +3,7 @@ import { parseReadManifest } from '../lib/storageReadManifest.js';
 import { StorageReadBusyError } from './storageReadPriority.js';
 import { createHash } from 'node:crypto';
 import { normalizeAuctionItems } from '../lib/currency.js';
-import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
+import { parseStorageScope, storagePathWithin, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
 import { assembleStorageState, canonicalStorageJson, isStorageRecord, reconcileStorageResourceOrder, splitStorageState, type StorageHistoryRecord, type StorageResource, type StorageResourceValue, type StorageWallet, } from '../lib/storageV2Codec.js';
 export interface StorageConfiguration {
     readonly url: string;
@@ -258,15 +258,18 @@ export const parseScopedStorageSnapshot = (body: unknown): ScopedStorageSnapshot
         orderingBounds[key] = { minimum: value.minimum, maximum: value.maximum };
     }
     if (!parsed.resources || !parsed.wallets || !parsed.history) return invalid();
+    const deletedKeys = body.deletedKeys.filter((key): key is string => typeof key === 'string');
+    // A removed record (e.g. a cancelled stamp on a classmate's story) still comes with its containers.
     const selectedKeys = [...scope.resources.map(resource => resource.path), ...storageScopeStructuralKeys(scope),
-        ...parsed.resources.filter(resource => storageResourceMatchesScope(resource, scope.resources)).map(resource => resource.resource_key)];
+        ...parsed.resources.filter(resource => storageResourceMatchesScope(resource, scope.resources)).map(resource => resource.resource_key),
+        ...deletedKeys.filter(key => scope.resources.some(resource => storagePathWithin(key, resource.path)))];
     if (parsed.resources.some(resource => !storageResourceMatchesScope(resource, scope.resources) && !storageStructuralAncestor(resource, selectedKeys))
         || parsed.wallets.some(wallet => !scope.wallets.includes(wallet.student_number))
         || parsed.history.some(entry => !scope.history.includes(entry.student_number))) return invalid();
     if (body.readVersion !== undefined && (typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion))) return invalid();
     if (body.readMarker !== undefined && (typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker))) return invalid();
     return { ...parsed, kind: 'scoped', scope, ...(typeof body.readVersion === 'string' ? { readVersion: body.readVersion } : {}), ...(typeof body.readMarker === 'string' ? { readMarker: body.readMarker } : {}), resources: parsed.resources, wallets: parsed.wallets, history: parsed.history,
-        deletedKeys: body.deletedKeys.filter((key): key is string => typeof key === 'string'), orderingBounds };
+        deletedKeys, orderingBounds };
 };
 export const loadScopedStorageSnapshot = async (configuration: StorageConfiguration, scope: StorageScope): Promise<ScopedStorageSnapshot> =>
     parseScopedStorageSnapshot(await request(configuration, 'storage_load_scope', { p_scope: parseStorageScope(scope) }));
