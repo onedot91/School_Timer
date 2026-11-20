@@ -196,7 +196,8 @@ begin
     jsonb_build_object('kind','value','parentKey','/classDonation/history','member',concat('@',p_request_id),'order',-extract(epoch from v_now)*1000,
       'data',jsonb_build_object('id',p_request_id,'studentNumber',p_student_number,'amount',p_amount,'createdAt',v_now)));
   v_letter := p_thank_you_letter || jsonb_build_object('createdAt',v_now,'readAt',null);
-  perform public.storage_write_resource(concat('/studentLife/letters/@',v_id),'studentLife',p_student_number,
+  -- Letters carry no owner in the codec (mail scope uses data.recipient); keep SQL rows identical to a JS split.
+  perform public.storage_write_resource(concat('/studentLife/letters/@',v_id),'studentLife',null,
     jsonb_build_object('kind','value','parentKey','/studentLife/letters','member',concat('@',p_request_id),'order',extract(epoch from v_now)*1000,'data',v_letter));
   v_result := jsonb_build_object('donatedAmount',p_amount,'balance',v_balance,'totalAmount',v_total+p_amount,'targetAmount',v_target,'completed',v_total+p_amount>=v_target);
   insert into public.class_donation_requests(request_id,result,created_at) values(p_request_id,v_result,v_now);

@@ -62,6 +62,7 @@ begin
   v_second:=public.donate_to_class_goal_v2(3,6,'donation/fixture',2,v_letter);
   if v_first<>v_second or v_first->>'balance'<>'94' then raise exception 'DONATION_NOT_EXACTLY_ONCE'; end if;
   if not exists(select 1 from public.storage_resources where resource_key='/studentLife/letters/@donation~1fixture' and value->'data'->>'content'='6고마 고맙고마') then raise exception 'DONATION_MAIL_NOT_ATOMIC'; end if;
+  if exists(select 1 from public.storage_resources where resource_key='/studentLife/letters/@donation~1fixture' and owner_number is not null) then raise exception 'DONATION_MAIL_OWNER_MISMATCH'; end if;
   select count(*) into v_count from public.wallet_ledger where entry_id='class-donation-donation/fixture';
   if v_count<>1 then raise exception 'DONATION_LEDGER_DUPLICATE'; end if;
   begin

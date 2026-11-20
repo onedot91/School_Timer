@@ -411,7 +411,9 @@ export const buildScopedStorageMutation = (mutation: ScopedStorageMutation): Rec
     for (const resource of mutation.snapshot.resources) {
         if (storageResourceMatchesScope(resource, scope.writeResources)) continue;
         const next = afterResources.get(resource.resource_key);
-        if (next && canonicalStorageJson(next) !== canonicalStorageJson(resource)) throw new StorageScopeError();
+        // Readonly rows are never sent; compare stored content only. owner_number/category are server metadata that
+        // SQL writers (e.g. class donation thank-you letters) may set differently from the codec's derivation.
+        if (next && canonicalStorageJson(next.value) !== canonicalStorageJson(resource.value)) throw new StorageScopeError();
         // Missing structural parents may result from an intentional scoped subtree removal; they are never deleted.
         if (!next && (resource.value.kind === 'value' || storageResourceMatchesScope(resource, scope.resources))) throw new StorageScopeError();
     }
