@@ -94,3 +94,22 @@ test('scoped response keeps the containers of a cancelled stamp on a classmate s
   assert.throws(() => parseScopedStorageSnapshot(response([])), /STORAGE_INVALID_RESPONSE/);
   assert.throws(() => parseScopedStorageSnapshot(response(['/studentPets/@synthetic/elsewhere'])), /STORAGE_INVALID_RESPONSE/);
 });
+
+test('a readonly letter stored with a database owner number does not block a teacher write elsewhere', () => {
+  // A class donation thank-you letter was written by SQL with the donor as owner, while the codec derives no owner for letters.
+  const scope: StorageScope = { resources: [{ path: '/auctionItems' }, { path: '/studentLife/letters', mail: { actor: 19, direction: 'recipient' } }],
+    wallets: [], history: [], writeResources: [{ path: '/auctionItems' }], writeWallets: [] };
+  const letter = { id: 'class-donation-19-fixture', recipient: 19, senderStudentNumber: null, senderLabel: 'fixture', title: 'fixture', content: 'fixture', createdAt: '2026-11-17T00:37:54Z', readAt: null };
+  const raw = splitStorageState({ auctionItems: [{ id: 'item-old' }], studentLife: { letters: [letter] } });
+  const resources = raw.resources.map(resource => resource.resource_key.endsWith('/@class-donation-19-fixture')
+    ? { ...resource, owner_number: 19, value: { ...resource.value, order: 1794875874623.51 } } : resource);
+  const before = parseScopedStorageSnapshot({ ...raw, resources, kind: 'scoped', scope, deletedKeys: [], orderingBounds: {}, updated_at: '2026-11-20T05:00:00Z',
+    revisions: Object.fromEntries(resources.map(resource => [resource.resource_key, 1])) });
+  const result = buildScopedStorageMutation({ snapshot: before, value: { ...before.value, auctionItems: [{ id: 'item-new' }] },
+    actorKey: 'teacher:0', requestId: 'weekly-close-fixture', action: 'teacher.auction.weekly-close', payload: { cycleKey: '2026-11-22' }, result: null });
+  assert.ok(Array.isArray(result.p_resources));
+  assert.ok(result.p_resources.every(row => !String(row.resource_key).startsWith('/studentLife/letters')));
+  // Domain content changes to a readonly letter are still refused.
+  assert.throws(() => buildScopedStorageMutation({ snapshot: before, value: { ...before.value, studentLife: { letters: [{ ...letter, content: 'changed' }] } },
+    actorKey: 'teacher:0', requestId: 'weekly-close-fixture-2', action: 'teacher.auction.weekly-close', payload: {}, result: null }), StorageScopeError);
+});
