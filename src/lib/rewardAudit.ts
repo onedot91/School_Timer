@@ -2,7 +2,7 @@ import { isStorageRecord } from './storageV2Codec.js';
 
 export const REWARD_AUDIT_FEATURES = {
   classwordQuiz: '낱말판 퀴즈', classwordEntry: 'ㄱㄴㄷ 게임', todayFriend: '오늘의 친구',
-  emotion: '오늘의 감정', weeklyEmotion: '주간 감정', sudoku: '스도쿠', baseball: '숫자 야구',
+  emotion: '오늘의 감정', weeklyEmotion: '주간 감정', sudoku: '스도쿠', baseball: '숫자 야구', circleDrawing: '원 그리기',
   failure: '실패 전시회', bookStack: '책 쌓기', classroomRole: '1인1역', writing: '글쓰기', question: '개인 질문',
 } as const;
 export type RewardAuditFeature = keyof typeof REWARD_AUDIT_FEATURES;

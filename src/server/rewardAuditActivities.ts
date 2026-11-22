@@ -9,6 +9,7 @@ import { normalizeStudentLifeState } from '../lib/studentLife.js';
 import { DAILY_WRITING_REWARD, normalizeDailyWritingState } from '../lib/dailyWriting.js';
 import { getKoreanIsoWeekKey, FAILURE_EXHIBITION_WEEKLY_REWARD, BOOK_STACK_WEEKLY_REWARD } from '../lib/weeklyMission.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
+import { getCircleDrawingReward, getCircleDrawingRewardId, normalizeStudentCircleDrawingProgress } from '../lib/circleDrawing.js';
 
 const validDate = (dateKey: string): boolean => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
@@ -79,6 +80,13 @@ export const collectActivityRewardExpectations = (settings: Record<string, unkno
     if (getNumberBaseballStatus(entry, createNumberBaseballAnswer(studentNumber, period)) !== 'completed') continue;
     const amount = entry.attempts.length <= 5 && Date.parse(entry.completedAt) < BASEBALL_FIRST_REWARD_CHANGED_AT ? 15 : getNumberBaseballReward(entry.attempts.length);
     if (amount !== null) add('baseball', studentNumber, period, amount, `number-baseball-reward-${entry.gameId}`);
+  }
+
+  for (const [key, entry] of Object.entries(normalizeStudentCircleDrawingProgress(settings.studentCircleDrawing))) {
+    const [studentKey, dateKey] = key.split(':');
+    const studentNumber = Number(studentKey);
+    if (!validDate(dateKey)) continue;
+    add('circleDrawing', studentNumber, dateKey, getCircleDrawingReward(entry.score), getCircleDrawingRewardId(studentNumber, dateKey));
   }
 
   const life = isStorageRecord(settings.studentLife) ? settings.studentLife : {};

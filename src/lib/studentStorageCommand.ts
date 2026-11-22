@@ -292,7 +292,7 @@ export const executeStudentEconomyWithDraft = (studentNumber: number, action: St
 };
 
 const automaticActions = new Set(['student.letter.send', 'student.letter.read', 'student.failure.create', 'student.failure.stamp',
-  'student.emotion.save', 'student.sudoku.save', 'student.sudoku.complete', 'student.baseball.save', 'student.baseball.complete',
+  'student.emotion.save', 'student.sudoku.save', 'student.sudoku.complete', 'student.baseball.save', 'student.baseball.complete', 'student.circle.submit',
   'student.pet.name', 'student.pet.select', 'student.pet.move']);
 const findRecoveryDraft = (request: RecoveryRequest) => drafts.list(request.actor).find(draft => draft.requestId === request.id);
 const eligibleDraft = (draft: StudentSaveDraft): boolean => {
@@ -305,6 +305,7 @@ const eligibleDraft = (draft: StudentSaveDraft): boolean => {
   if (draft.scope.feature.includes('.sudoku.') || draft.scope.feature.includes('.baseball.')) {
     if (typeof payload.key !== 'string' || !payload.key.includes(getKoreanIsoWeekKey())) return false;
   }
+  if (draft.scope.feature === 'student.circle.submit' && (typeof payload.key !== 'string' || !payload.key.endsWith(`:${getKoreanLocalDateKey()}`))) return false;
   return true;
 };
 registerSaveRecoveryAdapter({

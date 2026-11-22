@@ -28,6 +28,7 @@ export type CurrencyHistoryReason =
   | 'weekly_emotion'
   | 'sudoku_mission'
   | 'number_baseball_mission'
+  | 'circle_drawing_mission'
   | 'classroom_role'
   | 'daily_writing'
   | 'class_donation'
@@ -334,6 +335,7 @@ const CURRENCY_HISTORY_REASONS = [
   'weekly_emotion',
   'sudoku_mission',
   'number_baseball_mission',
+  'circle_drawing_mission',
   'classroom_role',
   'daily_writing',
   'class_donation',
@@ -915,6 +917,63 @@ export const claimNumberBaseballRewardInSettings = (
       before,
       after,
       reason: 'number_baseball_mission',
+      createdAt,
+    }, ...existingEntries],
+  };
+  return {
+    value: withStudentCurrencyReward(current, studentKey, after, nextHistory[studentKey]),
+    awarded: true,
+    balance: after,
+    history: nextHistory,
+  };
+};
+
+export const hasCircleDrawingReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  rewardId: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === rewardId);
+
+/** One reward per student per day; `rewardId` comes from `getCircleDrawingRewardId`. */
+export const claimCircleDrawingRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  rewardId: string,
+  rewardAmount: number,
+  createdAt = new Date().toISOString(),
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balance: number;
+  history: CurrencyHistory;
+} => {
+  const current = value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const studentKey = String(studentNumber);
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const existingEntries = history[studentKey] ?? [];
+  if (
+    existingEntries.some((entry) => entry.id === rewardId)
+    || ![5, 10, 15, 20].includes(rewardAmount)
+    || before > CURRENCY_BALANCE_MAX - rewardAmount
+  ) {
+    return { value: current, awarded: false, balance: before, history };
+  }
+  const after = before + rewardAmount;
+  const nextHistory: CurrencyHistory = {
+    ...history,
+    [studentKey]: [{
+      id: rewardId,
+      studentNumber,
+      delta: rewardAmount,
+      before,
+      after,
+      reason: 'circle_drawing_mission',
       createdAt,
     }, ...existingEntries],
   };

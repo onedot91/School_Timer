@@ -1,4 +1,4 @@
-import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getMinimumAuctionBid, hasAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
+import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, claimCircleDrawingRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getMinimumAuctionBid, hasAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
 import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity.js';
 import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
@@ -8,6 +8,7 @@ import { STUDENT_EMOTIONS, createStudentEmotionEntry, normalizeStudentEmotionHis
 import { createSudokuPuzzle, isSudokuSolved, getSudokuWeeklyMissionId, SUDOKU_REWARDS, getStudentSudokuProgressFromSettings, getActiveSudokuDifficulty } from '../lib/sudoku.js';
 import { getNumberBaseballGameId, createNumberBaseballAnswer, createNumberBaseballProgressEntry, appendNumberBaseballAttempt, getStudentNumberBaseballProgressFromSettings, getNumberBaseballStatus, getNumberBaseballReward } from '../lib/numberBaseball.js';
 import { getKoreanIsoWeekKey } from '../lib/weeklyMission.js';
+import { decodeCircleDrawingPoints, getCircleDrawingChallenge, getCircleDrawingDateKey, getCircleDrawingProgressKey, getCircleDrawingReward, getCircleDrawingRewardId, getStudentCircleDrawingProgressFromSettings, scoreCircleDrawing } from '../lib/circleDrawing.js';
 import { getKoreanDateKey } from '../lib/classword.js';
 
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {};
@@ -161,6 +162,21 @@ export const applyStudentStorageCommand = (
     const reward = getNumberBaseballReward(entry.attempts.length);
     const value = completed && reward !== null ? claimNumberBaseballRewardInSettings(current, studentNumber, entry.gameId, reward, context.createdAt).value : current;
     return finish({ ...value, studentNumberBaseball: { ...record(current.studentNumberBaseball), [key]: entry } });
+  }
+  if (action === 'student.circle.submit') {
+    const dateKey = getCircleDrawingDateKey(date), key = text(input.key, 100);
+    if (key !== getCircleDrawingProgressKey(studentNumber, dateKey)) {
+      if (/^\d+:\d{4}-\d{2}-\d{2}$/.test(key) && key.startsWith(`${studentNumber}:`))
+        throw Object.assign(new Error('STUDENT_SAVE_CONTEXT_CHANGED'), { code: 'STUDENT_SAVE_CONTEXT_CHANGED', status: 409 });
+      return fail();
+    }
+    const points = decodeCircleDrawingPoints(input.points) ?? fail();
+    const existing = getStudentCircleDrawingProgressFromSettings(current)[key];
+    // Only the first drawing of the day counts; a retried request for it is a no-op.
+    if (existing) return existing.points === input.points ? finish(current, { applied: false }) : fail('CIRCLE_ALREADY_SUBMITTED');
+    const scored = scoreCircleDrawing(points, getCircleDrawingChallenge(studentNumber, dateKey)) ?? fail('CIRCLE_DRAWING_INCOMPLETE');
+    const reward = claimCircleDrawingRewardInSettings(current, studentNumber, getCircleDrawingRewardId(studentNumber, dateKey), getCircleDrawingReward(scored.score), context.createdAt);
+    return finish({ ...reward.value, studentCircleDrawing: { ...record(current.studentCircleDrawing), [key]: { score: scored.score, points: input.points, submittedAt: context.createdAt } } }, { applied: true, score: scored.score });
   }
   return null;
 };

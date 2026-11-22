@@ -360,7 +360,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingNumberBaseballRewards = remoteHistory[studentKey].filter((entry) => (
-      entry.reason === 'number_baseball_mission' && entry.delta > 0 && !existingIds.has(entry.id)
+      (entry.reason === 'number_baseball_mission' || entry.reason === 'circle_drawing_mission') && entry.delta > 0 && !existingIds.has(entry.id)
     ));
 
     if (missingNumberBaseballRewards.length === 0) return;
@@ -651,6 +651,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     ),
     studentSudoku: remote.studentSudoku ?? next.studentSudoku,
     studentNumberBaseball: remote.studentNumberBaseball ?? next.studentNumberBaseball,
+    studentCircleDrawing: remote.studentCircleDrawing ?? next.studentCircleDrawing,
   };
 };
 

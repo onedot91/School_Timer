@@ -64,6 +64,7 @@ const STUDENT_SHARED_FIELDS = [
   'dailyWriting',
   'studentSudoku',
   'studentNumberBaseball',
+  'studentCircleDrawing',
   // Read-only for students: drives the break-end class prep banner and lock.
   'weeklySchedule',
   'weeklySubjects',
@@ -189,7 +190,9 @@ const canStudentUpdate = (previous: unknown, next: unknown, studentNumber: numbe
     getProtectedCurrencyHistoryEntries(nextRecord.currencyHistory, studentNumber),
   )) return false;
   if (!onlyOwnProgressChanged(previousRecord.studentSudoku, nextRecord.studentSudoku, studentNumber)) return false;
-  return onlyOwnProgressChanged(previousRecord.studentNumberBaseball, nextRecord.studentNumberBaseball, studentNumber);
+  if (!onlyOwnProgressChanged(previousRecord.studentNumberBaseball, nextRecord.studentNumberBaseball, studentNumber)) return false;
+  // Scores are written only by the storage command, which rescores the drawing on the server.
+  return valuesEqual(previousRecord.studentCircleDrawing, nextRecord.studentCircleDrawing);
 };
 
 const mergeStudentUpdate = (previous: unknown, next: unknown) => {

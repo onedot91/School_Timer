@@ -48,6 +48,7 @@ const fixture = (read: () => Promise<unknown>, loaded = false, initialView = 'st
     applySharedSettingsValue: (value: unknown) => { state.applied.push(value); return state.accept; },
     storeStudentSettingsSnapshot: () => { state.snapshots++; return true; },
     refreshLocalNumberBaseball: () => undefined,
+    refreshLocalCircleDrawing: () => undefined,
     refreshLocalStudentSudoku: () => undefined,
     setStudentLifeSnapshot: () => undefined,
     console: { error: () => undefined },

@@ -49,7 +49,7 @@ const studentNumber = (value: string): number | null => {
   return value === String(parsed) && isPersistedStudentNumber(parsed) ? parsed : null;
 };
 const recordMaps = new Set(['auctionBids', 'auctionAwards']);
-const studentMaps = new Set(['studentEconomy', 'studentPets', 'studentSudoku', 'studentNumberBaseball', 'studentEmotionHistory', 'currencyHistory']);
+const studentMaps = new Set(['studentEconomy', 'studentPets', 'studentSudoku', 'studentNumberBaseball', 'studentCircleDrawing', 'studentEmotionHistory', 'currencyHistory']);
 export const splitStorageState = (input: Record<string, unknown>): StorageEncodedState => {
     const resources: StorageResource[] = [];
     const wallets: StorageWallet[] = [];
