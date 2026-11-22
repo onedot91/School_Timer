@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CIRCLE_DRAWING_CANVAS_SIZE,
+  CIRCLE_DRAWING_MAX_TRIES,
+  normalizeCircleDrawingTries,
+  recordCircleDrawingTry,
   decodeCircleDrawingPoints,
   encodeCircleDrawingPoints,
   getCircleDrawingChallenge,
@@ -13,7 +16,7 @@ import {
   type CircleDrawingPoint,
 } from './circleDrawing';
 
-const challenge: CircleDrawingChallenge = { centerX: 200, centerY: 200, radius: 120 };
+const challenge: CircleDrawingChallenge = { centerX: 200, centerY: 200, radius: 120, radiusAngle: 0 };
 
 const arc = (radius: (angle: number) => number, turns = 1, steps = 240, start = 0): CircleDrawingPoint[] => (
   Array.from({ length: steps + 1 }, (_, index) => {
@@ -82,6 +85,8 @@ test('daily challenges are fixed per student and fit inside the canvas', () => {
     }
   }
   assert.ok(seen.size > 40);
+  const angles = new Set(Array.from({ length: 23 }, (_, index) => getCircleDrawingChallenge(index + 1, '2026-11-23').radiusAngle));
+  assert.ok(angles.size > 15 && [...angles].every((angle) => angle >= 0 && angle < 360));
 });
 
 test('rewards follow the score tiers', () => {
@@ -116,4 +121,16 @@ test('stored progress keeps only valid entries', () => {
     bad: entry,
   }), { '3:2026-11-23': entry });
   assert.deepEqual(normalizeStudentCircleDrawingProgress(null), {});
+});
+
+test('tries count up to the daily limit and keep the latest drawing', () => {
+  let tries = normalizeCircleDrawingTries(undefined);
+  assert.deepEqual(tries, { used: 0, points: null });
+  tries = recordCircleDrawingTry(tries, '1,2;3,4');
+  tries = recordCircleDrawingTry(tries, '5,6;7,8');
+  assert.deepEqual(tries, { used: 2, points: '5,6;7,8' });
+  tries = recordCircleDrawingTry(recordCircleDrawingTry(tries, '9,9'), '8,8');
+  assert.equal(tries.used, CIRCLE_DRAWING_MAX_TRIES);
+  assert.deepEqual(normalizeCircleDrawingTries({ used: 99, points: 'bad' }), { used: 3, points: null });
+  assert.deepEqual(normalizeCircleDrawingTries({ used: -1, points: '1,1' }), { used: 0, points: '1,1' });
 });

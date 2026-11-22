@@ -25,6 +25,8 @@ export type CircleDrawingChallenge = {
   readonly centerX: number;
   readonly centerY: number;
   readonly radius: number;
+  /** Direction of the radius line in degrees; only changes how the hint is drawn, not the score. */
+  readonly radiusAngle: number;
 };
 export type CircleDrawingScore = {
   readonly score: number;
@@ -67,6 +69,7 @@ export const getCircleDrawingChallenge = (studentNumber: number, dateKey: string
     centerX: middle - 24 + (seed % 49),
     centerY: middle - 24 + (Math.floor(seed / 49) % 49),
     radius: 90 + (Math.floor(seed / 2401) % 61),
+    radiusAngle: hash(`circle-angle:${studentNumber}:${dateKey}`) % 360,
   };
 };
 
@@ -203,6 +206,60 @@ export const storeStudentCircleDrawingProgress = (progress: StudentCircleDrawing
   if (typeof window === 'undefined') return false;
   try {
     window.localStorage.setItem(STUDENT_CIRCLE_DRAWING_STORAGE_KEY, JSON.stringify(progress));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Drawings a student may try each day before one is confirmed; the last one is confirmed automatically. */
+export const CIRCLE_DRAWING_MAX_TRIES = 3;
+export const STUDENT_CIRCLE_DRAWING_TRIES_STORAGE_KEY = 'school-timer-student-circle-drawing-tries-v1';
+
+export type CircleDrawingTries = {
+  readonly used: number;
+  /** The latest scored drawing that hasn't been confirmed yet. */
+  readonly points: string | null;
+};
+export const EMPTY_CIRCLE_DRAWING_TRIES: CircleDrawingTries = { used: 0, points: null };
+
+export const normalizeCircleDrawingTries = (value: unknown): CircleDrawingTries => {
+  if (!isRecord(value)) return EMPTY_CIRCLE_DRAWING_TRIES;
+  const used = typeof value.used === 'number' && Number.isInteger(value.used)
+    ? Math.max(0, Math.min(CIRCLE_DRAWING_MAX_TRIES, value.used))
+    : 0;
+  const points = decodeCircleDrawingPoints(value.points) === null ? null : String(value.points);
+  return { used, points };
+};
+
+export const recordCircleDrawingTry = (tries: CircleDrawingTries, points: string): CircleDrawingTries => ({
+  used: Math.min(CIRCLE_DRAWING_MAX_TRIES, tries.used + 1),
+  points,
+});
+
+const loadTriesMap = (): Record<string, unknown> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = window.localStorage.getItem(STUDENT_CIRCLE_DRAWING_TRIES_STORAGE_KEY);
+    const parsed: unknown = stored ? JSON.parse(stored) : null;
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Tries are kept on the device so leaving or reloading the screen doesn't give new chances. */
+export const loadStoredCircleDrawingTries = (progressKey: string): CircleDrawingTries => (
+  normalizeCircleDrawingTries(loadTriesMap()[progressKey])
+);
+
+export const storeCircleDrawingTries = (progressKey: string, tries: CircleDrawingTries): boolean => {
+  if (typeof window === 'undefined') return false;
+  const dateKey = progressKey.slice(progressKey.indexOf(':') + 1);
+  // Only today's entries matter; older days are dropped so the value stays small.
+  const kept = Object.fromEntries(Object.entries(loadTriesMap()).filter(([key]) => key.endsWith(`:${dateKey}`)));
+  try {
+    window.localStorage.setItem(STUDENT_CIRCLE_DRAWING_TRIES_STORAGE_KEY, JSON.stringify({ ...kept, [progressKey]: tries }));
     return true;
   } catch {
     return false;

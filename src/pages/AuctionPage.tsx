@@ -456,6 +456,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const {
     entry: circleDrawingEntry,
     challenge: circleDrawingChallenge,
+    tries: circleDrawingTries,
+    recordTry: recordCircleDrawingTry,
     submit: submitCircleDrawing,
     applySharedProgress: applySharedCircleDrawing,
     refreshLocalProgress: refreshLocalCircleDrawing,
@@ -2591,6 +2593,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             key={`${studentNumber}:${circleDrawingChallenge.centerX}:${circleDrawingChallenge.centerY}:${circleDrawingChallenge.radius}`}
             challenge={circleDrawingChallenge}
             entry={circleDrawingEntry}
+            tries={circleDrawingTries}
+            onTry={recordCircleDrawingTry}
             onSubmit={submitCircleDrawing}
             onBack={() => navigateStudentView('missions')}
           />

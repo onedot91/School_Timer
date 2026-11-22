@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   decodeCircleDrawingPoints,
   getCircleDrawingChallenge,
@@ -7,7 +7,11 @@ import {
   getCircleDrawingReward,
   getCircleDrawingRewardId,
   getStudentCircleDrawingProgressFromSettings,
+  loadStoredCircleDrawingTries,
   loadStoredStudentCircleDrawingProgress,
+  recordCircleDrawingTry,
+  storeCircleDrawingTries,
+  type CircleDrawingTries,
   scoreCircleDrawing,
   storeStudentCircleDrawingProgress,
   type StudentCircleDrawingProgress,
@@ -52,6 +56,16 @@ export const useStudentCircleDrawingState = ({
   const entry = progress[key] ?? null;
   const challenge = useMemo(() => getCircleDrawingChallenge(studentNumber, dateKey), [dateKey, studentNumber]);
   const rewardId = getCircleDrawingRewardId(studentNumber, dateKey);
+  const [tries, setTries] = useState<CircleDrawingTries>(() => loadStoredCircleDrawingTries(key));
+  useEffect(() => { setTries(loadStoredCircleDrawingTries(key)); }, [key]);
+
+  /** Counts one scored drawing before it is confirmed. */
+  const recordTry = useCallback((points: string): CircleDrawingTries => {
+    const next = recordCircleDrawingTry(loadStoredCircleDrawingTries(key), points);
+    storeCircleDrawingTries(key, next);
+    setTries(next);
+    return next;
+  }, [key]);
   const hasReward = useMemo(
     () => hasCircleDrawingReward(currencyHistory, studentNumber, rewardId),
     [currencyHistory, rewardId, studentNumber],
@@ -116,6 +130,8 @@ export const useStudentCircleDrawingState = ({
     challenge,
     dateKey,
     hasReward,
+    tries,
+    recordTry,
     submit,
     applySharedProgress,
     refreshLocalProgress,

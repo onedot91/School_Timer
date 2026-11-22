@@ -38,7 +38,7 @@ test('교사 설정 패널 코드는 Tailwind 기본 글자 크기 대신 토큰
 });
 
 // Glyph art, game digits, and stamps sized against their own artwork or board geometry.
-const STUDENT_ARTWORK_SELECTOR = /\.student-(sudoku-grid|sudoku-keypad button|sudoku-settings-preview|baseball-slots|baseball-title|baseball-finish-details b|product-emoji|pet-stage-character > span|pet-dialog-visual|pet-picker button span|emotion-confirmed-quote::|gacha-initial-question|mail-postmark|mail-envelope-stamp|canvas-library-slot-number)/;
+const STUDENT_ARTWORK_SELECTOR = /\.student-(sudoku-grid|sudoku-keypad button|sudoku-settings-preview|baseball-slots|baseball-title|baseball-finish-details b|product-emoji|pet-stage-character > span|pet-dialog-visual|pet-picker button span|emotion-confirmed-quote::|gacha-initial-question|mail-postmark|mail-envelope-stamp|canvas-library-slot-number|circle-score)/;
 const STUDENT_SOURCES = ['../pages/AuctionPage.tsx', '../components/AuctionRoom.tsx'];
 
 test('학생 화면 규칙은 글자 크기 토큰만 사용한다', async () => {
