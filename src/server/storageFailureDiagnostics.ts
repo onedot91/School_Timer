@@ -2,7 +2,7 @@ import { StorageRepositoryError } from './storageV2Repository.js';
 import { StorageScopeError } from './storageScope.js';
 
 const actions = new Set([
-  'student.auction.bid', 'student.baseball.complete', 'student.baseball.save', 'student.emotion.save',
+  'student.auction.bid', 'student.baseball.complete', 'student.circle.submit', 'student.baseball.save', 'student.emotion.save',
   'student.failure.create', 'student.failure.stamp', 'student.letter.read', 'student.letter.send',
   'student.pet.feed', 'student.pet.move', 'student.pet.name', 'student.pet.select', 'student.sudoku.complete', 'student.sudoku.save',
   'teacher.auction.finalize', 'teacher.auction.remove', 'teacher.auction.weekly-close',

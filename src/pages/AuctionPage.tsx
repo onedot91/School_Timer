@@ -211,6 +211,7 @@ import {
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
+import { useStudentCircleDrawingState } from '../lib/useStudentCircleDrawingState';
 import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
 import {
@@ -237,6 +238,7 @@ const StudentLibraryPage = lazy(() => import('../components/student/StudentLibra
 const StudentStorePage = lazy(() => import('../components/student/StudentStorePage'));
 const StudentSudokuPage = lazy(() => import('../components/student/StudentSudokuPage'));
 const StudentNumberBaseballPage = lazy(() => import('../components/student/StudentNumberBaseballPage'));
+const StudentCircleDrawingPage = lazy(() => import('../components/student/StudentCircleDrawingPage'));
 const StudentClasswordPage = lazy(() => import('../components/student/StudentClasswordPage'));
 const StudentTodayFriendPage = lazy(() => import('../components/student/StudentTodayFriendPage'));
 const StudentNewspaperPage = lazy(() => import('../components/student/StudentNewspaperPage'));
@@ -245,7 +247,7 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'newspaper' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'library-failure-board' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'newspaper' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'circle-drawing' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'library-failure-board' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -268,6 +270,7 @@ type SharedSettingsValue = {
   dailyWriting?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
+  studentCircleDrawing?: unknown;
   weeklySchedule?: unknown;
   weeklySubjects?: unknown;
   scheduleClockOffsetSeconds?: unknown;
@@ -285,6 +288,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   classword: '#student-classword',
   sudoku: '#student-sudoku',
   'number-baseball': '#student-number-baseball',
+  'circle-drawing': '#student-circle-drawing',
   mailbox: '#student-mailbox',
   library: '#student-library',
   'library-bookstore': '#student-library-bookstore',
@@ -443,6 +447,19 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     inspectBaseballConflict,
     continueBaseballFromLatest,
   } = useStudentNumberBaseballState({
+    studentNumber,
+    currencyHistory,
+    onSharedSettingsChange: (value, updatedAt) => applySharedSettingsValue(value, updatedAt),
+    onCurrencyBalancesChange: setCurrencyBalances,
+    onCurrencyHistoryChange: setCurrencyHistory,
+  });
+  const {
+    entry: circleDrawingEntry,
+    challenge: circleDrawingChallenge,
+    submit: submitCircleDrawing,
+    applySharedProgress: applySharedCircleDrawing,
+    refreshLocalProgress: refreshLocalCircleDrawing,
+  } = useStudentCircleDrawingState({
     studentNumber,
     currencyHistory,
     onSharedSettingsChange: (value, updatedAt) => applySharedSettingsValue(value, updatedAt),
@@ -1316,6 +1333,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
+    applySharedCircleDrawing(value);
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
@@ -1327,7 +1345,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       previous,
     ));
     return true;
-  }, [applySharedNumberBaseball, applySharedStudentSudoku, setStudentLifeSnapshot, studentNumber]);
+  }, [applySharedCircleDrawing, applySharedNumberBaseball, applySharedStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   const reloadStudentEmotionConflict = useCallback(async (conflictDate?: string) => {
     const context = captureStorageResponseContext();
@@ -1452,6 +1470,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setClassPrepSource(loadStoredClassPrepSource(window.localStorage));
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
+      refreshLocalCircleDrawing();
       setIsLoading(false);
       return;
     }
@@ -1538,7 +1557,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [activeStudentView, applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
+  }, [activeStudentView, applySharedSettingsValue, refreshLocalCircleDrawing, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   const applyCompetitionSnapshot = useCallback((response: LibraryCompetitionResponse) => {
     setCompetitionSeasonId(response.competition.state?.seasonId ?? null);
@@ -2480,6 +2499,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
             numberBaseballStatus={numberBaseballStatus}
+            circleDrawingScore={circleDrawingEntry?.score ?? null}
+            onOpenCircleDrawing={() => navigateStudentView('circle-drawing')}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMailbox={() => navigateStudentView('mailbox')}
             onOpenFailureExhibition={() => navigateStudentView('library-failure-board')}
@@ -2562,6 +2583,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             conflict={baseballConflict}
             onConflictRefresh={inspectBaseballConflict}
             onContinueFromLatest={continueBaseballFromLatest}
+            onBack={() => navigateStudentView('missions')}
+          />
+        ) : null}
+        {activeStudentView === 'circle-drawing' ? (
+          <StudentCircleDrawingPage
+            key={`${studentNumber}:${circleDrawingChallenge.centerX}:${circleDrawingChallenge.centerY}:${circleDrawingChallenge.radius}`}
+            challenge={circleDrawingChallenge}
+            entry={circleDrawingEntry}
+            onSubmit={submitCircleDrawing}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}

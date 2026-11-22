@@ -6,6 +6,7 @@ export type StudentMissionVisibility = {
   dailyWriting: boolean;
   emotionOrbs: boolean;
   classword: boolean;
+  circleDrawing: boolean;
   personalQuestion: boolean;
   failureExhibition: boolean;
   sudoku: boolean;
@@ -24,6 +25,7 @@ export const STUDENT_MISSION_VISIBILITY_GROUPS = [
       { id: 'dailyWriting', label: '글밥짓기' },
       { id: 'emotionOrbs', label: '감정 구슬 넣기' },
       { id: 'classword', label: 'ㄱㄴㄷ 게임' },
+      { id: 'circleDrawing', label: '원 그리기' },
     ],
   },
   {
@@ -47,6 +49,7 @@ export const DEFAULT_STUDENT_MISSION_VISIBILITY: StudentMissionVisibility = {
   dailyWriting: true,
   emotionOrbs: true,
   classword: true,
+  circleDrawing: true,
   personalQuestion: true,
   failureExhibition: true,
   sudoku: true,
@@ -66,6 +69,7 @@ export const normalizeStudentMissionVisibility = (value: unknown): StudentMissio
     dailyWriting: parsed.dailyWriting !== false,
     emotionOrbs: parsed.emotionOrbs !== false,
     classword: parsed.classword !== false,
+    circleDrawing: parsed.circleDrawing !== false,
     personalQuestion: parsed.personalQuestion !== false,
     failureExhibition: parsed.failureExhibition !== false,
     sudoku: parsed.sudoku !== false,

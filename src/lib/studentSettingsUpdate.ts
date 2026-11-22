@@ -5,7 +5,7 @@ export const STUDENT_MUTABLE_MAP_FIELDS = [
   'studentPets',
 ] as const;
 
-export const STUDENT_MUTABLE_PROGRESS_FIELDS = ['studentSudoku', 'studentNumberBaseball'] as const;
+export const STUDENT_MUTABLE_PROGRESS_FIELDS = ['studentSudoku', 'studentNumberBaseball', 'studentCircleDrawing'] as const;
 export const STUDENT_MUTABLE_SHARED_FIELDS = ['auctionBids', 'auctionBidHistory', 'studentLife'] as const;
 
 const asRecord = (value: unknown): Record<string, unknown> => (

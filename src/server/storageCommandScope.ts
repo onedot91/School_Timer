@@ -73,6 +73,8 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
     } else if (action === 'student.emotion.save') { add({ path: '/studentEmotionHistory', students: [own] }, true, true); money([own]); }
     else if (['student.sudoku.save', 'student.sudoku.complete', 'student.baseball.save', 'student.baseball.complete'].includes(action)) {
       add({ path: action.includes('.sudoku.') ? '/studentSudoku' : '/studentNumberBaseball', students: [own] }, true, true); money([own]);
+    } else if (action === 'student.circle.submit') {
+      add({ path: '/studentCircleDrawing', students: [own] }, true, true); money([own]);
     } else if (action === 'student.auction.bid') {
       auction.forEach(name => field(name, name === 'auctionBids' || name === 'auctionBidHistory')); money([own], false);
     } else throw new StorageScopeError();

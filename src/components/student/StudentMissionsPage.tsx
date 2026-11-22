@@ -27,6 +27,7 @@ import StudentMissionCard, {
 } from './StudentMissionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import { DAILY_WRITING_REWARD } from '../../lib/dailyWriting';
+import { CIRCLE_DRAWING_REWARDS } from '../../lib/circleDrawing';
 import {
   CLASSROOM_ROLE_MISSION_REWARD,
   getStudentClassroomRole,
@@ -36,6 +37,7 @@ import {
 import { TODAY_FRIEND_REWARD, canViewTodayFriendMissionPage } from '../../lib/todayFriend';
 import {
   normalizeStudentMissionVisibility,
+  STUDENT_MISSION_VISIBILITY_GROUPS,
   type StudentMissionVisibility,
 } from '../../lib/studentMissionVisibility';
 
@@ -60,6 +62,8 @@ interface StudentMissionsPageProps {
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
   numberBaseballStatus: NumberBaseballStatus;
+  circleDrawingScore: number | null;
+  onOpenCircleDrawing: () => void;
   onOpenEmotions: () => void;
   onOpenMailbox: () => void;
   onOpenFailureExhibition: () => void;
@@ -138,6 +142,8 @@ export default function StudentMissionsPage({
   activeSudokuDifficulty,
   completedSudokuDifficulty,
   numberBaseballStatus,
+  circleDrawingScore,
+  onOpenCircleDrawing,
   onOpenEmotions,
   onOpenMailbox,
   onOpenFailureExhibition,
@@ -304,10 +310,22 @@ export default function StudentMissionsPage({
                   />
                 </motion.div>
               )) : null}
+            {studentMissionVisibility.circleDrawing ? <motion.div {...missionEntrance(auctionMissions.length + 5)}>
+              <StudentMissionCard
+                title="원 그리기"
+                illustrationSrc="/mission-illustrations/circle-drawing.png"
+                illustrationCaption={circleDrawingScore === null ? undefined : `오늘 ${circleDrawingScore}점`}
+                rewardAmount={CIRCLE_DRAWING_REWARDS}
+                verificationMode="automatic"
+                status={circleDrawingScore === null ? 'incomplete' : 'completed'}
+                actionLabel={circleDrawingScore === null ? '원 그리기' : '연습하기'}
+                onAction={onOpenCircleDrawing}
+              />
+            </motion.div> : null}
           </div>
         </section>
 
-        {Object.values(studentMissionVisibility).slice(5).some(Boolean) ? (
+        {STUDENT_MISSION_VISIBILITY_GROUPS[1].items.some(({ id }) => studentMissionVisibility[id]) ? (
         <section className="student-mission-group" aria-labelledby="weekly-mission-title">
           <header className="student-group-heading">
             <h2 id="weekly-mission-title">주간 미션</h2>

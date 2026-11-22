@@ -19,6 +19,7 @@ const reasonLabels: Record<CurrencyDayReason, string> = {
   weekly_emotion: '감정 주간 보상',
   sudoku_mission: '스도쿠 보상',
   number_baseball_mission: '숫자야구 보상',
+  circle_drawing_mission: '원 그리기 보상',
   classroom_role: '역할 차감',
   daily_writing: '글쓰기 보상',
   class_donation: '기부',

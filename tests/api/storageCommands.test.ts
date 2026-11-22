@@ -9,6 +9,7 @@ import { createStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import { normalizeStudentEconomyStates } from '../../src/lib/studentEconomy.js';
 import { isStorageRecord } from '../../src/lib/storageV2Codec.js';
+import { encodeCircleDrawingPoints, getCircleDrawingChallenge, getCircleDrawingDateKey, getCircleDrawingReward } from '../../src/lib/circleDrawing.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
 const retainedLetterCreatedAt = new Date().toISOString();
@@ -504,3 +505,41 @@ test('학생 범위 조회 후 감정 저장은 휴업일을 인정하고 재시
     assert.equal(Reflect.get(Object(value.currencyHistory), '2').length, 2);
   }, seed);
 });
+
+test('원 그리기는 서버에서 다시 채점해 하루 한 번만 보상하고 다른 학생 기록을 보존한다', () => environment(async (call, fixture) => {
+  const dateKey = getCircleDrawingDateKey(new Date()), key = `2:${dateKey}`;
+  const { centerX, centerY, radius } = getCircleDrawingChallenge(2, dateKey);
+  const circle = (scale: number) => encodeCircleDrawingPoints(Array.from({ length: 121 }, (_, index) => {
+    const angle = (index / 120) * Math.PI * 2;
+    return [centerX + Math.cos(angle) * radius * scale, centerY + Math.sin(angle) * radius * scale] as const;
+  }));
+  const half = encodeCircleDrawingPoints(Array.from({ length: 30 }, (_, index) => {
+    const angle = (index / 29) * Math.PI * 0.4;
+    return [centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius] as const;
+  }));
+
+  const incomplete = await call(2, 'POST', command('circle-short-0001', 'student.circle.submit', { key, points: half }));
+  assert.equal(incomplete.status, 400);
+  assert.equal(Reflect.get(Object(incomplete.body), 'error'), 'CIRCLE_DRAWING_INCOMPLETE');
+  assert.equal((await call(2, 'POST', command('circle-other-0001', 'student.circle.submit', { key: `3:${dateKey}`, points: circle(1) }))).status, 400);
+
+  // A client-side score is ignored: the server scores the points itself.
+  const request = command('circle-submit-0001', 'student.circle.submit', { key, points: circle(1.12), score: 100 });
+  const saved = await call(2, 'POST', request);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const value = structuredClone(fixture.read().value);
+  const entry = Reflect.get(Object(value.studentCircleDrawing), key);
+  const score = Reflect.get(Object(entry), 'score');
+  assert.ok(typeof score === 'number' && score >= 55 && score < 75, `score ${score}`);
+  const reward = getCircleDrawingReward(score);
+  assert.equal(normalizeCurrencyBalances(value.currencyBalances)['2'], 100 + reward);
+  assert.deepEqual(normalizeCurrencyHistory(value.currencyHistory)['2'].map(({ id, delta }) => [id, delta]), [[`circle-drawing-reward-2-${dateKey}`, reward]]);
+  assert.deepEqual(Reflect.get(Object(value.studentCircleDrawing), `3:${dateKey}`), { score: 91, points: '1,1;2,2', submittedAt: '2026-11-23T00:00:00.000Z' });
+  assert.equal(normalizeCurrencyBalances(value.currencyBalances)['3'], 100);
+
+  assert.equal((await call(2, 'POST', request)).status, 200);
+  const second = await call(2, 'POST', command('circle-submit-0002', 'student.circle.submit', { key, points: circle(1) }));
+  assert.equal(second.status, 400);
+  assert.equal(Reflect.get(Object(second.body), 'error'), 'CIRCLE_ALREADY_SUBMITTED');
+  assert.deepEqual(fixture.read().value, value);
+}, { ...initial(), studentCircleDrawing: { [`3:${getCircleDrawingDateKey(new Date())}`]: { score: 91, points: '1,1;2,2', submittedAt: '2026-11-23T00:00:00.000Z' } } }));

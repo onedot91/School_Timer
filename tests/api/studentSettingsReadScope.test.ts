@@ -52,6 +52,7 @@ test('학생 GET은 필요한 범위만 DB에서 읽고 전체 학생 조회 계
     studentEmotionHistory: { 1: [{ id: 'own-emotion' }], 2: [{ id: 'other-emotion' }] },
     studentSudoku: { '1:week': { solved: true }, '2:week': { solved: false } },
     studentNumberBaseball: { '1:week': { attempts: [] }, '2:week': { attempts: [] } },
+    studentCircleDrawing: { '1:2026-11-23': { score: 70 }, '2:2026-11-23': { score: 99 } },
     auctionItems: [{ id: 'shared-auction' }], studentLife: life, teacherOnly: 'private-settings',
   });
   const result = await screen.read(1);
@@ -66,6 +67,7 @@ test('학생 GET은 필요한 범위만 DB에서 읽고 전체 학생 조회 계
   assert.deepEqual(result.value.currencyHistory, { 1: ownHistory });
   assert.deepEqual(result.value.studentSudoku, { '1:week': { solved: true } });
   assert.deepEqual(result.value.studentNumberBaseball, { '1:week': { attempts: [] } });
+  assert.deepEqual(result.value.studentCircleDrawing, { '1:2026-11-23': { score: 70 } });
   assert.deepEqual(result.value.studentLife, { ...life, letters: [life.letters[0]] });
   assert.deepEqual(result.value.auctionItems, [{ id: 'shared-auction' }]);
   assert.equal(result.value.teacherOnly, undefined);

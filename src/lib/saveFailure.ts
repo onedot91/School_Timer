@@ -2,7 +2,7 @@ import { getStorageAvailability } from './storageAvailability.js';
 
 export const SAVE_FAILURE_FEATURES = {
   settings: '학급 설정', numberBaseball: '숫자 야구', emotion: '감정 구슬', auction: '경매 입찰',
-  sudoku: '스도쿠', pet: '펫', studentLife: '학생 기록', economy: '고마 거래',
+  sudoku: '스도쿠', circleDrawing: '원 그리기', pet: '펫', studentLife: '학생 기록', economy: '고마 거래',
   donation: '기부', announcement: '알림장', classword: 'ㄱㄴㄷ 게임', todayFriend: '오늘의 친구', library: '책장', newspaper: '신문 질문',
 } as const;
 export type SaveFailureFeature = keyof typeof SAVE_FAILURE_FEATURES;
@@ -23,7 +23,7 @@ export type SaveFailureReport = {
 export const SAVE_FAILURE_VIEWS = {
   teacher: '교사 화면', overview: '광장', store: '상점', 'store-auction': '경매장',
   'store-bank': '은행', 'store-shop': '고마 상점', 'store-donation': '기부',
-  missions: '미션', emotions: '감정 구슬', 'number-baseball': '숫자 야구', sudoku: '스도쿠',
+  missions: '미션', emotions: '감정 구슬', 'number-baseball': '숫자 야구', sudoku: '스도쿠', 'circle-drawing': '원 그리기',
   classword: 'ㄱㄴㄷ 게임', 'today-friend': '오늘의 친구', mailbox: '우체통', newspaper: '신문 질문',
   library: '도서관', 'library-bookstore': '책방', 'library-bookshelf': '책장', 'library-failure-board': '실패 게시판',
 } as const;
@@ -163,6 +163,7 @@ export const getSaveFailureScopeFeature = (feature: string): SaveFailureFeature 
   if (feature.startsWith('student.emotion.')) return 'emotion';
   if (feature.startsWith('student.sudoku.')) return 'sudoku';
   if (feature.startsWith('student.baseball.')) return 'numberBaseball';
+  if (feature.startsWith('student.circle.')) return 'circleDrawing';
   if (feature.startsWith('student.pet.')) return 'pet';
   if (feature === 'classword' || feature === 'classword-input' || feature === 'classword-request') return 'classword';
   if (feature === 'todayFriend' || feature === 'today-friend-input') return 'todayFriend';
