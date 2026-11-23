@@ -277,11 +277,14 @@ import StatusSlot from '../components/StatusSlot';
 import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
 import { hasMorningActivityEnded, isMorningSlot, MORNING_ACTIVITY_LABEL } from '../lib/morningActivity';
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
+import { normalizeTournament, type Tournament } from '../lib/tournament';
+import { loadStoredTournament, storeTournament } from '../lib/tournamentLocalStore';
 import { getServerSyncedNow } from '../lib/serverClock';
 import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
 import { setSaveActivityPending } from '../lib/saveActivity';
 
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
+const TeacherTournamentPanel = lazy(() => import('../components/teacher/TeacherTournamentPanel'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
 const TeacherTodayFriendPanel = lazy(() => import('../components/teacher/TeacherTodayFriendPanel'));
 const TeacherNewspaperPanel = lazy(() => import('../components/teacher/TeacherNewspaperPanel'));
@@ -501,6 +504,7 @@ interface SharedSchoolTimerSettings {
   studentShopCatalog: StudentShopCatalogItem[];
   studentStockMarket: StudentStockMarket;
   classPrepRelease: ClassPrepRelease | null;
+  tournament: Tournament | null;
 }
 
 interface NoticeHighlightRange {
@@ -1779,6 +1783,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
     studentStockMarket: normalizeStudentStockMarket(parsed.studentStockMarket),
     classPrepRelease: parseClassPrepRelease(parsed.classPrepRelease),
+    tournament: normalizeTournament(parsed.tournament),
   };
 };
 
@@ -4125,6 +4130,10 @@ export default function TimerPage() {
       return null;
     }
   });
+  const [tournament, setTournament] = useState<Tournament | null>(() => (
+    isSupabaseSettingsEnabled ? null : loadStoredTournament()
+  ));
+  const [drawSettingsTab, setDrawSettingsTab] = useState<'numbers' | 'tournament'>('numbers');
   const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
   const [stockMarketWeekDrafts, setStockMarketWeekDrafts] = useState<StockMarketWeekDrafts>({});
   const [stockMarketSaveStatus, setStockMarketSaveStatus] = useState('');
@@ -4826,6 +4835,7 @@ export default function TimerPage() {
     studentShopCatalog,
     studentStockMarket,
     classPrepRelease,
+    tournament,
   });
 
   const latestTeacherSnapshotRef = useRef<Record<string, unknown>>({});
@@ -4894,6 +4904,7 @@ export default function TimerPage() {
     setStudentShopCatalog(normalizeStudentShopCatalog(remoteSettings.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(remoteSettings.studentStockMarket));
     setClassPrepRelease(remoteSettings.classPrepRelease);
+    setTournament(remoteSettings.tournament);
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -5081,6 +5092,10 @@ export default function TimerPage() {
     if (classPrepRelease) localStorage.setItem(CLASS_PREP_RELEASE_STORAGE_KEY, JSON.stringify(classPrepRelease));
     else localStorage.removeItem(CLASS_PREP_RELEASE_STORAGE_KEY);
   }, [classPrepRelease]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) storeTournament(tournament);
+  }, [tournament]);
 
   useEffect(() => {
     if (scheduleYoutubeUrls.length > 0) {
@@ -5356,6 +5371,7 @@ export default function TimerPage() {
     studentShopCatalog,
     studentStockMarket,
     classPrepRelease,
+    tournament,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -9724,11 +9740,44 @@ export default function TimerPage() {
       ) : null}
     </>
   );
-  const drawSettingsPanel = (
+  const drawSettingsTabs = (
+    <nav className="teacher-draw-tabs" role="tablist" aria-label="추첨 방식">
+      {([
+        { id: 'numbers', label: '번호 뽑기' },
+        { id: 'tournament', label: '토너먼트' },
+      ] as const).map((tab, index, tabs) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={drawSettingsTab === tab.id}
+          tabIndex={drawSettingsTab === tab.id ? 0 : -1}
+          onClick={() => setDrawSettingsTab(tab.id)}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            setDrawSettingsTab(tabs[1 - index].id);
+            window.requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.teacher-draw-tabs [aria-selected="true"]')?.focus());
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </nav>
+  );
+  const drawSettingsPanel = drawSettingsTab === 'tournament' ? (
+    <TeacherTournamentPanel
+      tabs={drawSettingsTabs}
+      tournament={tournament}
+      profileAssignments={studentLife.failureProfileAssignments}
+      onChange={setTournament}
+    />
+  ) : (
     <SettingsPanelFrame
       label="추첨"
       status={(
         <>
+          {drawSettingsTabs}
           <h3 className="section-title">{selectedDrawSettingsCaseLabel}</h3>
           <SettingsStatusChip>범위 {selectedDrawSettingsBounds.minNumber} - {selectedDrawSettingsBounds.maxNumber}</SettingsStatusChip>
           <SettingsStatusChip>명단 {assignedStudentNameCount} / {settingsStudentNumbers.length}</SettingsStatusChip>
