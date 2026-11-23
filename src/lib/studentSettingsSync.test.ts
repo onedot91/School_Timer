@@ -8,6 +8,7 @@ import {
   STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
   STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
+  STUDENT_CLASSWORD_SYNC_INTERVAL_MS,
   STUDENT_SETTINGS_CACHE_KEY,
   storeStudentProfileSnapshot,
   studentSettingsRetryDelay,
@@ -48,14 +49,15 @@ test('학생 최초 조회는 교사 즉시 조회를 위해 750ms 뒤부터 3�
   assert.equal(studentSettingsInitialDelay(24, () => 1), 2725);
 });
 
-test('경매는 2초, 일반 상점과 개요는 10초 간격으로 공유 변경을 확인한다', () => {
-  assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.overview, 10_000);
-  assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.store, 10_000);
+test('경매는 2초, 일반 상점과 개요는 DB 부하를 줄이려 20초 간격으로 공유 변경을 확인한다', () => {
+  assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.overview, 20_000);
+  assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.store, 20_000);
   assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS['store-auction'], 2_000);
   assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.emotions, undefined);
   assert.equal(STUDENT_SETTINGS_SYNC_INTERVAL_MS.missions, undefined);
   assert.equal(STUDENT_FOREGROUND_SYNC_COOLDOWN_MS, 2_000);
-  assert.equal(STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS, 10_000);
+  assert.equal(STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS, 20_000);
+  assert.equal(STUDENT_CLASSWORD_SYNC_INTERVAL_MS, 15_000);
 });
 
 test('프로필 저장보다 늦게 도착한 과거 조회는 거부하고 같은 버전과 이후 변경은 반영한다', () => {
