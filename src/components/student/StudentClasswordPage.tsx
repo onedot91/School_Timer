@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
 import { browserDraftStorage } from '../../lib/featureInputDraft';
 import { appDataMode } from '../../lib/dataMode';
-import { studentSettingsPollInterval, studentSettingsRetryDelay } from '../../lib/studentSettingsSync';
+import { STUDENT_CLASSWORD_SYNC_INTERVAL_MS, studentSettingsPollInterval, studentSettingsRetryDelay } from '../../lib/studentSettingsSync';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
 import { EMPTY_CLASSWORD_DRAFT, readyClasswordDraft, classwordDraftVersion, confirmClasswordDraft, settleClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
 import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
@@ -191,7 +191,7 @@ export default function StudentClasswordPage({
         failures = errors.length ? failures + 1 : 0;
         const delay = Math.ceil(failures
           ? Math.max(...errors.map(result => studentSettingsRetryDelay(failures, result.error)))
-          : appDataMode === 'mock' ? 3000 : studentSettingsPollInterval(5000));
+          : appDataMode === 'mock' ? 3000 : studentSettingsPollInterval(STUDENT_CLASSWORD_SYNC_INTERVAL_MS));
         retryAt = failures ? Date.now() + delay : 0;
         if (refreshAfterChange) refreshOnReturn(true);
         else poll = window.setTimeout(refreshOnFocus, delay);

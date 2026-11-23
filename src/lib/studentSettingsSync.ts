@@ -2,14 +2,19 @@ export type StudentSyncView = 'overview' | 'emotions' | 'missions' | 'store' | '
 
 export const STUDENT_SETTINGS_CACHE_KEY = 'school-timer-student-settings-snapshot-v2';
 
+// 2026-11-23 classroom stall: about 23 students polling every 5–10 seconds kept the Nano database
+// saturated. Each poll can also trigger a changed-scope read, so these intervals scale database work
+// directly. Auctions stay at 2 seconds; locked class-prep screens keep their 3-second release check.
 export const STUDENT_SETTINGS_SYNC_INTERVAL_MS: Partial<Record<StudentSyncView, number>> = {
-  overview: 10_000,
-  store: 10_000,
+  overview: 20_000,
+  store: 20_000,
   'store-auction': 2_000,
 };
 
 export const STUDENT_FOREGROUND_SYNC_COOLDOWN_MS = 2_000;
-export const STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS = 10_000;
+export const STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS = 20_000;
+// Each classword poll reads the board and the quiz state; a student's own change refreshes at once.
+export const STUDENT_CLASSWORD_SYNC_INTERVAL_MS = 15_000;
 
 export const studentSettingsRetryDelay = (failures: number, error: unknown, random = Math.random): number => {
   const retryAfter: unknown = error instanceof Error ? Reflect.get(error, 'retryAfterMs') : undefined;

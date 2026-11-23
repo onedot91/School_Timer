@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
-import { studentSettingsPollInterval, studentSettingsRetryDelay } from './studentSettingsSync';
+import { STUDENT_CLASSWORD_SYNC_INTERVAL_MS, studentSettingsPollInterval, studentSettingsRetryDelay } from './studentSettingsSync';
 
 const source = readFileSync(new URL('../components/student/StudentClasswordPage.tsx', import.meta.url), 'utf8');
 const script = ts.transpileModule(source.slice(source.indexOf('  const refresh = useCallback'), source.indexOf('  const submitQuiz =')),
@@ -34,6 +34,7 @@ const harness = (appDataMode = 'production', online = true, random = () => 0) =>
       setInterval: (run: () => void, delay: number) => schedule(run, delay, delay), clearInterval: (id: number) => timers.delete(id) },
     document: Object.assign(document, events), navigator,
     Date: { now: () => now, parse: Date.parse }, Math,
+    STUDENT_CLASSWORD_SYNC_INTERVAL_MS,
     studentSettingsPollInterval: (interval: number) => studentSettingsPollInterval(interval, random),
     studentSettingsRetryDelay: (failures: number, error: unknown) => studentSettingsRetryDelay(failures, error, random),
     dateKey: today, displayDateKey: today, studentNumber: 1, readOnly: false, appDataMode,
@@ -82,8 +83,8 @@ test('8초 조회 중 폴링·포커스가 요청을 겹치거나 정상 응답�
   await h.settle(0);
   assert.equal(h.boards.length, 1);
   assert.equal(h.quizzes.length, 1);
-  await h.advance(4_999);
-  assert.equal(h.boardRequests.length, 1);
+  await h.advance(14_999);
+  assert.equal(h.boardRequests.length, 1, 'Successful reads wait 15 seconds to spare the database');
   await h.advance(1);
   assert.equal(h.boardRequests.length, 2);
   h.cleanup();
@@ -103,7 +104,7 @@ test('실패 시 5초·10초로 물러나고 포커스 반복이 재시도 대�
     assert.equal(h.boardRequests.length, index + 2);
   }
   await h.settle(2);
-  await h.advance(5_000);
+  await h.advance(15_000);
   assert.equal(h.boardRequests.length, 4, 'Successful read resets the backoff');
   h.cleanup();
 });
