@@ -114,3 +114,37 @@ test('student reads keep the manifest of the cached parts and merge only the cha
     await server.close();
   }
 });
+
+test('student polls name the item-level bid history only after the server used it', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true', 'import.meta.env.DEV': 'false', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fixture') } });
+  const priorFetch = globalThis.fetch, priorWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: { getItem: () => '7' } } });
+  const requests: { url: string; bidItems: string | null }[] = [];
+  const replies: unknown[] = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ url: String(input), bidItems: new Headers(init?.headers).get('X-Storage-Bid-Items') });
+    return Response.json(replies.shift());
+  };
+  const id = 'school-timer-main', at = '2026-11-23T00:00:00Z', readVersion = '1'.repeat(32);
+  try {
+    const settings = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('./supabaseSettings.js');
+    const value = { auctionBids: { 'item-a': { bidder: 3, amount: 20 } } };
+    const reply = (key: string) => ({ id, updated_at: at, scope: 'student', encoding: 'storage-patch', readVersion, storagePatch: patch(value, true), readManifest: { [key]: 'a'.repeat(32) } });
+    replies.push(reply('scope:/auctionBidHistory'), { updatedAt: at, readVersion });
+    await settings.loadSharedSettingsRow();
+    assert.deepEqual(requests.at(-1), { url: '/api/shared-settings', bidItems: '1' });
+    await settings.loadSharedSettingsUpdatedAt();
+    assert.equal(requests.at(-1)?.url, '/api/shared-settings?metadata=1&scoped=1');
+
+    replies.push(reply('scope:/auctionBidHistory/item-1-2'), { updatedAt: at, readVersion });
+    await settings.loadSharedSettingsRow();
+    await settings.loadSharedSettingsUpdatedAt();
+    assert.equal(requests.at(-1)?.url, '/api/shared-settings?metadata=1&scoped=1&bidItems=1');
+  } finally {
+    globalThis.fetch = priorFetch;
+    if (priorWindow) Object.defineProperty(globalThis, 'window', priorWindow); else Reflect.deleteProperty(globalThis, 'window');
+    await server.close();
+  }
+});
