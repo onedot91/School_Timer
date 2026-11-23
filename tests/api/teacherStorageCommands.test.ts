@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
 import { hasDailyWritingReward } from '../../src/lib/dailyWriting.js';
+import { createTournament, normalizeTournament, setTournamentWinner } from '../../src/lib/tournament.js';
 import { createTeacherSettingsChanges } from '../../src/lib/teacherStorageCommand.js';
 import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 import { AUCTION_ITEM_IDS, normalizeAuctionAwards, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
@@ -278,4 +279,25 @@ test('normalized teacher defaults use the original server value for conflict che
   assert.deepEqual(saved.currencyBalances, persisted.currencyBalances);
   assert.throws(() => apply({ ...persisted, manualTimer: { totalTime: 900, isVisible: true } },
     'teacher.settings.patch', { changes }), /TEACHER_SETTING_CONFLICT/);
+});
+
+test('토너먼트를 처음 저장하고 결과를 이어 저장해도 다른 설정과 잔액은 그대로다', () => {
+  const persisted = { scheduleNotice: '기존', currencyBalances: { '17': 334 } };
+  const displayed = { ...persisted, tournament: null };
+  assert.deepEqual(createTeacherSettingsChanges(displayed, displayed, persisted), []);
+  const first = createTournament('오목 대회');
+  const created = apply(persisted, 'teacher.settings.patch', {
+    changes: createTeacherSettingsChanges(displayed, { ...displayed, tournament: first }, persisted),
+  }).value;
+  const restored = normalizeTournament(assembleStorageState(splitStorageState(created)).tournament);
+  assert.deepEqual(restored, first);
+  const match = first.seats.findIndex((seat, index) => index % 2 === 1 && seat !== 0);
+  const played = setTournamentWinner(first, 16 + (match - 1) / 2, first.seats[match]);
+  assert.equal(Object.keys(played.winners).length, 1);
+  const saved = apply(created, 'teacher.settings.patch', {
+    changes: createTeacherSettingsChanges(created, { ...created, tournament: played }),
+  }).value;
+  assert.deepEqual(saved.tournament, played);
+  assert.equal(saved.scheduleNotice, '기존');
+  assert.deepEqual(saved.currencyBalances, persisted.currencyBalances);
 });

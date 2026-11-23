@@ -1,0 +1,159 @@
+.tournament-toolbar { display: flex; flex-wrap: wrap; gap: .6rem; }
+.settings-dialog .tournament-toolbar input {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1 1 14rem;
+  padding: 0 1rem;
+  border: 1px solid var(--teacher-border-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--teacher-text);
+  background: var(--apple-surface);
+  font-size: var(--type-body);
+  font-weight: 800;
+}
+.settings-dialog .tournament-toolbar input:focus-visible { outline: 3px solid var(--teacher-focus); outline-offset: 2px; }
+
+.tournament-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: 0 1rem;
+  border: 1px solid var(--teacher-border-strong);
+  border-radius: var(--apple-radius-pill);
+  color: var(--teacher-text);
+  background: var(--apple-surface);
+  font-size: var(--type-body);
+  font-weight: 800;
+  white-space: nowrap;
+  transition: background-color 160ms ease, transform 100ms ease-out;
+}
+.tournament-button:hover:not(:disabled) { background: var(--teacher-surface-muted); }
+.tournament-button:active:not(:disabled) { transform: scale(.98); }
+.tournament-button:disabled { cursor: not-allowed; opacity: .5; }
+.tournament-button:focus-visible { outline: 3px solid var(--teacher-focus); outline-offset: 2px; }
+.tournament-error { margin: 0; color: var(--teacher-urgent); font-size: var(--type-label); font-weight: 800; }
+
+.settings-dialog .tournament-preview {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card) !important;
+  background: #f8efdc;
+  cursor: zoom-in;
+}
+.settings-dialog .tournament-preview:focus-visible { outline: 3px solid var(--teacher-focus); outline-offset: 2px; }
+.tournament-preview .tournament-bracket { max-height: max(18rem, calc(90dvh - 15.5rem)); }
+.tournament-bracket { display: block; width: 100%; height: auto; user-select: none; }
+.tournament-bracket [data-slot] { transform-box: fill-box; transform-origin: center; }
+.tournament-slot { cursor: pointer; outline: none; }
+.tournament-slot:hover .tournament-slot-frame { stroke-opacity: 1; }
+.tournament-slot:is(:hover, :focus-visible) .tournament-slot-undo { opacity: 1; }
+.tournament-slot:focus-visible .tournament-slot-frame { stroke: #37695a; stroke-opacity: 1; stroke-width: 8; }
+
+.teacher-settings-theme.tournament-viewer {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  overflow: hidden;
+  background: #f8efdc !important;
+  backdrop-filter: none;
+}
+.tournament-viewer .tournament-bracket { width: 100%; height: 100%; }
+/* 양쪽 4강 칸 사이, 결승 아래의 빈 자리 */
+.tournament-viewer-actions {
+  position: absolute;
+  z-index: 2;
+  bottom: 1rem;
+  left: 50%;
+  display: grid;
+  justify-items: stretch;
+  gap: .5rem;
+  transform: translateX(-50%);
+}
+.tournament-viewer-actions p { margin: 0; max-width: 13rem; color: var(--teacher-text-secondary); font-size: var(--type-body); font-weight: 800; text-align: center; word-break: keep-all; }
+.tournament-viewer-actions .tournament-error { color: var(--teacher-urgent); }
+/* 종이 단추: 아래로 어긋난 그림자 */
+.tournament-viewer .tournament-button {
+  border: 0;
+  color: #4a3a22;
+  background: #fffdf8;
+  box-shadow: 0 3px 0 rgb(107 85 54 / 20%), 0 8px 14px rgb(107 85 54 / 14%);
+}
+.tournament-viewer .tournament-button:hover:not(:disabled) { background: #fff3dc; }
+.tournament-viewer-actions p { color: #4a3a22; }
+.tournament-viewer .tournament-draw-button {
+  min-height: 76px;
+  padding: 0 2.75rem;
+  color: #ffffff;
+  background: #37695a;
+  box-shadow: 0 5px 0 #24493e, 0 12px 20px rgb(107 85 54 / 24%);
+  font-size: 2rem;
+  font-weight: 900;
+}
+.tournament-viewer .tournament-draw-button:hover:not(:disabled) { background: #2f5c4e; }
+
+.tournament-stage {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 1600px;
+  height: 900px;
+  pointer-events: none;
+}
+/* 재생 중에는 뒤의 대진표를 누르지 못하게 한다. */
+.tournament-stage[data-playing]::before { position: absolute; inset: -2000px; content: ''; pointer-events: auto; }
+.tournament-stage > * { position: absolute; pointer-events: none; }
+.tournament-trail { z-index: 2; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tournament-trail path { fill: none; stroke: #f0b548; stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 10px #f3c14e); }
+.tournament-dim { z-index: 1; inset: -2000px; background: rgb(52 40 24 / 82%); }
+.tournament-token {
+  z-index: 3;
+  top: 0;
+  left: 0;
+  border: 4px solid #fffdf8;
+  border-radius: 50%;
+  background: #fffdf8;
+  box-shadow: 0 4px 0 rgb(107 85 54 / 16%), 0 10px 20px rgb(107 85 54 / 20%);
+  font-weight: 900;
+  will-change: transform;
+}
+.tournament-token img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.tournament-token b {
+  position: absolute;
+  bottom: -16%;
+  left: 50%;
+  min-width: 62%;
+  padding: .12em .3em;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #4a3a22;
+  line-height: 1.1;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.tournament-token-winner { z-index: 4; border-color: #e0a63a; box-shadow: 0 0 0 12px #f6dfa4, 0 0 110px 30px #f0bd4b; }
+.tournament-token-winner b { background: #a5660f; }
+.tournament-versus {
+  z-index: 5;
+  top: 420px;
+  left: 800px;
+  color: #ffffff;
+  font-size: 150px;
+  font-weight: 900;
+  line-height: 1;
+  -webkit-text-stroke: 10px #cc4f56;
+  paint-order: stroke fill;
+}
+.tournament-announce { z-index: 5; top: 745px; left: 800px; color: #ffffff; font-size: 116px; font-weight: 900; line-height: 1; white-space: nowrap; }
+.tournament-ring { z-index: 2; border: 8px solid #d6a336; border-radius: 50%; }
+.tournament-confetti { z-index: 6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tournament-button { transition: none; }
+  .tournament-button:active:not(:disabled) { transform: none; }
+}

@@ -32734,3 +32734,32 @@ body:has(.student-circle-view) .data-mode-banner { top: 6.25rem; }
   .student-circle-view { --student-circle-board-size: min(calc(100vw - 4rem), 30rem); }
   .student-circle-main { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
 }
+
+.teacher-draw-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem;
+  padding: .25rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: .7rem;
+  background: var(--teacher-surface-muted);
+}
+.settings-frame-status > .teacher-draw-tabs[role="tablist"] { flex: 0 0 auto; }
+.settings-dialog .teacher-draw-tabs button {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0 !important;
+  border-radius: .5rem !important;
+  color: var(--teacher-text-secondary) !important;
+  background: transparent !important;
+  font-size: var(--type-label);
+  font-weight: 700;
+  box-shadow: none !important;
+}
+.settings-dialog .teacher-draw-tabs button[aria-selected="true"] {
+  color: var(--teacher-accent-pressed) !important;
+  background: var(--apple-surface) !important;
+  font-weight: 850;
+  box-shadow: inset 0 -3px var(--teacher-accent) !important;
+}
+.teacher-draw-tabs button:focus-visible { outline: 3px solid var(--teacher-focus); outline-offset: 2px; }
