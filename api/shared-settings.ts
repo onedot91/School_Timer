@@ -15,6 +15,7 @@ import {
 } from '../src/lib/canvasLibraryPlacement.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import { AUCTION_ITEM_IDS } from '../src/lib/currency.js';
 import { STUDENT_MUTABLE_MAP_FIELDS, STUDENT_MUTABLE_PROGRESS_FIELDS, STUDENT_MUTABLE_SHARED_FIELDS } from '../src/lib/studentSettingsUpdate.js';
 import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
 import { placeCompetitionBook, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
@@ -342,12 +343,18 @@ const handleLibraryPlacement = async (
   }
 };
 
-const studentReadScope = (studentNumber: number): import('../src/server/storageScope.js').StorageScope => ({
+// Each bid changes the bid history, so reading it as one part re-sent the whole class history to every student.
+const BID_HISTORY_PATH = '/auctionBidHistory';
+const BID_HISTORY_ITEM_PATHS = AUCTION_ITEM_IDS.map(itemId => `${BID_HISTORY_PATH}/${itemId}`);
+const bidItemReadsEnabled = (): boolean => process.env.STORAGE_BID_ITEM_READS === '1';
+const studentReadScope = (studentNumber: number, bidItems = false): import('../src/server/storageScope.js').StorageScope => ({
   resources: [
-    ...STUDENT_SHARED_FIELDS.filter(field => field !== 'studentLife').map(field => ({
-      path: `/${field}`,
-      ...(STUDENT_MUTABLE_PROGRESS_FIELDS.some(progress => progress === field) ? { students: [studentNumber] } : {}),
-    })),
+    ...STUDENT_SHARED_FIELDS.filter(field => field !== 'studentLife').flatMap(field => (
+      bidItems && `/${field}` === BID_HISTORY_PATH ? BID_HISTORY_ITEM_PATHS.map(path => ({ path })) : [{
+        path: `/${field}`,
+        ...(STUDENT_MUTABLE_PROGRESS_FIELDS.some(progress => progress === field) ? { students: [studentNumber] } : {}),
+      }]
+    )),
     // Fetch only this mailbox in PostgreSQL, rather than transferring every
     // student's letters to the Function and discarding them afterwards.
     { path: '/studentLife/letters', mail: { actor: studentNumber, direction: 'participant' } },
@@ -364,17 +371,20 @@ const studentReadScope = (studentNumber: number): import('../src/server/storageS
 });
 
 /** A student manifest names only this student's read selectors and wallet. */
-const parseStudentReadManifest = (raw: unknown, studentNumber: number): Record<string, string> | null => {
+const parseStudentReadManifest = (raw: unknown, studentNumber: number, bidItems: boolean): Record<string, string> | null => {
   if (raw === undefined) return null;
   if (typeof raw !== 'string' || raw.length > 32768) throw new Error('STORAGE_INVALID_READ_MANIFEST');
   const known = parseReadManifest(JSON.parse(raw));
-  const keys = new Set([...studentReadScope(studentNumber).resources.map(selection => `scope:${selection.path}`), `wallet:${studentNumber}`]);
-  if (Object.keys(known).some(name => !keys.has(name))) throw new Error('STORAGE_INVALID_READ_MANIFEST');
-  return known;
+  const keysOf = (items: boolean) => [...studentReadScope(studentNumber, items).resources.map(selection => `scope:${selection.path}`), `wallet:${studentNumber}`];
+  const allowed = new Set([...keysOf(false), ...keysOf(true)]);
+  if (Object.keys(known).some(name => !allowed.has(name))) throw new Error('STORAGE_INVALID_READ_MANIFEST');
+  // Digests of the other bid-history layout are ignored, so a screen open across a flag change re-reads that part once.
+  const current = new Set(keysOf(bidItems));
+  return Object.fromEntries(Object.entries(known).filter(([name]) => current.has(name)));
 };
 
-const loadStudentChanges = async (url: string, key: string, studentNumber: number, known: Record<string, string> | null) => {
-  const { manifest, snapshot, complete } = await loadScopedStorageChangesForRead({ url, key }, studentReadScope(studentNumber), known);
+const loadStudentChanges = async (url: string, key: string, studentNumber: number, known: Record<string, string> | null, bidItems: boolean) => {
+  const { manifest, snapshot, complete } = await loadScopedStorageChangesForRead({ url, key }, studentReadScope(studentNumber, bidItems), known);
   const value = projectStudentValue(snapshot.value, studentNumber);
   return { id: SETTINGS_ID, value, updated_at: snapshot.updated_at, scope: 'student' as const, readManifest: manifest,
     ...(snapshot.readVersion ? { readVersion: snapshot.readVersion } : {}),
@@ -517,8 +527,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           if (process.env.STORAGE_PROTOCOL_VERSION === '2' && ['1', '2'].includes(process.env.STORAGE_SCOPED_POLLING ?? '')
             && request.query?.scoped === '1' && session.role === 'student' && session.studentNumber !== TEST_STUDENT_NUMBER) {
             const knownReadMarker = request.query?.knownReadMarker;
+            const scope = studentReadScope(session.studentNumber, bidItemReadsEnabled() && request.query?.bidItems === '1');
             if (process.env.STORAGE_SCOPED_POLLING === '2') {
-              response.status(200).json(await pollScopedStorageMetadata(configuration, studentReadScope(session.studentNumber),
+              response.status(200).json(await pollScopedStorageMetadata(configuration, scope,
                 typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker) ? knownReadMarker : null));
               return;
             }
@@ -529,7 +540,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
                 return;
               }
             }
-            response.status(200).json(await loadScopedStorageMetadata(configuration, studentReadScope(session.studentNumber)));
+            response.status(200).json(await loadScopedStorageMetadata(configuration, scope));
             return;
           }
           response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key),
@@ -566,13 +577,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           && request.query?.overview !== '1' && process.env.STORAGE_PROTOCOL_VERSION === '2'
           && process.env.STORAGE_STUDENT_CHANGES === '1' && session.studentNumber !== TEST_STUDENT_NUMBER) {
           let known: Record<string, string> | null;
+          const bidItems = bidItemReadsEnabled()
+            && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-bid-items' && value === '1');
           try {
-            known = parseStudentReadManifest(Object.entries(request.headers ?? {}).find(([name]) => name.toLowerCase() === 'x-storage-read-manifest')?.[1], session.studentNumber);
+            known = parseStudentReadManifest(Object.entries(request.headers ?? {}).find(([name]) => name.toLowerCase() === 'x-storage-read-manifest')?.[1], session.studentNumber, bidItems);
           } catch {
             response.status(400).json({ error: 'STORAGE_INVALID_READ_MANIFEST' }); return;
           }
           const row = await withStorageRequestTiming(async timing => {
-            try { return await loadStudentChanges(configuration.url, configuration.key, session.studentNumber, known); }
+            try { return await loadStudentChanges(configuration.url, configuration.key, session.studentNumber, known, bidItems); }
             finally { response.setHeader('Server-Timing', formatServerTiming(Date.now() - startedAt, timing)); }
           });
           if (row.storagePatch.complete && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {

@@ -35,7 +35,7 @@ export type SettingsRow = {
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
 let settingsActorContext: StorageResponseContext | undefined;
-let studentReadState: { version: string; updatedAt: string; marker?: string } | undefined;
+let studentReadState: { version: string; updatedAt: string; marker?: string; bidItems: boolean } | undefined;
 let teacherReadManifest: Record<string, string> | undefined;
 // Digests of the student scope parts already in the projection cache; the server then sends only changed parts.
 let studentReadManifest: Record<string, string> | undefined;
@@ -242,7 +242,7 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext, overview 
     const manifest = context.actor === '0' ? teacherReadManifest : overview ? undefined : studentReadManifest;
     const received = parseSettingsRow(await fetchJson(context.actor === '0' ? '/api/shared-settings?changes=1'
       : overview ? '/api/shared-settings?overview=1' : '/api/shared-settings', {
-      headers: { 'X-Storage-Projection': '1', 'X-Storage-Compact': '1', ...(context.actor !== '0' && !overview ? { 'X-Storage-Changes': '1' } : {}),
+      headers: { 'X-Storage-Projection': '1', 'X-Storage-Compact': '1', ...(context.actor !== '0' && !overview ? { 'X-Storage-Changes': '1', 'X-Storage-Bid-Items': '1' } : {}),
         ...(manifest ? { 'X-Storage-Read-Manifest': JSON.stringify(manifest) } : {}) },
     }, true));
     if (received?.readManifest && !received.storagePatch?.complete && !manifest) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
@@ -258,7 +258,9 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext, overview 
       else studentReadManifest = nextManifest;
       if (context.actor === '0') teacherChangesSupported = received?.readManifest !== undefined;
       studentReadState = received?.scope === 'student' && received.readVersion && received.updated_at === row.updated_at
-        ? { version: received.readVersion, updatedAt: received.updated_at, marker: received.readMarker } : undefined;
+        ? { version: received.readVersion, updatedAt: received.updated_at, marker: received.readMarker,
+          // The poll must compare the same scope layout that produced this version.
+          bidItems: Object.keys(received.readManifest ?? {}).some(key => key.startsWith('scope:/auctionBidHistory/')) } : undefined;
     } else if (generation === settingsCacheGeneration && isFresh && row?.updated_at !== currentTimestamp) {
       cachedWritableSharedSettingsRow = undefined;
     }
@@ -332,7 +334,7 @@ const fetchSharedSettingsUpdatedAt = async (context: StorageResponseContext): Pr
   if (useServerProxy) {
     const readState = studentReadState;
     const result: unknown = await fetchJson(`/api/shared-settings?metadata=1${readState
-      ? `&scoped=1${readState.marker ? `&knownReadMarker=${readState.marker}` : ''}` : ''}`, undefined, true);
+      ? `&scoped=1${readState.bidItems ? '&bidItems=1' : ''}${readState.marker ? `&knownReadMarker=${readState.marker}` : ''}` : ''}`, undefined, true);
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
     if (!isStorageRecord(result) || (result.updatedAt !== null && typeof result.updatedAt !== 'string')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
     if (readState?.marker && result.unchanged === true && result.readMarker === readState.marker) {
