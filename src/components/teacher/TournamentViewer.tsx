@@ -42,7 +42,6 @@ interface TournamentViewerProps {
 type PendingConfirm = { readonly kind: 'redraw' } | { readonly kind: 'undo'; readonly match: number; readonly removedCount: number };
 
 const NO_KEYS: ReadonlySet<string> = new Set();
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const getMotionPoint = (layout: TournamentLayout, key: string): TournamentMotionPoint => {
   if (key === TOURNAMENT_CHAMPION_KEY) return TOURNAMENT_CHAMPION;
@@ -103,9 +102,10 @@ export default function TournamentViewer({
     ], { duration: 520, easing: 'ease-out' });
   };
 
+  // 교사 화면은 동작 줄이기에서 제외한다(RootApp의 data-teacher-motion). 건너뛰기로 바로 끝낼 수 있다.
   const run = async (keys: readonly string[], motion: (context: TournamentMotionContext) => Promise<void>) => {
     const layer = layerRef.current;
-    if (!layer || prefersReducedMotion()) return;
+    if (!layer) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setHiddenKeys(new Set(keys));

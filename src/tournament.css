@@ -152,8 +152,3 @@
 .tournament-announce { z-index: 5; top: 745px; left: 800px; color: #ffffff; font-size: 116px; font-weight: 900; line-height: 1; white-space: nowrap; }
 .tournament-ring { z-index: 2; border: 8px solid #d6a336; border-radius: 50%; }
 .tournament-confetti { z-index: 6; }
-
-@media (prefers-reduced-motion: reduce) {
-  .tournament-button { transition: none; }
-  .tournament-button:active:not(:disabled) { transform: none; }
-}
