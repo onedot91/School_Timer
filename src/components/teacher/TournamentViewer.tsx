@@ -1,4 +1,4 @@
-import { Download, Shuffle, SkipForward, X } from 'lucide-react';
+import { Download, LoaderCircle, Shuffle, SkipForward, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
@@ -18,11 +18,11 @@ import {
   TOURNAMENT_STAGE_WIDTH,
   getTournamentDestinationKey,
   getTournamentLayout,
+  getTournamentStageFit,
   type TournamentLayout,
 } from '../../lib/tournamentLayout';
 import { playTournamentDraw, playTournamentMatch, type TournamentMotionContext, type TournamentMotionPoint } from '../../lib/tournamentMotion';
 import { useModalFocus } from '../../lib/useModalFocus';
-import StableLabel from '../StableLabel';
 import StudentConfirmDialog from '../student/StudentConfirmDialog';
 import TournamentBracket from './TournamentBracket';
 
@@ -66,6 +66,7 @@ export default function TournamentViewer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -75,14 +76,21 @@ export default function TournamentViewer({
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // 무대(1600×900)를 SVG와 같은 비율·위치로 맞춘다.
+  // 대진표와 애니메이션 무대를 우측 상단 닫기 단추와 겹치지 않는 자리에 함께 맞춘다.
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
+    const canvas = canvasRef.current;
     const layer = layerRef.current;
-    if (!dialog || !layer) return undefined;
+    if (!dialog || !canvas || !layer) return undefined;
     const fit = () => {
-      const scale = Math.min(dialog.clientWidth / TOURNAMENT_STAGE_WIDTH, dialog.clientHeight / TOURNAMENT_STAGE_HEIGHT);
-      layer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      const { scale, left, top } = getTournamentStageFit(dialog.clientWidth, dialog.clientHeight);
+      Object.assign(canvas.style, {
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${TOURNAMENT_STAGE_WIDTH * scale}px`,
+        height: `${TOURNAMENT_STAGE_HEIGHT * scale}px`,
+      });
+      layer.style.transform = `scale(${scale})`;
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -182,48 +190,61 @@ export default function TournamentViewer({
   return (
     <>
       <section ref={dialogRef} className="teacher-settings-theme tournament-viewer" role="dialog" aria-modal="true" aria-label="토너먼트 크게 보기" aria-busy={isPlaying}>
-        <TournamentBracket
-          tournament={tournament ?? emptyTournament}
-          profileAssignments={profileAssignments}
-          hiddenKeys={hiddenKeys}
-          isEmpty={!tournament}
-          onSelect={selectStudent}
-        />
-        <div ref={layerRef} className="tournament-stage" data-playing={isPlaying || undefined} aria-hidden="true" />
-        <div className="tournament-viewer-actions">
-          {isPlaying ? (
-            <button ref={primaryButtonRef} type="button" className="tournament-button" onClick={() => abortRef.current?.abort()}>
-              <SkipForward size={18} aria-hidden="true" />
-              건너뛰기
-            </button>
-          ) : (
-            <>
-              {tournament && resultCount === 0 ? <p>이긴 학생을 누르세요</p> : null}
-              {tournament ? (
-                <>
-                  <button ref={primaryButtonRef} type="button" className="tournament-button" onClick={() => setPendingConfirm({ kind: 'redraw' })}>
-                    <Shuffle size={18} aria-hidden="true" />
-                    다시 뽑기
-                  </button>
-                  <button type="button" className="tournament-button" disabled={isDownloading} onClick={onDownload}>
-                    <Download size={18} aria-hidden="true" />
-                    <StableLabel busy={isDownloading} busyLabel="만드는 중" label="다운로드" />
-                  </button>
-                </>
-              ) : (
-                <button ref={primaryButtonRef} type="button" className="tournament-button tournament-draw-button" onClick={draw}>
-                  <Shuffle size={26} aria-hidden="true" />
-                  뽑기
-                </button>
-              )}
-              <button type="button" className="tournament-button" onClick={onClose}>
-                <X size={18} aria-hidden="true" />
-                닫기
+        <div ref={canvasRef} className="tournament-canvas">
+          <TournamentBracket
+            tournament={tournament ?? emptyTournament}
+            profileAssignments={profileAssignments}
+            hiddenKeys={hiddenKeys}
+            isEmpty={!tournament}
+            onSelect={selectStudent}
+          />
+          <div ref={layerRef} className="tournament-stage" data-playing={isPlaying || undefined} aria-hidden="true" />
+          <div className="tournament-viewer-actions">
+            {isPlaying ? (
+              <button ref={primaryButtonRef} type="button" className="tournament-button" onClick={() => abortRef.current?.abort()}>
+                <SkipForward size={18} aria-hidden="true" />
+                건너뛰기
               </button>
-              {downloadError ? <p className="tournament-error" role="alert">{downloadError}</p> : null}
-            </>
-          )}
+            ) : tournament ? (
+              <>
+                {downloadError ? <p className="tournament-error" role="alert">{downloadError}</p> : null}
+                {resultCount === 0 ? <p>이긴 학생을 누르세요</p> : null}
+                <div className="tournament-icon-row">
+                  <button
+                    ref={primaryButtonRef}
+                    type="button"
+                    className="tournament-button tournament-icon-button"
+                    aria-label="다시 뽑기"
+                    title="다시 뽑기"
+                    onClick={() => setPendingConfirm({ kind: 'redraw' })}
+                  >
+                    <Shuffle size={22} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="tournament-button tournament-icon-button"
+                    aria-label={isDownloading ? '다운로드 파일 만드는 중' : '다운로드'}
+                    title="다운로드"
+                    disabled={isDownloading}
+                    onClick={onDownload}
+                  >
+                    {isDownloading
+                      ? <LoaderCircle className="animate-spin" size={22} aria-hidden="true" />
+                      : <Download size={22} aria-hidden="true" />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button ref={primaryButtonRef} type="button" className="tournament-button tournament-draw-button" onClick={draw}>
+                <Shuffle size={26} aria-hidden="true" />
+                뽑기
+              </button>
+            )}
+          </div>
         </div>
+        <button type="button" className="tournament-button tournament-icon-button tournament-viewer-close" aria-label="닫기" title="닫기" onClick={onClose}>
+          <X size={24} aria-hidden="true" />
+        </button>
       </section>
       {pendingConfirm ? (
         <StudentConfirmDialog

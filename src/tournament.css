@@ -62,7 +62,8 @@
   background: #f8efdc !important;
   backdrop-filter: none;
 }
-.tournament-viewer .tournament-bracket { width: 100%; height: 100%; }
+.tournament-viewer .tournament-bracket { width: 100%; height: 100%; overflow: visible; }
+.tournament-canvas { position: absolute; }
 /* 양쪽 4강 칸 사이, 결승 아래의 빈 자리 */
 .tournament-viewer-actions {
   position: absolute;
@@ -70,12 +71,16 @@
   bottom: 1rem;
   left: 50%;
   display: grid;
-  justify-items: stretch;
-  gap: .5rem;
+  justify-items: center;
+  gap: .6rem;
   transform: translateX(-50%);
 }
-.tournament-viewer-actions p { margin: 0; max-width: 13rem; color: var(--teacher-text-secondary); font-size: var(--type-body); font-weight: 800; text-align: center; word-break: keep-all; }
+.tournament-viewer-actions p { margin: 0; max-width: 13rem; font-size: var(--type-body); font-weight: 800; text-align: center; word-break: keep-all; }
 .tournament-viewer-actions .tournament-error { color: var(--teacher-urgent); }
+.tournament-icon-row { display: flex; gap: .75rem; }
+.tournament-viewer .tournament-icon-button { width: 44px; padding: 0; border-radius: 50%; }
+.tournament-viewer-close { position: absolute; z-index: 3; top: 8px; right: 8px; }
+
 /* 종이 단추: 아래로 어긋난 그림자 */
 .tournament-viewer .tournament-button {
   border: 0;
@@ -84,7 +89,7 @@
   box-shadow: 0 3px 0 rgb(107 85 54 / 20%), 0 8px 14px rgb(107 85 54 / 14%);
 }
 .tournament-viewer .tournament-button:hover:not(:disabled) { background: #fff3dc; }
-.tournament-viewer-actions p { color: #4a3a22; }
+.tournament-viewer-actions p:not(.tournament-error) { color: #4a3a22; }
 .tournament-viewer .tournament-draw-button {
   min-height: 76px;
   padding: 0 2.75rem;
@@ -99,10 +104,11 @@
 .tournament-stage {
   position: absolute;
   z-index: 1;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   width: 1600px;
   height: 900px;
+  transform-origin: 0 0;
   pointer-events: none;
 }
 /* 재생 중에는 뒤의 대진표를 누르지 못하게 한다. */

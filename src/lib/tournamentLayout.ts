@@ -26,6 +26,27 @@ const FINAL_COLUMN = COLUMNS.length - 1;
 const FINAL_CENTER_Y = 500;
 const FINAL_BANNER_Y = 386;
 
+/** 크게 보기 우측 상단 닫기 단추가 차지하는 폭과 높이(px). 단추 44px과 위아래·좌우 여백 8px. */
+export const TOURNAMENT_CLOSE_AREA = 60;
+
+/** 닫기 단추와 겹치지 않으면서 대진표를 가장 크게 놓을 수 있는 자리. */
+export const getTournamentStageFit = (width: number, height: number) => {
+  const fullScale = Math.min(width / TOURNAMENT_STAGE_WIDTH, height / TOURNAMENT_STAGE_HEIGHT);
+  const fits = [[TOURNAMENT_CLOSE_AREA, 0], [0, TOURNAMENT_CLOSE_AREA]].map(([right, top]) => ({
+    right,
+    top,
+    scale: Math.min(fullScale, (width - right) / TOURNAMENT_STAGE_WIDTH, (height - top) / TOURNAMENT_STAGE_HEIGHT),
+  }));
+  const best = fits[0].scale >= fits[1].scale ? fits[0] : fits[1];
+  const spareX = width - TOURNAMENT_STAGE_WIDTH * best.scale;
+  const spareY = height - TOURNAMENT_STAGE_HEIGHT * best.scale;
+  return {
+    scale: best.scale,
+    left: Math.min(spareX / 2, spareX - best.right),
+    top: Math.max(spareY / 2, best.top),
+  };
+};
+
 /** 모서리를 둥글린 ㄱ자 길. */
 const roundedElbow = (startX: number, startY: number, middleX: number, endY: number, endX: number): string => {
   const rise = endY - startY;
