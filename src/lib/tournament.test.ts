@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   TOURNAMENT_BYE,
@@ -129,4 +130,11 @@ test('이긴 학생이 앉을 칸은 다음 경기의 자리와 같다', () => {
     if (match === 1) assert.equal(destination, undefined);
     else assert.equal(destination?.student, getTournamentWinner(tournament, match));
   }
+});
+
+test('동작 줄이기가 켜져 있어도 대진표 연출을 재생하고 건너뛸 수 있다', async () => {
+  const [viewer, motion, styles] = await Promise.all(['../components/teacher/TournamentViewer.tsx', './tournamentMotion.ts', '../tournament.css']
+    .map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
+  assert.doesNotMatch(viewer + motion + styles, /prefers-reduced-motion/);
+  assert.match(viewer, /abortRef\.current\?\.abort\(\)[\s\S]*?건너뛰기/);
 });
