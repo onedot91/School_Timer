@@ -14,7 +14,7 @@ import {
   setTournamentWinner,
   type Tournament,
 } from './tournament';
-import { getTournamentDestinationKey, getTournamentLayout } from './tournamentLayout';
+import { TOURNAMENT_CLOSE_AREA, getTournamentDestinationKey, getTournamentLayout, getTournamentStageFit } from './tournamentLayout';
 
 const playAll = (tournament: Tournament): Tournament => {
   let next = tournament;
@@ -137,4 +137,15 @@ test('동작 줄이기가 켜져 있어도 대진표 연출을 재생하고 건�
     .map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
   assert.doesNotMatch(viewer + motion + styles, /prefers-reduced-motion/);
   assert.match(viewer, /abortRef\.current\?\.abort\(\)[\s\S]*?건너뛰기/);
+});
+
+test('크게 보기 대진표는 화면 안에 있고 우측 상단 닫기 단추와 겹치지 않는다', () => {
+  for (const [width, height] of [[1280, 650], [1280, 600], [1280, 720], [1280, 800], [1920, 1080], [1024, 768], [800, 1200]]) {
+    const { scale, left, top } = getTournamentStageFit(width, height);
+    const right = left + 1600 * scale;
+    const bottom = top + 900 * scale;
+    assert.ok(left >= -0.01 && top >= -0.01 && right <= width + 0.01 && bottom <= height + 0.01, `${width}×${height}`);
+    assert.ok(right <= width - TOURNAMENT_CLOSE_AREA + 0.01 || top >= TOURNAMENT_CLOSE_AREA - 0.01, `${width}×${height}`);
+    assert.ok(scale >= Math.min(width / 1600, height / 900) * 0.94, `${width}×${height} ${scale}`);
+  }
 });
