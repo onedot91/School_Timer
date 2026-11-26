@@ -89,11 +89,11 @@ test('real PostgreSQL: atomic bids preserve wallet reservations, replay, busines
     assert.equal((await call(1, 'atomic-bid-replay', 0, 101)).status, 409);
     assert.equal(query("select count(*) from storage_resources where value->>'parentKey'='/auctionBidHistory/item-a' and not deleted;"), '1');
     const writeResource = (key: string, category: string, value: unknown) => query(`select storage_write_resource(${literal(key)},${literal(category)},null,${json(value)});`);
-    // The raise step is enforced against the latest lead inside the database, not only the read snapshot.
+    // The raise is checked against the latest lead inside the database, not only the read snapshot.
     beforeAtomic = () => { writeResource(`/auctionBids/${items[0].id}`, 'auctionBids', { kind: 'value', parentKey: '/auctionBids', member: items[0].id, data: { bidder: 3, amount: 200 } }); };
-    assert.deepEqual(await call(8, 'racing-small-raise', 0, 201), { status: 400, body: { error: 'BID_TOO_LOW', businessRejected: true } });
-    const stepSized = await call(8, 'step-sized-raise', 0, 205);
-    assert.equal(stepSized.status, 200, JSON.stringify(stepSized.body));
+    assert.deepEqual(await call(8, 'racing-equal-raise', 0, 200), { status: 400, body: { error: 'BID_TOO_LOW', businessRejected: true } });
+    const oneCoinRaise = await call(8, 'one-coin-raise', 0, 201);
+    assert.equal(oneCoinRaise.status, 200, JSON.stringify(oneCoinRaise.body));
     const reservations = await Promise.all([call(2, 'reserve-first-item', 0, 700), call(2, 'reserve-second-item', 1, 700)]);
     assert.deepEqual(reservations.map(result => result.status).sort(), [200, 400], JSON.stringify(reservations));
     assert.deepEqual(reservations.find(result => result.status === 400)?.body, { error: 'INSUFFICIENT_FUNDS', businessRejected: true });
@@ -108,7 +108,7 @@ test('real PostgreSQL: atomic bids preserve wallet reservations, replay, busines
     assert.equal(atomicWrites - writesBeforeConfig, 2);
     assert.equal((await call(6, 'teacher-proxy-bid', 5, 100, true)).status, 200);
     process.env.STORAGE_ATOMIC_AUCTION_BIDS = '0';
-    assert.equal((await call(7, 'legacy-after-atomic', 2, 905)).status, 200);
+    assert.equal((await call(7, 'legacy-after-atomic', 2, 901)).status, 200);
     assert.deepEqual(JSON.parse(query('select storage_reconcile_wallets();')), []);
     assert.equal(query('select count(*) from wallet_ledger;'), '0');
     assert.equal(JSON.parse(query("select value->'data' from storage_resources where resource_key='/retained';")), source.retained);

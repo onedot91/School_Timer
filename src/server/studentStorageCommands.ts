@@ -1,5 +1,5 @@
 import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, claimCircleDrawingRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
-import { auctionBidTakesLead, checkAuctionBid, getAuctionBidStep, normalizeAuctionSealedItemIds } from '../lib/auctionBidRules.js';
+import { auctionBidTakesLead, checkAuctionBid, getAuctionSealedWindow } from '../lib/auctionBidRules.js';
 import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity.js';
 import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
@@ -124,14 +124,14 @@ export const applyStudentStorageCommand = (
     const item = items.find(({ id }) => id === input.itemId), amount = input.amount;
     if (!item || item.dayIndex >= getAuctionVisibleDayCount(date) || typeof amount !== 'number' || !Number.isInteger(amount) || amount < 1) return fail();
     const bids = normalizeAuctionBids(current.auctionBids, ids), awards = normalizeAuctionAwards(current.auctionAwards, ids), history = normalizeAuctionBidHistory(current.auctionBidHistory, ids);
-    const sealedItemIds = new Set(normalizeAuctionSealedItemIds(current.auctionSealedItemIds));
-    const rejection = checkAuctionBid({ item, bids, history, awards, activeItemIds: ids, sealedItemIds, studentNumber, amount,
+    const window = getAuctionSealedWindow(Date.parse(context.createdAt), current.weeklySchedule, current.scheduleClockOffsetSeconds);
+    const rejection = checkAuctionBid({ item, bids, history, awards, activeItemIds: ids, window, studentNumber, amount,
       balance: normalizeCurrencyBalances(current.currencyBalances)[studentKey],
-      step: getAuctionBidStep(Date.parse(context.createdAt), current.weeklySchedule, current.scheduleClockOffsetSeconds) });
+    });
     if (rejection) return fail(rejection);
     const entry = { itemId: item.id, bidder: studentNumber, amount, createdAt: context.createdAt };
     return finish({ ...current,
-      ...(auctionBidTakesLead(bids, item.id, amount, sealedItemIds.has(item.id)) ? { auctionBids: { ...record(current.auctionBids), [item.id]: { bidder: studentNumber, amount } } } : {}),
+      ...(auctionBidTakesLead(bids, item.id, amount, window) ? { auctionBids: { ...record(current.auctionBids), [item.id]: { bidder: studentNumber, amount } } } : {}),
       auctionBidHistory: { ...record(current.auctionBidHistory), [item.id]: [...rawList(record(current.auctionBidHistory)[item.id]), entry] } });
   }
   if (action === 'student.sudoku.save' || action === 'student.sudoku.complete') {

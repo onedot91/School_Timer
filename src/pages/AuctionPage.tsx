@@ -13,7 +13,7 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
-import { ArrowRight, X } from 'lucide-react';
+import { ArrowRight, Lock, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import { AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
@@ -28,14 +28,13 @@ import StudentClassPrep from '../components/student/StudentClassPrep';
 import { loadStoredClassPrepSource } from '../lib/classPrepLocalStore';
 import type { ClassPrepSource } from '../lib/useClassPrepState';
 import {
-  AUCTION_SEALED_ITEMS_FIELD,
   auctionBidTakesLead,
   checkAuctionBid,
   getAuctionBidMinimum,
-  getAuctionBidStep,
-  getOwnAuctionBidAmount,
+  getAuctionLeadBeforeWindow,
+  getAuctionSealedWindow,
+  getOwnWindowBidAmount,
   getStudentReservedAuctionAmount,
-  normalizeAuctionSealedItemIds,
 } from '../lib/auctionBidRules';
 import { getServerSyncedNow } from '../lib/serverClock';
 import type { ClassPrepState } from '../lib/classPrep';
@@ -44,6 +43,7 @@ import { ClassPrepBlockingContext } from '../lib/classPrepGuardContext';
 import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
+  AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
   AUCTION_MISSIONS_STORAGE_KEY,
   DEFAULT_CURRENCY_BALANCE,
@@ -282,14 +282,9 @@ type SharedSettingsValue = {
   weeklySubjects?: unknown;
   scheduleClockOffsetSeconds?: unknown;
   classPrepRelease?: unknown;
-  auctionSealedItemIds?: unknown;
 };
 
-const AUCTION_BID_STEP_REFRESH_MS = 30_000;
-const loadLocalAuctionSealedItemIds = (): string[] => {
-  try { return normalizeAuctionSealedItemIds(JSON.parse(localStorage.getItem(AUCTION_SEALED_ITEMS_FIELD) || '[]')); }
-  catch { return []; }
-};
+const AUCTION_LUNCH_CLOCK_REFRESH_MS = 15_000;
 
 const CLASS_PREP_LOCKED_SYNC_INTERVAL_MS = 3_000;
 
@@ -500,10 +495,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       ? normalizeAuctionAwards(null, AUCTION_ITEM_IDS)
       : loadStoredStudentPetSnapshot().auctionAwards
   ));
-  const [auctionSealedItemIds, setAuctionSealedItemIds] = useState<string[]>(() => (
-    isSupabaseSettingsEnabled ? [] : loadLocalAuctionSealedItemIds()
-  ));
-  const sealedAuctionItemIds = useMemo(() => new Set(auctionSealedItemIds), [auctionSealedItemIds]);
   const [auctionBidClock, setAuctionBidClock] = useState(getServerSyncedNow);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
@@ -890,29 +881,39 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     auctionAwards,
   ), [auctionAwards, auctionBidHistory, auctionBids, auctionItems]);
   const activeAuctionItemIds = studentVisibleAuctionItems.map((item) => item.id);
+  const auctionSealedWindowValue = getAuctionSealedWindow(
+    auctionBidClock,
+    classPrepSource?.weeklySchedule,
+    classPrepSource?.clockOffsetSeconds,
+  );
+  // Keep the same object while the window is unchanged, so memoized views do not recompute.
+  const auctionSealedWindow = useMemo(() => auctionSealedWindowValue,
+    [auctionSealedWindowValue?.startMs, auctionSealedWindowValue?.endMs]);
+  // During lunch the screen shows each lead as it stood before lunch, worked out from the history,
+  // so neither a stale copy nor the student's own lunch bid is shown as the lead.
+  const displayedAuctionBids = useMemo<AuctionBids>(() => (auctionSealedWindow
+    ? Object.fromEntries(AUCTION_ITEM_IDS.map((itemId) => [itemId,
+      getAuctionLeadBeforeWindow(auctionBidHistory, itemId, auctionSealedWindow) ?? { amount: 0, bidder: null }]))
+    : auctionBids), [auctionBidHistory, auctionBids, auctionSealedWindow]);
   const reservedAmount = getStudentReservedAuctionAmount({
     bids: auctionBids,
     history: auctionBidHistory,
     awards: auctionAwards,
     activeItemIds: activeAuctionItemIds,
     studentNumber,
-    sealedItemIds: sealedAuctionItemIds,
+    window: auctionSealedWindow,
   });
-  const auctionBidStep = getAuctionBidStep(
-    auctionBidClock,
-    classPrepSource?.weeklySchedule,
-    classPrepSource?.clockOffsetSeconds,
-  );
   useEffect(() => {
-    // The raise step follows the timetable, so the minimum bid is re-read as periods change.
-    const timer = window.setInterval(() => setAuctionBidClock(getServerSyncedNow()), AUCTION_BID_STEP_REFRESH_MS);
+    // Lunch seals the bids, so the screen re-reads the clock to switch modes on time.
+    const timer = window.setInterval(() => setAuctionBidClock(getServerSyncedNow()), AUCTION_LUNCH_CLOCK_REFRESH_MS);
     return () => window.clearInterval(timer);
   }, []);
-  const ownAuctionBidAmounts = useMemo(() => Object.fromEntries(studentVisibleAuctionItems.flatMap(({ id }) => {
-    if (!sealedAuctionItemIds.has(id)) return [];
-    const amount = getOwnAuctionBidAmount(auctionBidHistory, id, studentNumber);
-    return amount === null ? [] : [[id, amount]];
-  })), [auctionBidHistory, sealedAuctionItemIds, studentNumber, studentVisibleAuctionItems]);
+  const ownAuctionBidAmounts = useMemo(() => (auctionSealedWindow
+    ? Object.fromEntries(studentVisibleAuctionItems.flatMap(({ id }) => {
+      const amount = getOwnWindowBidAmount(auctionBidHistory, id, studentNumber, auctionSealedWindow);
+      return amount === null ? [] : [[id, amount]];
+    }))
+    : {}), [auctionBidHistory, auctionSealedWindow, studentNumber, studentVisibleAuctionItems]);
   const getAuctionBidRejection = (
     item: AuctionItem,
     amount: number,
@@ -924,13 +925,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     amount,
     studentNumber,
     activeItemIds: activeAuctionItemIds,
-    step: auctionBidStep,
-    sealedItemIds: sealedAuctionItemIds,
+    window: auctionSealedWindow,
     ...state,
   });
   const getAuctionBidRejectionMessage = (item: AuctionItem, rejection: string) => (
     rejection === 'BID_TOO_LOW'
-      ? `${formatCurrency(getAuctionBidMinimum({ item, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds }))}부터 입찰할 수 있습니다.`
+      ? `${formatCurrency(getAuctionBidMinimum({ item, bids: auctionBids, history: auctionBidHistory, studentNumber, window: auctionSealedWindow }))}부터 입찰할 수 있습니다.`
       : getAuctionBidErrorMessage(new Error(rejection))
   );
   const availableBalance = Math.max(0, balance - reservedAmount);
@@ -1360,7 +1360,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setAuctionItems(normalizeAuctionItems(value.auctionItems));
     setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
     // Some responses read only part of the auction; keep the last known mode when the flag is absent.
-    if (value.auctionSealedItemIds !== undefined) setAuctionSealedItemIds(normalizeAuctionSealedItemIds(value.auctionSealedItemIds));
     setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
     setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
@@ -1515,7 +1514,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(localPetSnapshot.currencyHistory);
       setAuctionItems(localPetSnapshot.auctionItems);
       setAuctionBids(localPetSnapshot.auctionBids);
-      setAuctionSealedItemIds(loadLocalAuctionSealedItemIds());
       setAuctionBidHistory(localPetSnapshot.auctionBidHistory);
       setAuctionAwards(localPetSnapshot.auctionAwards);
       setAuctionMissions(getStoredAuctionMissions());
@@ -1914,7 +1912,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
     if (itemIndex < 0 || item.dayIndex >= visibleDayCount) return;
 
-    const minimumBid = getAuctionBidMinimum({ item, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds });
+    const minimumBid = getAuctionBidMinimum({ item, bids: auctionBids, history: auctionBidHistory, studentNumber, window: auctionSealedWindow });
     setSelectedItemId(item.id);
     setBidAmountDrafts((previous) => ({
       ...previous,
@@ -2018,7 +2016,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           bids: currentBids, history: currentHistory, awards: currentAwards, balance: latestBalance,
         });
         if (latestRejection) throw new Error(latestRejection);
-        const nextBids = auctionBidTakesLead(currentBids, item.id, bidAmount, sealedAuctionItemIds.has(item.id)) ? {
+        const nextBids = auctionBidTakesLead(currentBids, item.id, bidAmount, auctionSealedWindow) ? {
           ...currentBids,
           [item.id]: {
             amount: bidAmount,
@@ -2046,8 +2044,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setAuctionBidHistory(nextHistory);
       }
 
-      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + auctionBidStep }));
-      setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + auctionBidStep) }));
+      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
+      setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
       void playAuctionSound('bid');
       showSuccessToast('입찰했어요.');
     } catch (error) {
@@ -2654,9 +2652,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           >
           <AuctionRoom
           auctionItems={studentVisibleAuctionItems}
-          auctionBids={auctionBids}
+          auctionBids={displayedAuctionBids}
           auctionAwards={auctionAwards}
-          sealedItemIds={sealedAuctionItemIds}
+          isLunchSealed={auctionSealedWindow !== null}
           ownBidAmounts={ownAuctionBidAmounts}
           auctionMissions={auctionMissions}
           weeklyMissionStatuses={weeklyMissionStatuses}
@@ -2671,7 +2669,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           onSelectItem={selectItem}
           donationWidget={null}
           footer={selectedItem ? (() => {
-            const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
+            const currentBid = displayedAuctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const award = auctionAwards[selectedItem.id] ?? null;
             const hasPendingBid = hasUnconfirmedStudentStorageDraft(studentNumber, 'student.auction.bid', selectedItem.id);
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
@@ -2689,32 +2687,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 </div>
               );
             }
-            const isSelectedItemSealed = sealedAuctionItemIds.has(selectedItem.id);
-            const ownSealedBid = isSelectedItemSealed
-              ? getOwnAuctionBidAmount(auctionBidHistory, selectedItem.id, studentNumber)
-              : null;
-            if (ownSealedBid !== null) {
-              return (
-                <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
-                  <div className="rounded-[1rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 py-3">
-                    <div className="text-[length:var(--type-body-sm)] font-black text-[var(--apple-text-secondary)]">{selectedItemDisplayName} 내 입찰</div>
-                    <div className="mt-1 font-mono text-[length:var(--type-title)] font-black text-[var(--apple-accent)]">
-                      {formatCurrency(ownSealedBid)}
-                    </div>
-                    {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
-                      className="mt-2 min-h-12 rounded-xl bg-[var(--apple-accent)] px-4 font-bold text-white">이전 입찰 확인</button> : null}
-                  </div>
-                </div>
-              );
-            }
-            const minimumBid = getAuctionBidMinimum({ item: selectedItem, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds });
+            const ownLunchBid = ownAuctionBidAmounts[selectedItem.id] ?? null;
+            const minimumBid = getAuctionBidMinimum({ item: selectedItem, bids: auctionBids, history: auctionBidHistory, studentNumber, window: auctionSealedWindow });
             const reservedExcludingItem = getStudentReservedAuctionAmount({
               bids: auctionBids,
               history: auctionBidHistory,
               awards: auctionAwards,
               activeItemIds: activeAuctionItemIds,
               studentNumber,
-              sealedItemIds: sealedAuctionItemIds,
+              window: auctionSealedWindow,
               excludedItemId: selectedItem.id,
             });
             const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
@@ -2737,12 +2718,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     <h2 className="section-title min-w-0 truncate text-[length:var(--type-title)] font-extrabold leading-tight text-[var(--apple-text-primary)]">
                       {selectedItemDisplayName}
                     </h2>
-                    <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
-                      {isSelectedItemSealed ? null : <>최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · </>}시작가 {formatCurrency(selectedItem.startPrice)}
-                    </p>
+                    {auctionSealedWindow ? (
+                      <p className="auction-lunch-price font-mono text-[length:var(--type-body)] font-black">
+                        <Lock size={15} strokeWidth={3} aria-hidden="true" />
+                        <span>점심 전</span>
+                        <span className="auction-lunch-price-amount">{formatCurrency(currentBid.amount)}</span>
+                        <span className="text-[var(--apple-text-tertiary)]">· 시작가 {formatCurrency(selectedItem.startPrice)}</span>
+                      </p>
+                    ) : (
+                      <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
+                        최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · 시작가 {formatCurrency(selectedItem.startPrice)}
+                      </p>
+                    )}
                   </div>
                   <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
-                    {isSelectedItemSealed ? '한 번만 몰래 입찰해요' : `${formatCurrency(auctionBidStep)}씩 올려요`}
+                    {auctionSealedWindow
+                      ? ownLunchBid === null ? '몰래 입찰해요' : `내 입찰 ${formatCurrency(ownLunchBid)}`
+                      : `입찰 단위 ${formatCurrency(AUCTION_BID_STEP)}`}
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
@@ -2906,7 +2898,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? '을'
           : '를';
         const pendingCurrentBid = renderedPendingBid.itemId
-          ? auctionBids[renderedPendingBid.itemId] ?? { amount: 0, bidder: null }
+          ? displayedAuctionBids[renderedPendingBid.itemId] ?? { amount: 0, bidder: null }
           : { amount: 0, bidder: null };
 
         return (
@@ -2937,8 +2929,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               </h2>
 
               <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[var(--apple-surface-tint)] p-4">
-                <div className={sealedAuctionItemIds.has(renderedPendingBid.itemId) ? 'grid gap-3' : 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center'}>
-                  {sealedAuctionItemIds.has(renderedPendingBid.itemId) ? null : (
+                <div className={auctionSealedWindow ? 'grid gap-3' : 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center'}>
+                  {auctionSealedWindow ? null : (
                   <>
                   <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3">
                     <div className="text-[length:var(--type-caption)] font-black text-[var(--apple-text-tertiary)]">현재 최고가</div>

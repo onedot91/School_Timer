@@ -16822,6 +16822,30 @@ a[href]:active {
   letter-spacing: -.04em;
 }
 
+/* Lunch: the lead from before lunch may already be beaten, so it reads as a faded, dashed estimate. */
+.auction-item-current-bid-lunch {
+  color: #7d756c;
+}
+
+.auction-item-current-bid-lunch > span,
+.auction-lunch-price {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+.auction-item-current-bid-lunch > strong,
+.auction-lunch-price-amount {
+  border-bottom: 2px dashed currentColor;
+  padding-bottom: .12rem;
+  opacity: .72;
+}
+
+.auction-lunch-price {
+  flex-wrap: wrap;
+  color: #7d756c;
+}
+
 .auction-item-bidder {
   display: flex;
   min-width: 0;

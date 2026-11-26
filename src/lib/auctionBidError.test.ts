@@ -6,7 +6,6 @@ test('입찰 권한 거절과 미확인 저장을 구분하고 원문 오류를 
   assert.match(getAuctionBidErrorMessage(Object.assign(new Error('private'), { status: 403 })), /입찰 권한/);
   assert.match(getAuctionBidErrorMessage(new Error('SAVE_DRAFT_PENDING')), /이전 입찰/);
   assert.match(getAuctionBidErrorMessage(new Error('BID_TOO_LOW')), /최소 금액/);
-  assert.match(getAuctionBidErrorMessage(new Error('ALREADY_BID')), /이미 입찰/);
   const unknown = getAuctionBidErrorMessage(new Error('private payload'));
   assert.doesNotMatch(unknown, /private|완료되었습니다/);
   assert.match(unknown, /최고 입찰자와 금액/);

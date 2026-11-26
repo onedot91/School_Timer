@@ -16,7 +16,8 @@ import {
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { AUCTION_ITEM_IDS } from '../src/lib/currency.js';
-import { AUCTION_SEALED_ITEMS_FIELD, redactSealedAuctionForStudent } from '../src/lib/auctionBidRules.js';
+import { createHash } from 'node:crypto';
+import { getAuctionSealedWindow, redactSealedAuctionForStudent, type AuctionSealedWindow } from '../src/lib/auctionBidRules.js';
 import { STUDENT_MUTABLE_MAP_FIELDS, STUDENT_MUTABLE_PROGRESS_FIELDS, STUDENT_MUTABLE_SHARED_FIELDS } from '../src/lib/studentSettingsUpdate.js';
 import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
 import { placeCompetitionBook, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
@@ -56,8 +57,6 @@ const STUDENT_SHARED_FIELDS = [
   'auctionBidHistory',
   'auctionAwards',
   'auctionMissions',
-  // Read by projectStudentValue to withhold other students' sealed bids.
-  'auctionSealedItemIds',
   'classroomRoleMission',
   'studentMissionVisibility',
   'classDonation',
@@ -256,7 +255,11 @@ const cacheUpdatedAt = (url: string, updatedAt: string) => {
   };
 };
 
-const projectStudentValue = (value: unknown, studentNumber: number): Record<string, unknown> => {
+/**
+ * `window` is the lunch window when the caller already knows it; otherwise it is read from the
+ * timetable in `value`, which every student scope that carries bids also reads.
+ */
+const projectStudentValue = (value: unknown, studentNumber: number, window?: AuctionSealedWindow | null): Record<string, unknown> => {
   const source = asRecord(value);
   const studentKey = String(studentNumber);
   const projected = Object.fromEntries([
@@ -276,7 +279,8 @@ const projectStudentValue = (value: unknown, studentNumber: number): Record<stri
       Object.entries(asRecord(projected[field])).filter(([key]) => key.startsWith(`${studentNumber}:`)),
     );
   }
-  return redactSealedAuctionForStudent(projected, studentNumber);
+  return redactSealedAuctionForStudent(projected, studentNumber, window === undefined
+    ? getAuctionSealedWindow(Date.now(), source.weeklySchedule, source.scheduleClockOffsetSeconds) : window);
 };
 
 const saveValue = async (
@@ -378,7 +382,7 @@ const parseStudentReadManifest = (raw: unknown, studentNumber: number, bidItems:
   if (raw === undefined) return null;
   if (typeof raw !== 'string' || raw.length > 32768) throw new Error('STORAGE_INVALID_READ_MANIFEST');
   const known = parseReadManifest(JSON.parse(raw));
-  const keysOf = (items: boolean) => [...studentReadScope(studentNumber, items).resources.map(selection => `scope:${selection.path}`), `wallet:${studentNumber}`];
+  const keysOf = (items: boolean) => [...studentReadScope(studentNumber, items).resources.map(selection => `scope:${selection.path}`), `wallet:${studentNumber}`, LUNCH_SEAL_PART];
   const allowed = new Set([...keysOf(false), ...keysOf(true)]);
   if (Object.keys(known).some(name => !allowed.has(name))) throw new Error('STORAGE_INVALID_READ_MANIFEST');
   // Digests of the other bid-history layout are ignored, so a screen open across a flag change re-reads that part once.
@@ -386,19 +390,48 @@ const parseStudentReadManifest = (raw: unknown, studentNumber: number, bidItems:
   return Object.fromEntries(Object.entries(known).filter(([name]) => current.has(name)));
 };
 
-const SEALED_ITEMS_PART = `scope:/${AUCTION_SEALED_ITEMS_FIELD}`;
+// Lunch bids are hidden from other students. A change read only carries the parts that changed, so
+// the timetable deciding lunch is kept per Function instance, keyed by its parts' digests.
+const LUNCH_SEAL_PART = 'scope:/auctionLunchSeal';
+const SCHEDULE_PATHS = ['/weeklySchedule', '/scheduleClockOffsetSeconds'] as const;
+const OPEN_SEAL_TOKEN = createHash('md5').update('open').digest('hex');
+let scheduleCache: { readonly key: string; readonly weeklySchedule: unknown; readonly offset: unknown } | null = null;
+const sealTokenOf = (window: AuctionSealedWindow | null) => window
+  ? createHash('md5').update(`sealed:${window.startMs}:${window.endMs}`).digest('hex') : OPEN_SEAL_TOKEN;
+const isAuctionBidPart = (name: string) => name === 'scope:/auctionBids' || name.startsWith(`scope:${BID_HISTORY_PATH}`);
+
+const loadLunchSchedule = async (url: string, key: string, changes: { manifest: Record<string, string>; complete: boolean; snapshot: { value: Record<string, unknown> } }) => {
+  const { manifest, complete, snapshot: { value } } = changes;
+  const cacheKey = SCHEDULE_PATHS.map(path => manifest[`scope:${path}`] ?? '').join('|');
+  // A complete read holds the whole scope, so a missing timetable means there is none.
+  if (complete || ('weeklySchedule' in value && 'scheduleClockOffsetSeconds' in value)) {
+    scheduleCache = { key: cacheKey, weeklySchedule: value.weeklySchedule, offset: value.scheduleClockOffsetSeconds };
+  } else if (scheduleCache?.key !== cacheKey) {
+    const row = await loadScopedStorageSnapshotForRead({ url, key }, { resources: SCHEDULE_PATHS.map(path => ({ path })),
+      wallets: [], history: [], writeResources: [], writeWallets: [], revisionKeys: [] });
+    scheduleCache = { key: cacheKey, weeklySchedule: row.value.weeklySchedule, offset: row.value.scheduleClockOffsetSeconds };
+  }
+  return scheduleCache;
+};
+
 const loadStudentChanges = async (url: string, key: string, studentNumber: number, known: Record<string, string> | null, bidItems: boolean) => {
   const scope = studentReadScope(studentNumber, bidItems);
-  // The small sealed-item list is always re-read so every response can be redacted. Digests track
-  // stored rows, not what the student was shown, so when the list changed since the browser's copy
-  // the read starts over as a complete one: bids hidden before are sent, and bids now hidden are dropped.
-  const withoutSealed = known && Object.fromEntries(Object.entries(known).filter(([name]) => name !== SEALED_ITEMS_PART));
-  let changes = await loadScopedStorageChangesForRead({ url, key }, scope, withoutSealed);
-  if (known && known[SEALED_ITEMS_PART] !== changes.manifest[SEALED_ITEMS_PART]) {
-    changes = await loadScopedStorageChangesForRead({ url, key }, scope, null);
+  const shownToken = known?.[LUNCH_SEAL_PART];
+  const storedKnown = known && Object.fromEntries(Object.entries(known).filter(([name]) => name !== LUNCH_SEAL_PART));
+  let changes = await loadScopedStorageChangesForRead({ url, key }, scope, storedKnown);
+  const schedule = await loadLunchSchedule(url, key, changes);
+  const window = getAuctionSealedWindow(Date.now(), schedule.weeklySchedule, schedule.offset);
+  const token = sealTokenOf(window);
+  // Digests track stored rows, not what the student was shown. After a lunch the browser holds bids
+  // with the lunch bids left out, so its bid parts are sent again; entering lunch needs nothing,
+  // because everything the browser already holds was visible.
+  if (storedKnown && shownToken !== undefined && shownToken !== OPEN_SEAL_TOKEN && shownToken !== token) {
+    changes = await loadScopedStorageChangesForRead({ url, key }, scope,
+      Object.fromEntries(Object.entries(storedKnown).filter(([name]) => !isAuctionBidPart(name))));
   }
-  const { manifest, snapshot, complete } = changes;
-  const value = projectStudentValue(snapshot.value, studentNumber);
+  const { snapshot, complete } = changes;
+  const manifest = { ...changes.manifest, [LUNCH_SEAL_PART]: token };
+  const value = projectStudentValue(snapshot.value, studentNumber, window);
   return { id: SETTINGS_ID, value, updated_at: snapshot.updated_at, scope: 'student' as const, readManifest: manifest,
     ...(snapshot.readVersion ? { readVersion: snapshot.readVersion } : {}),
     ...(snapshot.readMarker ? { readMarker: snapshot.readMarker } : {}),
@@ -408,7 +441,7 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number, o
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
     const fullScope = studentReadScope(studentNumber);
-    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', `/${AUCTION_SEALED_ITEMS_FIELD}`, '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments',
+    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments',
       '/weeklySchedule', '/weeklySubjects', '/scheduleClockOffsetSeconds', '/classPrepRelease']);
     const partial = overview && studentNumber !== TEST_STUDENT_NUMBER;
     const scope = partial ? { ...fullScope, resources: fullScope.resources.filter(selection => overviewFields.has(selection.path)), history: [] } : fullScope;
@@ -446,7 +479,7 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number, o
       const ownValue = Reflect.get(projectedRow, field);
       return [field, ownValue === null || ownValue === undefined ? {} : { [studentKey]: ownValue }];
     }),
-  ]), studentNumber);
+  ]), studentNumber, getAuctionSealedWindow(Date.now(), Reflect.get(projectedRow, 'weeklySchedule'), Reflect.get(projectedRow, 'scheduleClockOffsetSeconds')));
   const updatedAt = Reflect.get(projectedRow, 'updated_at');
   return {
     id: SETTINGS_ID,

@@ -200,29 +200,30 @@ test('real PostgreSQL: student change reads match full reads after shared, own, 
     query(await readFile(new URL('../../supabase/storage_student_history_window_rollback.sql', import.meta.url), 'utf8'));
     assert.ok(patchOf((await read(5)).body).history.some(row => row.entry_id === 'old-grant-5'));
 
-    // Sealed items: changing the list starts the read over, and other students' bids stay hidden.
-    const setSealed = (value: boolean) => {
-      for (const row of splitStorageState({ auctionSealedItemIds: value ? ['item-a'] : [] }).resources) {
-        if (row.resource_key.startsWith('/auctionSealedItemIds')) writeResource(row.resource_key, row.category, row.owner_number, row.value);
+    // Lunch seals bids: other students' lunch bids are left out of change reads, and once lunch is
+    // over the bid parts are sent again so the hidden bids arrive.
+    const writeRows = (state: Record<string, unknown>, prefix: string) => {
+      for (const row of splitStorageState(state).resources) {
+        if (row.resource_key.startsWith(prefix)) writeResource(row.resource_key, row.category, row.owner_number, row.value);
       }
-      if (!value) query("update storage_resources set deleted=true, revision=revision+1 where resource_key like '/auctionSealedItemIds/%' and not deleted;");
     };
+    const korea = new Date(Date.now() + 9 * 3_600_000);
+    const minute = korea.getUTCHours() * 60 + korea.getUTCMinutes();
+    const lunchAt = (start: number, end: number) => ({ [korea.getUTCDay()]: [{ id: 'lunch', name: '점심시간', type: 'lunch', start, end }] });
     manifest = Reflect.get((await read(5)).body, 'readManifest') as Record<string, string>;
-    setSealed(true);
+    writeRows({ weeklySchedule: lunchAt(minute - 10, minute + 10) }, '/weeklySchedule');
+    const lunchBid = { itemId: 'item-a', bidder: 8, amount: 40, createdAt: new Date().toISOString() };
+    writeRows({ auctionBidHistory: { 'item-a': [{ itemId: 'item-a', bidder: 3, amount: 20, createdAt: at }, lunchBid] } }, '/auctionBidHistory/item-a/');
+    writeResource('/auctionBids/item-a', 'auctionBids', null, { kind: 'value', parentKey: '/auctionBids', member: 'item-a', data: { bidder: 8, amount: 40 } });
     const sealed = await read(5, manifest);
     assert.equal(sealed.status, 200);
-    assert.equal(patchOf(sealed.body).complete, true);
-    assert.doesNotMatch(JSON.stringify(sealed.body), /"bidder":[37]/);
+    assert.doesNotMatch(JSON.stringify(sealed.body), /"amount":40/);
     manifest = Reflect.get(sealed.body, 'readManifest') as Record<string, string>;
-    writeResource('/auctionBids/item-a', 'auctionBids', null, { kind: 'value', parentKey: '/auctionBids', member: 'item-a', data: { bidder: 8, amount: 40 } });
-    const hiddenBid = await read(5, manifest);
-    assert.equal(patchOf(hiddenBid.body).complete, false);
-    assert.doesNotMatch(JSON.stringify(hiddenBid.body), /"amount":40/);
-    manifest = Reflect.get(hiddenBid.body, 'readManifest') as Record<string, string>;
-    setSealed(false);
-    const opened = await read(5, manifest);
-    assert.equal(patchOf(opened.body).complete, true);
-    assert.match(JSON.stringify(opened.body), /"amount":40/);
+    assert.ok(manifest['scope:/auctionLunchSeal']);
+    writeRows({ weeklySchedule: lunchAt(minute - 30, minute - 20) }, '/weeklySchedule');
+    const reopened = await read(5, manifest);
+    assert.equal(reopened.status, 200);
+    assert.match(JSON.stringify(reopened.body), /"amount":40/);
 
     for (const role of ['anon', 'authenticated']) assert.equal(query(`select has_function_privilege('${role}','storage_load_scope_changes_student(jsonb,jsonb)','execute');`), 'f');
     assert.equal(query("select has_function_privilege('service_role','storage_load_scope_changes_student(jsonb,jsonb)','execute');"), 't');
