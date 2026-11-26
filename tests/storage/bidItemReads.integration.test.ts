@@ -200,7 +200,10 @@ test('real PostgreSQL: item-level bid history reads match whole reads and send o
     query(await readFile(new URL('../../supabase/storage_manifest_range_rollback.sql', import.meta.url), 'utf8'));
     assert.equal(query("select md5(prosrc) from pg_proc where oid='public.storage_scope_selector_manifest(jsonb)'::regprocedure;"), definition);
     scope = wholeScope;
-    assert.deepEqual(JSON.parse(manifestSql()), manifestOf((await read(5)).body));
+    // The API adds one key of its own: whether the student was last shown lunch-sealed bids.
+    const { 'scope:/auctionLunchSeal': lunchSeal, ...storedManifest } = manifestOf((await read(5)).body);
+    assert.match(String(lunchSeal), /^[a-f0-9]{32}$/);
+    assert.deepEqual(JSON.parse(manifestSql()), storedManifest);
   } finally {
     globalThis.fetch = previousFetch; process.env = previousEnv;
     invoke('pg_ctl', ['-D', `${directory}/data`, '-m', 'fast', '-w', 'stop']);

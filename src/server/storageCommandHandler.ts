@@ -7,7 +7,7 @@ import {
 } from './storageV2Repository.js';
 import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
 import { AUCTION_ITEM_IDS, normalizeAuctionBids } from '../lib/currency.js';
-import { normalizeAuctionSealedItemIds } from '../lib/auctionBidRules.js';
+import { getAuctionSealedWindow } from '../lib/auctionBidRules.js';
 import { createStorageProjectionPatch, supportsStorageProjection, withRecentHistory } from './storageProjection.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { requiresStudentEditRevisions } from './storageClientContract.js';
@@ -190,9 +190,9 @@ const runStorageCommand = async (
         };
         const saved = action === 'student.auction.bid' && effectiveSession.role === 'student'
           && process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1'
-          // A sealed bid below the lead is still recorded, which the atomic function rejects; the
-          // revision-checked write below covers it.
-          && !(typeof itemId === 'string' && normalizeAuctionSealedItemIds(snapshot.value.auctionSealedItemIds).includes(itemId))
+          // A lunch bid below the hidden lead is still recorded, which the atomic function rejects;
+          // the revision-checked write below covers it.
+          && getAuctionSealedWindow(Date.parse(createdAt), snapshot.value.weeklySchedule, snapshot.value.scheduleClockOffsetSeconds) === null
           ? await commitAuctionBidAndLoad(configuration, write, effectiveSession.studentNumber, createdAt)
           : await commitScopedStorageMutationAndLoad(configuration, write);
         if ('rejected' in saved && saved.rejected) {

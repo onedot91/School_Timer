@@ -5,6 +5,7 @@ export const TEACHER_SETTING_FIELDS = [
   'isNoticeEnabled', 'scheduleClockOffsetSeconds', 'scheduleYoutubeUrls', 'scheduleYoutubeFavorites',
   'isScheduleYoutubeVisible', 'randomDraw', 'manualTimer', 'auctionItems', 'auctionMissions',
   'studentMissionVisibility', 'bookstoreSettings', 'studentShopCatalog', 'studentStockMarket',
+  // auctionSealedItemIds is retired; teacher screens loaded before its removal may still send it.
   'classPrepRelease', 'tournament', 'auctionSealedItemIds',
 ] as const;
 

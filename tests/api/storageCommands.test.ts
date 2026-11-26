@@ -546,28 +546,37 @@ test('원 그리기는 서버에서 다시 채점해 하루 한 번만 보상하
   assert.deepEqual(fixture.read().value, value);
 }, { ...initial(), studentCircleDrawing: { [`3:${getCircleDrawingDateKey(new Date())}`]: { score: 91, points: '1,1;2,2', submittedAt: '2026-11-23T00:00:00.000Z' } } }));
 
-test('sealed bids never reach other students through bid responses or reads', () => environment(async (call, fixture) => {
-  const date = new Date('2026-11-27T01:00:00Z');
+const lunchSchedule = Object.fromEntries([1, 2, 3, 4, 5].map(day => [day, [
+  { id: `class-${day}`, name: '4교시', type: 'class', start: 690, end: 730 },
+  { id: `lunch-${day}`, name: '점심시간', type: 'lunch', start: 770, end: 820 },
+]]));
+
+test('lunch bids never reach other students through bid responses or reads', () => environment(async (call, fixture) => {
+  // Friday 13:00 in Korea, inside the 12:50-13:40 lunch.
+  const date = new Date('2026-11-27T04:00:00Z');
   const originalNow = globalThis.Date;
-  class FixedDate extends originalNow { constructor(value?: string | number) { super(value ?? date.getTime()); } }
+  class FixedDate extends originalNow {
+    constructor(value?: string | number) { super(value ?? date.getTime()); }
+    static now() { return date.getTime(); }
+  }
   globalThis.Date = FixedDate as DateConstructor;
   try {
-    const leading = await call(1, 'POST', command('sealed-leading-01', 'student.auction.bid', { itemId: 'item-a', amount: 77 }));
+    const leading = await call(1, 'POST', command('lunch-leading-01', 'student.auction.bid', { itemId: 'item-a', amount: 77 }));
     assert.equal(leading.status, 200, JSON.stringify(leading.body));
-    const lower = await call(2, 'POST', command('sealed-lower-0001', 'student.auction.bid', { itemId: 'item-a', amount: 30 }));
+    const lower = await call(2, 'POST', command('lunch-lower-0001', 'student.auction.bid', { itemId: 'item-a', amount: 30 }));
     assert.equal(lower.status, 200, JSON.stringify(lower.body));
-    assert.doesNotMatch(JSON.stringify(lower.body), /77/);
-    const leader = Reflect.get(Object(fixture.read().value.auctionBids), 'item-a');
-    assert.deepEqual(leader, { bidder: 1, amount: 77 });
-    const again = await call(2, 'POST', command('sealed-again-0001', 'student.auction.bid', { itemId: 'item-a', amount: 90 }));
-    assert.equal(Reflect.get(Object(again.body), 'error'), 'ALREADY_BID');
+    assert.doesNotMatch(JSON.stringify(lower.body), /"amount":77/);
+    assert.deepEqual(Reflect.get(Object(fixture.read().value.auctionBids), 'item-a'), { bidder: 1, amount: 77 });
+    const lowered = await call(2, 'POST', command('lunch-lowered-01', 'student.auction.bid', { itemId: 'item-a', amount: 29 }));
+    assert.equal(Reflect.get(Object(lowered.body), 'error'), 'BID_TOO_LOW');
     const read = await call(2, 'GET');
     assert.equal(read.status, 200, JSON.stringify(read.body));
-    assert.doesNotMatch(JSON.stringify(read.body), /77/);
-    assert.match(JSON.stringify(read.body), /"amount":30/);
-    // Only the marked item is sealed; the others stay open bidding.
-    const open = await call(1, 'POST', command('open-item-bid-001', 'student.auction.bid', { itemId: 'item-b', amount: 23 }));
-    assert.equal(open.status, 200, JSON.stringify(open.body));
-    assert.match(JSON.stringify((await call(2, 'GET')).body), /"amount":23/);
+    const body = JSON.stringify(read.body);
+    assert.doesNotMatch(body, /"amount":77/);
+    assert.match(body, /"amount":30/);
+    // The lead from before lunch stays visible.
+    assert.match(body, /"bidder":3/);
   } finally { globalThis.Date = originalNow; }
-}, { ...initial(), auctionSealedItemIds: ['item-a'] }));
+}, { ...initial(), weeklySchedule: lunchSchedule,
+  auctionBids: { 'item-a': { bidder: 3, amount: 20 } },
+  auctionBidHistory: { 'item-a': [{ itemId: 'item-a', bidder: 3, amount: 20, createdAt: '2026-11-27T02:00:00.000Z' }] } }));

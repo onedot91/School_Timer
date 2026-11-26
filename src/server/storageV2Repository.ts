@@ -3,7 +3,6 @@ import { parseReadManifest } from '../lib/storageReadManifest.js';
 import { StorageReadBusyError } from './storageReadPriority.js';
 import { createHash } from 'node:crypto';
 import { normalizeAuctionItems } from '../lib/currency.js';
-import { getAuctionBidStep } from '../lib/auctionBidRules.js';
 import { parseStorageScope, storagePathWithin, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
 import { assembleStorageState, canonicalStorageJson, isStorageRecord, reconcileStorageResourceOrder, splitStorageState, type StorageHistoryRecord, type StorageResource, type StorageResourceValue, type StorageWallet, } from '../lib/storageV2Codec.js';
 export interface StorageConfiguration {
@@ -506,7 +505,6 @@ export const commitAuctionBidAndLoad = async (
         actorKey: mutation.actorKey, requestId: mutation.requestId,
         payloadHash: storagePayloadHash(mutation.action, mutation.payload), studentNumber,
         itemId: item.id, amount: payload.amount, activeItemIds: items.map(item => item.id), startPrice: item.startPrice,
-        bidStep: getAuctionBidStep(Date.parse(createdAt), mutation.snapshot.value.weeklySchedule, mutation.snapshot.value.scheduleClockOffsetSeconds),
         configRevision: mutation.snapshot.revisions['scope:auctionItems:all'] ?? 0,
         createdAt,
     } });

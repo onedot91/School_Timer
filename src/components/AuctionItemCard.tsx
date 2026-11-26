@@ -19,8 +19,8 @@ interface AuctionItemCardProps {
   readonly item: AuctionItem;
   readonly currentBid: AuctionBid;
   readonly award: AuctionAward | null;
-  /** Set while bidding is sealed: the student's own bid, or null before they bid. */
-  readonly sealedOwnBid?: number | null;
+  /** Set during lunch: the student's own lunch bid, or null before they bid at lunch. */
+  readonly lunchOwnBid?: number | null;
   readonly accent: AuctionDayAccent;
   readonly isUnlocked: boolean;
   readonly isSelected: boolean;
@@ -32,7 +32,7 @@ export function AuctionItemCard({
   item,
   currentBid,
   award,
-  sealedOwnBid,
+  lunchOwnBid,
   accent,
   isUnlocked,
   isSelected,
@@ -46,7 +46,7 @@ export function AuctionItemCard({
     ? null
     : getFailureProfileImage(leadingStudentNumber, profileAssignments);
   const bidderLabel = award ? '낙찰자' : '최고 입찰';
-  const isSealed = sealedOwnBid !== undefined && !award;
+  const isLunchSealed = lunchOwnBid !== undefined && !award;
 
   return (
     <button
@@ -57,8 +57,8 @@ export function AuctionItemCard({
       disabled={!isUnlocked}
       aria-pressed={isUnlocked ? isSelected : undefined}
       aria-label={isUnlocked
-        ? isSealed
-          ? `${itemDisplayName}, 비공개 입찰, ${sealedOwnBid === null ? '아직 입찰 안 함' : `내 입찰 ${formatCurrency(sealedOwnBid)}`}`
+        ? isLunchSealed
+          ? `${itemDisplayName}, 점심 전 가격 ${formatCurrency(currentAmount)}, 지금 최고가는 비공개${lunchOwnBid === null ? '' : `, 내 입찰 ${formatCurrency(lunchOwnBid)}`}`
           : `${itemDisplayName}, 현재가 ${formatCurrency(currentAmount)}${leadingStudentNumber === null ? ', 입찰 전' : `, ${bidderLabel} ${leadingStudentNumber}번`}`
         : '잠긴 물품, 해당 요일에 공개됩니다'}
       className={`auction-item-card group relative overflow-hidden border text-left ${
@@ -84,14 +84,16 @@ export function AuctionItemCard({
             </h3>
           </div>
 
-          {isSealed ? (
+          {isLunchSealed ? (
             <>
-              <div className="auction-item-current-bid" style={{ color: accent.chip }}>
-                <span>내 입찰</span>
-                <strong>{sealedOwnBid === null ? '-' : formatCurrency(sealedOwnBid)}</strong>
+              <div className="auction-item-current-bid auction-item-current-bid-lunch">
+                <span><Lock size={11} strokeWidth={3} aria-hidden="true" />점심 전</span>
+                <strong>{formatCurrency(currentAmount)}</strong>
               </div>
               <div className="auction-item-bidder">
-                <span className="auction-item-no-bid">비공개</span>
+                <span className="auction-item-no-bid">
+                  {lunchOwnBid === null ? '비공개' : `내 입찰 ${formatCurrency(lunchOwnBid)}`}
+                </span>
               </div>
             </>
           ) : (
