@@ -6,7 +6,8 @@ export const getAuctionBidErrorMessage = (error: unknown): string => {
   const code = error instanceof Error ? error.message : '';
   const messages: Record<string, string> = {
     INSUFFICIENT_FUNDS: '예약금을 제외한 사용 가능 고마가 부족합니다.',
-    BID_TOO_LOW: '현재 최고 입찰가보다 높게 입찰해야 합니다.',
+    BID_TOO_LOW: '입찰 금액이 너무 낮아요. 최소 금액을 확인해 주세요.',
+    ALREADY_BID: '이 물품에는 이미 입찰했어요.',
     ALREADY_HIGHEST_BIDDER: '다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.',
     ALREADY_AWARDED: '이미 낙찰된 물품입니다.',
     DUPLICATE_BID_AMOUNT: '이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.',

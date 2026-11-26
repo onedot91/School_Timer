@@ -27,13 +27,23 @@ import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import StudentClassPrep from '../components/student/StudentClassPrep';
 import { loadStoredClassPrepSource } from '../lib/classPrepLocalStore';
 import type { ClassPrepSource } from '../lib/useClassPrepState';
+import {
+  AUCTION_SEALED_ITEMS_FIELD,
+  auctionBidTakesLead,
+  checkAuctionBid,
+  getAuctionBidMinimum,
+  getAuctionBidStep,
+  getOwnAuctionBidAmount,
+  getStudentReservedAuctionAmount,
+  normalizeAuctionSealedItemIds,
+} from '../lib/auctionBidRules';
+import { getServerSyncedNow } from '../lib/serverClock';
 import type { ClassPrepState } from '../lib/classPrep';
 import { CLASS_PREP_BLOCKED_MESSAGE, isClassPrepBlockedEconomyAction, isClassPrepBlockingStage } from '../lib/classPrepGuard';
 import { ClassPrepBlockingContext } from '../lib/classPrepGuardContext';
 import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
-  AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
   AUCTION_MISSIONS_STORAGE_KEY,
   DEFAULT_CURRENCY_BALANCE,
@@ -43,10 +53,7 @@ import {
   formatCurrency,
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
-  getMinimumAuctionBid,
-  getReservedAuctionBidAmount,
   getStudentVisibleAuctionItems,
-  hasAuctionBidAmount,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
@@ -275,6 +282,13 @@ type SharedSettingsValue = {
   weeklySubjects?: unknown;
   scheduleClockOffsetSeconds?: unknown;
   classPrepRelease?: unknown;
+  auctionSealedItemIds?: unknown;
+};
+
+const AUCTION_BID_STEP_REFRESH_MS = 30_000;
+const loadLocalAuctionSealedItemIds = (): string[] => {
+  try { return normalizeAuctionSealedItemIds(JSON.parse(localStorage.getItem(AUCTION_SEALED_ITEMS_FIELD) || '[]')); }
+  catch { return []; }
 };
 
 const CLASS_PREP_LOCKED_SYNC_INTERVAL_MS = 3_000;
@@ -486,6 +500,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       ? normalizeAuctionAwards(null, AUCTION_ITEM_IDS)
       : loadStoredStudentPetSnapshot().auctionAwards
   ));
+  const [auctionSealedItemIds, setAuctionSealedItemIds] = useState<string[]>(() => (
+    isSupabaseSettingsEnabled ? [] : loadLocalAuctionSealedItemIds()
+  ));
+  const sealedAuctionItemIds = useMemo(() => new Set(auctionSealedItemIds), [auctionSealedItemIds]);
+  const [auctionBidClock, setAuctionBidClock] = useState(getServerSyncedNow);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
@@ -871,12 +890,48 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     auctionAwards,
   ), [auctionAwards, auctionBidHistory, auctionBids, auctionItems]);
   const activeAuctionItemIds = studentVisibleAuctionItems.map((item) => item.id);
-  const reservedAmount = getReservedAuctionBidAmount(
-    auctionBids,
+  const reservedAmount = getStudentReservedAuctionAmount({
+    bids: auctionBids,
+    history: auctionBidHistory,
+    awards: auctionAwards,
+    activeItemIds: activeAuctionItemIds,
     studentNumber,
-    undefined,
-    auctionAwards,
-    activeAuctionItemIds,
+    sealedItemIds: sealedAuctionItemIds,
+  });
+  const auctionBidStep = getAuctionBidStep(
+    auctionBidClock,
+    classPrepSource?.weeklySchedule,
+    classPrepSource?.clockOffsetSeconds,
+  );
+  useEffect(() => {
+    // The raise step follows the timetable, so the minimum bid is re-read as periods change.
+    const timer = window.setInterval(() => setAuctionBidClock(getServerSyncedNow()), AUCTION_BID_STEP_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+  const ownAuctionBidAmounts = useMemo(() => Object.fromEntries(studentVisibleAuctionItems.flatMap(({ id }) => {
+    if (!sealedAuctionItemIds.has(id)) return [];
+    const amount = getOwnAuctionBidAmount(auctionBidHistory, id, studentNumber);
+    return amount === null ? [] : [[id, amount]];
+  })), [auctionBidHistory, sealedAuctionItemIds, studentNumber, studentVisibleAuctionItems]);
+  const getAuctionBidRejection = (
+    item: AuctionItem,
+    amount: number,
+    state: { bids: AuctionBids; history: AuctionBidHistory; awards: AuctionAwards; balance: number } = {
+      bids: auctionBids, history: auctionBidHistory, awards: auctionAwards, balance,
+    },
+  ) => checkAuctionBid({
+    item,
+    amount,
+    studentNumber,
+    activeItemIds: activeAuctionItemIds,
+    step: auctionBidStep,
+    sealedItemIds: sealedAuctionItemIds,
+    ...state,
+  });
+  const getAuctionBidRejectionMessage = (item: AuctionItem, rejection: string) => (
+    rejection === 'BID_TOO_LOW'
+      ? `${formatCurrency(getAuctionBidMinimum({ item, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds }))}부터 입찰할 수 있습니다.`
+      : getAuctionBidErrorMessage(new Error(rejection))
   );
   const availableBalance = Math.max(0, balance - reservedAmount);
   const activeStoreSection = getStoreSection(activeStudentView);
@@ -1304,6 +1359,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setCurrencyHistory(normalizeCurrencyHistory(value.currencyHistory));
     setAuctionItems(normalizeAuctionItems(value.auctionItems));
     setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
+    // Some responses read only part of the auction; keep the last known mode when the flag is absent.
+    if (value.auctionSealedItemIds !== undefined) setAuctionSealedItemIds(normalizeAuctionSealedItemIds(value.auctionSealedItemIds));
     setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
     setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
@@ -1458,6 +1515,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(localPetSnapshot.currencyHistory);
       setAuctionItems(localPetSnapshot.auctionItems);
       setAuctionBids(localPetSnapshot.auctionBids);
+      setAuctionSealedItemIds(loadLocalAuctionSealedItemIds());
       setAuctionBidHistory(localPetSnapshot.auctionBidHistory);
       setAuctionAwards(localPetSnapshot.auctionAwards);
       setAuctionMissions(getStoredAuctionMissions());
@@ -1856,8 +1914,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
     if (itemIndex < 0 || item.dayIndex >= visibleDayCount) return;
 
-    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
+    const minimumBid = getAuctionBidMinimum({ item, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds });
     setSelectedItemId(item.id);
     setBidAmountDrafts((previous) => ({
       ...previous,
@@ -1927,38 +1984,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const submitBid = async (item: AuctionItem, confirmedBidAmount: number) => {
     if (isSubmittingItemId) return;
 
-    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    if (auctionAwards[item.id]) {
-      showStatusMessage('이미 낙찰된 물품입니다.');
-      return;
-    }
-    if (currentBid.bidder === studentNumber) {
-      showStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
-      return;
-    }
-    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
     const bidAmount = clampAuctionBidAmount(confirmedBidAmount);
-    const reservedExcludingItem = getReservedAuctionBidAmount(
-      auctionBids,
-      studentNumber,
-      item.id,
-      auctionAwards,
-      activeAuctionItemIds,
-    );
-    const availableForItem = Math.max(0, balance - reservedExcludingItem);
-
-    if (bidAmount < minimumBid) {
-      showStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
-      return;
-    }
-
-    if (hasAuctionBidAmount(auctionBidHistory, item.id, bidAmount)) {
-      showStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
-      return;
-    }
-
-    if (bidAmount > availableForItem) {
-      showStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
+    const rejection = getAuctionBidRejection(item, bidAmount);
+    if (rejection) {
+      showStatusMessage(getAuctionBidRejectionMessage(item, rejection));
       return;
     }
 
@@ -1985,30 +2014,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const currentAwards = snapshot.auctionAwards;
         if (currentAwards[item.id]) throw new Error('ALREADY_AWARDED');
         const latestBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
-        const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
-        const latestMinimumBid = getMinimumAuctionBid(item, latestBid.amount);
-        const latestReservedExcludingItem = getReservedAuctionBidAmount(
-          currentBids,
-          studentNumber,
-          item.id,
-          currentAwards,
-          activeAuctionItemIds,
-        );
-        if (latestBid.bidder === studentNumber) throw new Error('ALREADY_HIGHEST_BIDDER');
-        if (bidAmount > Math.max(0, latestBalance - latestReservedExcludingItem)) {
-          throw new Error('INSUFFICIENT_FUNDS');
-        }
-        if (bidAmount < latestMinimumBid) throw new Error('BID_TOO_LOW');
-        if (hasAuctionBidAmount(currentHistory, item.id, bidAmount)) {
-          throw new Error('DUPLICATE_BID_AMOUNT');
-        }
-        const nextBids = {
+        const latestRejection = getAuctionBidRejection(item, bidAmount, {
+          bids: currentBids, history: currentHistory, awards: currentAwards, balance: latestBalance,
+        });
+        if (latestRejection) throw new Error(latestRejection);
+        const nextBids = auctionBidTakesLead(currentBids, item.id, bidAmount, sealedAuctionItemIds.has(item.id)) ? {
           ...currentBids,
           [item.id]: {
             amount: bidAmount,
             bidder: studentNumber,
           },
-        };
+        } : currentBids;
         const nextHistory = {
           ...currentHistory,
           [item.id]: [
@@ -2030,8 +2046,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setAuctionBidHistory(nextHistory);
       }
 
-      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
-      setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
+      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + auctionBidStep }));
+      setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + auctionBidStep) }));
       void playAuctionSound('bid');
       showSuccessToast('입찰했어요.');
     } catch (error) {
@@ -2052,38 +2068,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
     void prepareAuctionAudio();
 
-    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    if (auctionAwards[item.id]) {
-      showStatusMessage('이미 낙찰된 물품입니다.');
-      return;
-    }
-    if (currentBid.bidder === studentNumber) {
-      showStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
-      return;
-    }
-    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
     const confirmedAmount = clampAuctionBidAmount(bidAmount);
-    const reservedExcludingItem = getReservedAuctionBidAmount(
-      auctionBids,
-      studentNumber,
-      item.id,
-      auctionAwards,
-      activeAuctionItemIds,
-    );
-    const availableForItem = Math.max(0, balance - reservedExcludingItem);
-
-    if (confirmedAmount < minimumBid) {
-      showStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
-      return;
-    }
-
-    if (hasAuctionBidAmount(auctionBidHistory, item.id, confirmedAmount)) {
-      showStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
-      return;
-    }
-
-    if (confirmedAmount > availableForItem) {
-      showStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
+    const rejection = getAuctionBidRejection(item, confirmedAmount);
+    if (rejection) {
+      showStatusMessage(getAuctionBidRejectionMessage(item, rejection));
       return;
     }
 
@@ -2668,6 +2656,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           auctionItems={studentVisibleAuctionItems}
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
+          sealedItemIds={sealedAuctionItemIds}
+          ownBidAmounts={ownAuctionBidAmounts}
           auctionMissions={auctionMissions}
           weeklyMissionStatuses={weeklyMissionStatuses}
           availableBalance={availableBalance}
@@ -2699,14 +2689,34 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 </div>
               );
             }
-            const minimumBid = getMinimumAuctionBid(selectedItem, currentBid.amount);
-            const reservedExcludingItem = getReservedAuctionBidAmount(
-              auctionBids,
+            const isSelectedItemSealed = sealedAuctionItemIds.has(selectedItem.id);
+            const ownSealedBid = isSelectedItemSealed
+              ? getOwnAuctionBidAmount(auctionBidHistory, selectedItem.id, studentNumber)
+              : null;
+            if (ownSealedBid !== null) {
+              return (
+                <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
+                  <div className="rounded-[1rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 py-3">
+                    <div className="text-[length:var(--type-body-sm)] font-black text-[var(--apple-text-secondary)]">{selectedItemDisplayName} 내 입찰</div>
+                    <div className="mt-1 font-mono text-[length:var(--type-title)] font-black text-[var(--apple-accent)]">
+                      {formatCurrency(ownSealedBid)}
+                    </div>
+                    {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
+                      className="mt-2 min-h-12 rounded-xl bg-[var(--apple-accent)] px-4 font-bold text-white">이전 입찰 확인</button> : null}
+                  </div>
+                </div>
+              );
+            }
+            const minimumBid = getAuctionBidMinimum({ item: selectedItem, bids: auctionBids, step: auctionBidStep, sealedItemIds: sealedAuctionItemIds });
+            const reservedExcludingItem = getStudentReservedAuctionAmount({
+              bids: auctionBids,
+              history: auctionBidHistory,
+              awards: auctionAwards,
+              activeItemIds: activeAuctionItemIds,
               studentNumber,
-              selectedItem.id,
-              auctionAwards,
-              activeAuctionItemIds,
-            );
+              sealedItemIds: sealedAuctionItemIds,
+              excludedItemId: selectedItem.id,
+            });
             const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
             const selectedBidAmount = Math.max(
               clampAuctionBidAmount(bidAmounts[selectedItem.id] ?? minimumBid),
@@ -2728,11 +2738,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       {selectedItemDisplayName}
                     </h2>
                     <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
-                      최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · 시작가 {formatCurrency(selectedItem.startPrice)}
+                      {isSelectedItemSealed ? null : <>최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · </>}시작가 {formatCurrency(selectedItem.startPrice)}
                     </p>
                   </div>
                   <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
-                    입찰 단위 {formatCurrency(AUCTION_BID_STEP)}
+                    {isSelectedItemSealed ? '한 번만 몰래 입찰해요' : `${formatCurrency(auctionBidStep)}씩 올려요`}
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
@@ -2927,7 +2937,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               </h2>
 
               <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[var(--apple-surface-tint)] p-4">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center">
+                <div className={sealedAuctionItemIds.has(renderedPendingBid.itemId) ? 'grid gap-3' : 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center'}>
+                  {sealedAuctionItemIds.has(renderedPendingBid.itemId) ? null : (
+                  <>
                   <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3">
                     <div className="text-[length:var(--type-caption)] font-black text-[var(--apple-text-tertiary)]">현재 최고가</div>
                     <div className="mt-1 font-mono text-[length:var(--type-heading)] font-black leading-none text-[var(--ink)]">
@@ -2937,6 +2949,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   <div className="auction-bid-flow-arrow hidden h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--apple-accent)] shadow-sm ring-1 ring-[#D7E6DE] lg:inline-flex">
                     <ArrowRight size={22} strokeWidth={3} />
                   </div>
+                  </>
+                  )}
                   <div className="rounded-[1rem] border-2 border-[#8DC9B7] bg-white px-4 py-3 text-right">
                     <div className="text-[length:var(--type-caption)] font-black text-[var(--apple-accent)]">당신의 입찰 금액</div>
                     <div className="mt-1 font-mono text-[length:var(--type-title)] font-black leading-none text-[var(--apple-accent)]">

@@ -428,7 +428,9 @@ const currentEconomyResponse = async (
   return { ...result, balance, currencyBalanceEntries: { [own]: balance }, currencyHistoryEntries: { [own]: history },
     studentEconomy: economy, studentLife: life, updatedAt: snapshot.updated_at,
     ...('profileImage' in result ? { profileImage: life.failureProfileAssignments[own] ?? null } : {}),
-    storagePatch: createStorageProjectionPatch(snapshot, current),
+    // Bids are left out: this response does not read the sealed-bidding flag, and the bid screen
+    // receives them through its own redacted reads.
+    storagePatch: createStorageProjectionPatch(snapshot, { ...current, auctionBids: undefined }),
   };
 };
 

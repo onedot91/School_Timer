@@ -1,4 +1,5 @@
 import { isMailStudentNumber } from '../lib/studentIdentity.js';
+import { AUCTION_SEALED_ITEMS_FIELD } from '../lib/auctionBidRules.js';
 import { TEACHER_SETTING_FIELDS } from '../lib/teacherStorageCommand.js';
 import { isStorageRecord, storageResourceKey } from '../lib/storageV2Codec.js';
 import type { DeviceSession } from './deviceSession.js';
@@ -69,7 +70,7 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       revisions.add(`collection:${path}/stamps`);
     } else if (['student.pet.name', 'student.pet.select', 'student.pet.move', 'student.pet.feed'].includes(action)) {
       add({ path: '/studentPets', students: [own] }, true, true);
-      if (action === 'student.pet.feed') { money([own]); auction.slice(0, 3).forEach(name => field(name, false)); }
+      if (action === 'student.pet.feed') { money([own]); [...auction.slice(0, 3), AUCTION_SEALED_ITEMS_FIELD].forEach(name => field(name, false)); }
     } else if (action === 'student.emotion.save') { add({ path: '/studentEmotionHistory', students: [own] }, true, true); money([own]); }
     else if (['student.sudoku.save', 'student.sudoku.complete', 'student.baseball.save', 'student.baseball.complete'].includes(action)) {
       add({ path: action.includes('.sudoku.') ? '/studentSudoku' : '/studentNumberBaseball', students: [own] }, true, true); money([own]);
@@ -77,6 +78,8 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       add({ path: '/studentCircleDrawing', students: [own] }, true, true); money([own]);
     } else if (action === 'student.auction.bid') {
       auction.forEach(name => field(name, name === 'auctionBids' || name === 'auctionBidHistory')); money([own], false);
+      // The sealed list and the timetable decide which bids count; they are read, never written.
+      [AUCTION_SEALED_ITEMS_FIELD, 'weeklySchedule', 'scheduleClockOffsetSeconds'].forEach(name => field(name, false));
     } else throw new StorageScopeError();
   } else {
     if (!action.startsWith('teacher.')) throw new StorageScopeError();

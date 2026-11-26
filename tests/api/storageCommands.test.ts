@@ -385,10 +385,12 @@ test('23 students can bid and teacher student-view bids retain actor-scoped rece
   globalThis.Date = FixedDate as DateConstructor;
   try {
     for (let student=1;student<=23;student++) {
-      const result=await call(student,'POST',command(`auction-student-${student}`, 'student.auction.bid',{itemId:'item-a',amount:student+10}));
+      // Each raise must clear the 5-coin step, so the class spreads across the three visible items.
+      const itemId=['item-a','item-b','item-c'][(student-1)%3];
+      const result=await call(student,'POST',command(`auction-student-${student}`, 'student.auction.bid',{itemId,amount:10+5*Math.floor((student-1)/3)}));
       assert.equal(result.status,200,JSON.stringify(result.body));
     }
-    const request={...command('auction-teacher-view','student.auction.bid',{itemId:'item-a',amount:40}),studentNumber:6};
+    const request={...command('auction-teacher-view','student.auction.bid',{itemId:'item-a',amount:50}),studentNumber:6};
     const saved=await call(0,'POST',request);
     assert.equal(saved.status,200,JSON.stringify(saved.body));
     assert.equal(Reflect.get(Object(Reflect.get(Object(fixture.read().value.auctionBids),'item-a')),'bidder'),6);
@@ -543,3 +545,29 @@ test('원 그리기는 서버에서 다시 채점해 하루 한 번만 보상하
   assert.equal(Reflect.get(Object(second.body), 'error'), 'CIRCLE_ALREADY_SUBMITTED');
   assert.deepEqual(fixture.read().value, value);
 }, { ...initial(), studentCircleDrawing: { [`3:${getCircleDrawingDateKey(new Date())}`]: { score: 91, points: '1,1;2,2', submittedAt: '2026-11-23T00:00:00.000Z' } } }));
+
+test('sealed bids never reach other students through bid responses or reads', () => environment(async (call, fixture) => {
+  const date = new Date('2026-11-27T01:00:00Z');
+  const originalNow = globalThis.Date;
+  class FixedDate extends originalNow { constructor(value?: string | number) { super(value ?? date.getTime()); } }
+  globalThis.Date = FixedDate as DateConstructor;
+  try {
+    const leading = await call(1, 'POST', command('sealed-leading-01', 'student.auction.bid', { itemId: 'item-a', amount: 77 }));
+    assert.equal(leading.status, 200, JSON.stringify(leading.body));
+    const lower = await call(2, 'POST', command('sealed-lower-0001', 'student.auction.bid', { itemId: 'item-a', amount: 30 }));
+    assert.equal(lower.status, 200, JSON.stringify(lower.body));
+    assert.doesNotMatch(JSON.stringify(lower.body), /77/);
+    const leader = Reflect.get(Object(fixture.read().value.auctionBids), 'item-a');
+    assert.deepEqual(leader, { bidder: 1, amount: 77 });
+    const again = await call(2, 'POST', command('sealed-again-0001', 'student.auction.bid', { itemId: 'item-a', amount: 90 }));
+    assert.equal(Reflect.get(Object(again.body), 'error'), 'ALREADY_BID');
+    const read = await call(2, 'GET');
+    assert.equal(read.status, 200, JSON.stringify(read.body));
+    assert.doesNotMatch(JSON.stringify(read.body), /77/);
+    assert.match(JSON.stringify(read.body), /"amount":30/);
+    // Only the marked item is sealed; the others stay open bidding.
+    const open = await call(1, 'POST', command('open-item-bid-001', 'student.auction.bid', { itemId: 'item-b', amount: 23 }));
+    assert.equal(open.status, 200, JSON.stringify(open.body));
+    assert.match(JSON.stringify((await call(2, 'GET')).body), /"amount":23/);
+  } finally { globalThis.Date = originalNow; }
+}, { ...initial(), auctionSealedItemIds: ['item-a'] }));
