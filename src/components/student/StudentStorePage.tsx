@@ -80,6 +80,7 @@ export default function StudentStorePage({
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            shortLabels={section === 'auction'}
           />
         )}
       />

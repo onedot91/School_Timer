@@ -225,8 +225,9 @@ test('연속 낙찰은 프로필 공개 후 결과 유지 시간을 갖고 다�
   assert.match(timerPageSource, /Math\.max\(0, awardQueueAdvanceRef\.current\.dueAt - Date\.now\(\)\)/);
 });
 
-test('교사 알림장은 번호와 금액을 두 줄로, 학생 화면은 괄호로 표시한다', () => {
-  const expectedFormat = /\{award\.winner\}번 \(\{formatCurrency\(award\.amount\)\}\)/;
+test('교사 알림장은 번호와 금액을 두 줄로, 학생 화면은 낙찰자를 한 문장으로 표시한다', () => {
+  // The student ticket shows the amount itself; the bid bar names who took the item.
+  const expectedFormat = /\{award\.winner\}번이 가져갔어요/;
   const legacyFormat = /\{award\.winner\}번 · \{formatCurrency\(award\.amount\)\}/;
 
   assert.match(timerPageSource, /className="announcement-award-student"[\s\S]*?<img[\s\S]*?className="announcement-award-result text-\[var\(--teacher-accent\)\]">\s*<span>\{award\.winner\}번<\/span>\s*<span>\{formatCurrency\(award\.amount\)\}<\/span>/);
