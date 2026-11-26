@@ -13,7 +13,7 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
-import { ArrowRight, Lock, X } from 'lucide-react';
+import { ArrowRight, Lock, Minus, Plus, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import { AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
@@ -37,6 +37,7 @@ import {
   getStudentReservedAuctionAmount,
 } from '../lib/auctionBidRules';
 import { getServerSyncedNow } from '../lib/serverClock';
+import { AuctionProfile, getAuctionLotLabel, getAuctionLotState } from '../components/AuctionItemCard';
 import type { ClassPrepState } from '../lib/classPrep';
 import { CLASS_PREP_BLOCKED_MESSAGE, isClassPrepBlockedEconomyAction, isClassPrepBlockingStage } from '../lib/classPrepGuard';
 import { ClassPrepBlockingContext } from '../lib/classPrepGuardContext';
@@ -45,6 +46,7 @@ import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
+  CURRENCY_UNIT_LABEL,
   AUCTION_MISSIONS_STORAGE_KEY,
   DEFAULT_CURRENCY_BALANCE,
   getDefaultCurrencyBalance,
@@ -205,6 +207,7 @@ import {
   type StudentLifeState,
 } from '../lib/studentLife';
 import {
+  getFailureProfileImage,
   getFailureStoriesNewestFirst,
   toggleFailureStamp,
   type FailureStampId,
@@ -944,7 +947,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount >= 1
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
-  const firstVisibleItem = studentVisibleAuctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
+  // Students see only today's items; earlier days are still reserved but not on the stage.
+  const todayAuctionItems = useMemo(() => studentVisibleAuctionItems.filter((item) => (
+    visibleDayCount > 0 && item.dayIndex === visibleDayCount - 1
+  )), [studentVisibleAuctionItems, visibleDayCount]);
+  // Open on an item still taking bids; fall back to the first one once all are awarded.
+  const firstVisibleItem = todayAuctionItems.find((item) => !auctionAwards[item.id]) ?? todayAuctionItems[0] ?? null;
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const profileAssignments = studentLife.failureProfileAssignments;
@@ -1339,12 +1347,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const selectedItem = useMemo(
     () => {
-      const selectedIndex = studentVisibleAuctionItems.findIndex((item) => item.id === selectedItemId);
-      const selectedAuctionItem = selectedIndex >= 0 ? studentVisibleAuctionItems[selectedIndex] : null;
-      if (selectedAuctionItem && selectedAuctionItem.dayIndex < visibleDayCount) return selectedAuctionItem;
-      return firstVisibleItem;
+      return todayAuctionItems.find((item) => item.id === selectedItemId) ?? firstVisibleItem;
     },
-    [firstVisibleItem, selectedItemId, studentVisibleAuctionItems, visibleDayCount],
+    [firstVisibleItem, selectedItemId, todayAuctionItems],
   );
 
   const applySharedSettingsValue = useCallback((value: SharedSettingsValue | null, updatedAt?: string) => {
@@ -1942,6 +1947,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setBidAmounts((previous) => ({ ...previous, [itemId]: nextAmount }));
   };
 
+  const stepBidAmount = (itemId: string, delta: number, minimumBid: number, maxBid: number) => {
+    const current = clampAuctionBidAmount(bidAmounts[itemId] ?? minimumBid);
+    const nextAmount = Math.max(minimumBid, Math.min(Math.max(minimumBid, maxBid), current + delta));
+    setBidAmountDrafts((previous) => ({ ...previous, [itemId]: String(nextAmount) }));
+    setBidAmounts((previous) => ({ ...previous, [itemId]: nextAmount }));
+  };
+
   const offerPendingBidRecovery = (itemId: string) => {
     if (!hasUnconfirmedStudentStorageDraft(studentNumber, 'student.auction.bid', itemId)) return false;
     const draft = loadStudentStorageDraft(studentNumber, 'student.auction.bid', itemId);
@@ -2386,7 +2398,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }
 
   const page = (
-    <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
+    <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" data-auction-hall={activeStudentView === 'store-auction' ? 'true' : undefined} aria-busy={isStudentActionPending}>
       <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <StudentToast toast={studentToast} onDone={dismissStudentToast} />
@@ -2651,43 +2663,55 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : activeStoreSection === 'securities-trade' ? 'store-securities' : 'store')}
           >
           <AuctionRoom
-          auctionItems={studentVisibleAuctionItems}
+          auctionItems={todayAuctionItems}
           auctionBids={displayedAuctionBids}
           auctionAwards={auctionAwards}
           isLunchSealed={auctionSealedWindow !== null}
           ownBidAmounts={ownAuctionBidAmounts}
-          auctionMissions={auctionMissions}
-          weeklyMissionStatuses={weeklyMissionStatuses}
-          availableBalance={availableBalance}
-          reservedAmount={reservedAmount}
-          visibleDayCount={visibleDayCount}
+          studentNumber={studentNumber}
           selectedItemId={selectedItem?.id ?? null}
-          studentLabel={formatStudentNumberLabel(studentNumber)}
           profileAssignments={profileAssignments}
-          isLoading={isLoading}
-          showStudentSummary={false}
           onSelectItem={selectItem}
-          donationWidget={null}
-          footer={selectedItem ? (() => {
+          seat={selectedItem ? (() => {
             const currentBid = displayedAuctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const award = auctionAwards[selectedItem.id] ?? null;
             const hasPendingBid = hasUnconfirmedStudentStorageDraft(studentNumber, 'student.auction.bid', selectedItem.id);
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
+            const ownLunchBid = ownAuctionBidAmounts[selectedItem.id] ?? null;
+            const lotState = getAuctionLotState(currentBid, award, auctionSealedWindow !== null, studentNumber);
+            const leader = award?.winner ?? currentBid.bidder;
+            const shownAmount = award?.amount ?? (lotState === 'empty' ? 0 : currentBid.amount);
+            const leaderLabel = getAuctionLotLabel(lotState, leader);
+            const slotIndex = Math.max(0, todayAuctionItems.findIndex((item) => item.id === selectedItem.id));
+            const seatLead = (
+              <>
+                <span className="auction-bar-lead">
+                  <AuctionProfile state={lotState} leader={leader} slotIndex={slotIndex} profileAssignments={profileAssignments} />
+                  {leaderLabel ? <span className="auction-ticket-label">{leaderLabel}</span> : null}
+                </span>
+                <span className="auction-bar-info">
+                  <h2 className="auction-bar-name">{selectedItemDisplayName}</h2>
+                  {lotState === 'lunch' ? (
+                    <>
+                      <span className="auction-ticket-before"><small>점심 전</small><strong>{shownAmount}</strong><small>고마</small></span>
+                      {ownLunchBid !== null ? <span className="auction-ticket-own">내가 부른 값 <strong>{ownLunchBid}</strong> 고마</span> : null}
+                    </>
+                  ) : (
+                    <span className="auction-bar-price"><strong key={shownAmount}>{shownAmount}</strong><small>고마</small></span>
+                  )}
+                </span>
+              </>
+            );
             if (award) {
               return (
-                <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
-                  <div className="rounded-[1rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 py-3">
-                    <div className="text-[length:var(--type-body-sm)] font-black text-[#8A5A1F]">낙찰 완료</div>
-                    <div className="mt-1 font-mono text-[length:var(--type-title)] font-black text-[var(--apple-accent)]">
-                      {award.winner}번 ({formatCurrency(award.amount)})
-                    </div>
-                    {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
-                      className="mt-2 min-h-12 rounded-xl bg-[var(--apple-accent)] px-4 font-bold text-white">이전 입찰 확인</button> : null}
-                  </div>
+                <div className="auction-bar" data-state={lotState}>
+                  {seatLead}
+                  <span className="auction-bar-won">{award.winner}번이 가져갔어요</span>
+                  {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
+                    className="auction-bar-submit">이전 입찰 확인</button> : null}
                 </div>
               );
             }
-            const ownLunchBid = ownAuctionBidAmounts[selectedItem.id] ?? null;
             const minimumBid = getAuctionBidMinimum({ item: selectedItem, bids: auctionBids, history: auctionBidHistory, studentNumber, window: auctionSealedWindow });
             const reservedExcludingItem = getStudentReservedAuctionAmount({
               bids: auctionBids,
@@ -2699,9 +2723,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               excludedItemId: selectedItem.id,
             });
             const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
-            const selectedBidAmount = Math.max(
-              clampAuctionBidAmount(bidAmounts[selectedItem.id] ?? minimumBid),
-            );
+            const selectedBidAmount = clampAuctionBidAmount(bidAmounts[selectedItem.id] ?? minimumBid);
             const bidAmountDraft = bidAmountDrafts[selectedItem.id] ?? String(selectedBidAmount || minimumBid);
             const canSubmit =
               !isLoading &&
@@ -2712,69 +2734,67 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               : getAuctionBidAmountIssue({ draft: bidAmountDraft, amount: selectedBidAmount, minimumBid, maxBid });
 
             return (
-              <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
-                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="min-w-0">
-                    <h2 className="section-title min-w-0 truncate text-[length:var(--type-title)] font-extrabold leading-tight text-[var(--apple-text-primary)]">
-                      {selectedItemDisplayName}
-                    </h2>
-                    {auctionSealedWindow ? (
-                      <p className="auction-lunch-price font-mono text-[length:var(--type-body)] font-black">
-                        <Lock size={15} strokeWidth={3} aria-hidden="true" />
-                        <span>점심 전</span>
-                        <span className="auction-lunch-price-amount">{formatCurrency(currentBid.amount)}</span>
-                        <span className="text-[var(--apple-text-tertiary)]">· 시작가 {formatCurrency(selectedItem.startPrice)}</span>
-                      </p>
-                    ) : (
-                      <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
-                        최고가 <span key={currentBid.amount} className="student-amount-settle">{formatCurrency(currentBid.amount)}</span> · 시작가 {formatCurrency(selectedItem.startPrice)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
-                    {auctionSealedWindow
-                      ? ownLunchBid === null ? '몰래 입찰해요' : `내 입찰 ${formatCurrency(ownLunchBid)}`
-                      : `입찰 단위 ${formatCurrency(AUCTION_BID_STEP)}`}
-                  </div>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                  <label data-invalid={bidAmountIssue ? 'true' : undefined} className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
-                    <input
-                      id="auction-bid-amount-input"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={bidAmountDraft}
-                      onChange={(event) => updateBidAmountDraft(selectedItem.id, event.target.value)}
-                      onBlur={() => commitBidAmountDraft(selectedItem.id, minimumBid, maxBid)}
-                      onKeyDown={(event) => {
-                        if (event.nativeEvent.isComposing) return;
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          commitBidAmountDraft(selectedItem.id, minimumBid, maxBid);
-                          openBidConfirm(selectedItem, selectedBidAmount);
-                        }
-                      }}
-                      className="h-full min-w-0 bg-transparent text-center font-mono text-[length:var(--type-title)] font-black text-[var(--apple-text-primary)] outline-none"
-                      aria-label={`${selectedItemDisplayName} 입찰 금액`}
-                      aria-invalid={bidAmountIssue ? true : undefined}
-                      aria-describedby="auction-bid-amount-issue"
-                      placeholder={String(minimumBid)}
-                    />
-                    <span className="pl-2 font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">고마</span>
-                  </label>
-                  <button
-                    id="auction-bid-trigger"
-                    ref={bidTriggerRef}
-                    type="button"
-                    onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
-                    disabled={!canSubmit}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[var(--apple-accent)] text-[length:var(--type-body)] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[var(--apple-accent-pressed)] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82"
-                  >
-                    {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '입찰'}
-                  </button>
-                </div>
-                <p id="auction-bid-amount-issue" className="student-amount-issue auction-bid-amount-issue" aria-live="polite">{bidAmountIssue ?? ''}</p>
+              <div className="auction-bar" data-state={lotState}>
+                {seatLead}
+                <span className="auction-bar-controls">
+                  <span className="auction-bar-stepper">
+                    <button
+                      type="button"
+                      className="auction-bar-step"
+                      onClick={() => stepBidAmount(selectedItem.id, -AUCTION_BID_STEP, minimumBid, maxBid)}
+                      disabled={hasPendingBid}
+                      aria-label={`1${CURRENCY_UNIT_LABEL} 내리기`}
+                    >
+                      <Minus size={22} strokeWidth={3} aria-hidden="true" />
+                    </button>
+                    <label data-invalid={bidAmountIssue ? 'true' : undefined} className="auction-bid-input auction-bar-input">
+                      <input
+                        id="auction-bid-amount-input"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={bidAmountDraft}
+                        onChange={(event) => updateBidAmountDraft(selectedItem.id, event.target.value)}
+                        onBlur={() => commitBidAmountDraft(selectedItem.id, minimumBid, maxBid)}
+                        onKeyDown={(event) => {
+                          if (event.nativeEvent.isComposing) return;
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            commitBidAmountDraft(selectedItem.id, minimumBid, maxBid);
+                            openBidConfirm(selectedItem, selectedBidAmount);
+                          }
+                        }}
+                        aria-label={`${selectedItemDisplayName} 입찰 금액`}
+                        aria-invalid={bidAmountIssue ? true : undefined}
+                        aria-describedby="auction-bid-amount-issue"
+                        placeholder={String(minimumBid)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="auction-bar-step"
+                      onClick={() => stepBidAmount(selectedItem.id, AUCTION_BID_STEP, minimumBid, maxBid)}
+                      disabled={hasPendingBid}
+                      aria-label={`1${CURRENCY_UNIT_LABEL} 올리기`}
+                    >
+                      <Plus size={22} strokeWidth={3} aria-hidden="true" />
+                    </button>
+                  </span>
+                  <p id="auction-bid-amount-issue" className="student-amount-issue auction-bid-amount-issue" aria-live="polite">{bidAmountIssue ?? ''}</p>
+                </span>
+                <button
+                  id="auction-bid-trigger"
+                  ref={bidTriggerRef}
+                  type="button"
+                  onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
+                  disabled={!canSubmit}
+                  className="auction-bar-submit"
+                >
+                  <span className="auction-profile auction-bar-me" aria-hidden="true">
+                    <img src={getFailureProfileImage(studentNumber, profileAssignments)} alt="" width={192} height={192} decoding="async" />
+                  </span>
+                  {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '팻말 들기'}
+                </button>
               </div>
             );
           })() : null}

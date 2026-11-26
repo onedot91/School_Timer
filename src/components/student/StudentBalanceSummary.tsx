@@ -21,6 +21,8 @@ interface StudentBalanceSummaryProps {
   isLoading?: boolean;
   onProfileClick?: () => void;
   pendingDeductions?: readonly PendingTeacherDeduction[];
+  /** Short labels ("사용 가능", "예약") where the amount already ends in 고마. */
+  shortLabels?: boolean;
 }
 
 export default function StudentBalanceSummary({
@@ -32,6 +34,7 @@ export default function StudentBalanceSummary({
   isLoading = false,
   onProfileClick,
   pendingDeductions = [],
+  shortLabels = false,
 }: StudentBalanceSummaryProps) {
   // While loading, a fixed-width block holds the number's place so the header does not shift when the balance arrives.
   const { displayedValue: countedAvailable, change: availableChange } = useStudentBalanceChange(availableBalance, isLoading);
@@ -74,7 +77,7 @@ export default function StudentBalanceSummary({
       <div className="student-balance-primary" data-changing={availableChange ? 'true' : undefined}>
         <div className="student-balance-primary-heading">
           <Coins size={24} aria-hidden="true" />
-          <span>사용 가능 고마</span>
+          <span>{shortLabels ? '사용 가능' : '사용 가능 고마'}</span>
           {availableChange ? (
             // Visual echo only: the result toast already announces what changed.
             <span
@@ -91,7 +94,7 @@ export default function StudentBalanceSummary({
       </div>
       <div className={`student-balance-meta${hasPendingDeduction ? ' has-pending-deduction' : ''}`} data-has-reserved={showReserved}>
         {showReserved ? <div className="student-balance-detail student-balance-reserved">
-          <span>예약 고마</span>
+          <span>{shortLabels ? '예약' : '예약 고마'}</span>
           <strong>{displayedReserved}</strong>
         </div> : null}
         {!isLoading ? <StudentPendingDeductionBadge deductions={pendingDeductions} /> : null}

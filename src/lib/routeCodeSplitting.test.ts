@@ -61,7 +61,7 @@ test('웹 폰트 연결은 앱 스타일 파싱 전에 시작한다', () => {
   assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net" crossorigin/);
   assert.match(indexHtmlSource, /rel="stylesheet" href="https:\/\/cdn\.jsdelivr\.net\/gh\/sun-typeface\/SUIT@2\/fonts\/variable\/woff2\/SUIT-Variable\.css"/);
   assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/);
-  assert.match(indexHtmlSource, /family=Noto\+Serif\+KR:wght@400;500;600;700;900&display=swap/);
+  assert.match(indexHtmlSource, /family=Noto\+Serif\+KR:wght@400;500;600;700;900&family=Jua&family=Gowun\+Dodum&display=swap/);
   assert.doesNotMatch(stylesheetSource, /@import url\("https:\/\//);
   assert.match(stylesheetSource, /--font-writing: "Noto Serif KR", serif;/);
   assert.match(stylesheetSource, /\.student-mailbox-view \.student-letter-paper \{[\s\S]*?font-family: var\(--font-writing\);/);
