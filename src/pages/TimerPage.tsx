@@ -279,6 +279,7 @@ import { hasMorningActivityEnded, isMorningSlot, MORNING_ACTIVITY_LABEL } from '
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
 import { normalizeTournament, type Tournament } from '../lib/tournament';
 import { loadStoredTournament, storeTournament } from '../lib/tournamentLocalStore';
+import { AUCTION_SEALED_ITEMS_FIELD, normalizeAuctionSealedItemIds } from '../lib/auctionBidRules';
 import { getServerSyncedNow } from '../lib/serverClock';
 import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
 import { setSaveActivityPending } from '../lib/saveActivity';
@@ -505,6 +506,7 @@ interface SharedSchoolTimerSettings {
   studentStockMarket: StudentStockMarket;
   classPrepRelease: ClassPrepRelease | null;
   tournament: Tournament | null;
+  auctionSealedItemIds: string[];
 }
 
 interface NoticeHighlightRange {
@@ -1784,6 +1786,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentStockMarket: normalizeStudentStockMarket(parsed.studentStockMarket),
     classPrepRelease: parseClassPrepRelease(parsed.classPrepRelease),
     tournament: normalizeTournament(parsed.tournament),
+    auctionSealedItemIds: normalizeAuctionSealedItemIds(parsed.auctionSealedItemIds),
   };
 };
 
@@ -4133,6 +4136,14 @@ export default function TimerPage() {
   const [tournament, setTournament] = useState<Tournament | null>(() => (
     isSupabaseSettingsEnabled ? null : loadStoredTournament()
   ));
+  const [auctionSealedItemIds, setAuctionSealedItemIds] = useState<string[]>(() => {
+    if (isSupabaseSettingsEnabled) return [];
+    try { return normalizeAuctionSealedItemIds(JSON.parse(localStorage.getItem(AUCTION_SEALED_ITEMS_FIELD) || '[]')); }
+    catch { return []; }
+  });
+  const toggleAuctionItemSealed = (itemId: string) => setAuctionSealedItemIds((previous) => (
+    previous.includes(itemId) ? previous.filter((id) => id !== itemId) : [...previous, itemId]
+  ));
   const [drawSettingsTab, setDrawSettingsTab] = useState<'numbers' | 'tournament'>('numbers');
   const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
   const [stockMarketWeekDrafts, setStockMarketWeekDrafts] = useState<StockMarketWeekDrafts>({});
@@ -4836,6 +4847,7 @@ export default function TimerPage() {
     studentStockMarket,
     classPrepRelease,
     tournament,
+    auctionSealedItemIds,
   });
 
   const latestTeacherSnapshotRef = useRef<Record<string, unknown>>({});
@@ -4905,6 +4917,7 @@ export default function TimerPage() {
     setStudentStockMarket(normalizeStudentStockMarket(remoteSettings.studentStockMarket));
     setClassPrepRelease(remoteSettings.classPrepRelease);
     setTournament(remoteSettings.tournament);
+    setAuctionSealedItemIds(remoteSettings.auctionSealedItemIds);
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -5096,6 +5109,12 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeTournament(tournament);
   }, [tournament]);
+
+  useEffect(() => {
+    if (isSupabaseSettingsEnabled) return;
+    try { localStorage.setItem(AUCTION_SEALED_ITEMS_FIELD, JSON.stringify(auctionSealedItemIds)); }
+    catch { /* The setting still applies on this screen. */ }
+  }, [auctionSealedItemIds]);
 
   useEffect(() => {
     if (scheduleYoutubeUrls.length > 0) {
@@ -5372,6 +5391,7 @@ export default function TimerPage() {
     studentStockMarket,
     classPrepRelease,
     tournament,
+    auctionSealedItemIds,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -11436,6 +11456,7 @@ export default function TimerPage() {
                       || teacherSettingsSavingRef.current || hasUnsavedAuctionItemsRef.current || isRemovingAuctionItem);
                     const canRemoveItem = auctionItems.length > 1 && !removalPending;
                     const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
+                    const isSealed = auctionSealedItemIds.includes(item.id);
 
                     return (
                       <div
@@ -11471,6 +11492,19 @@ export default function TimerPage() {
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
                                 placeholder="물품 이름"
                               />
+                              <button
+                                type="button"
+                                onClick={() => toggleAuctionItemSealed(item.id)}
+                                aria-pressed={isSealed}
+                                aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 비공개 입찰`}
+                                className="inline-flex h-11 shrink-0 items-center justify-center gap-1 rounded-full border px-3 text-[length:var(--type-caption)] font-black transition-colors"
+                                style={isSealed
+                                  ? { borderColor: accent.chip, backgroundColor: accent.chip, color: '#FFFFFF' }
+                                  : { borderColor: accent.border, backgroundColor: '#FFFFFF', color: 'var(--teacher-text-secondary)' }}
+                              >
+                                {isSealed ? <Lock size={14} aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
+                                {isSealed ? '비공개' : '공개'}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => removeAuctionItem(item.id)}

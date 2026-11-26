@@ -3,6 +3,7 @@ import { parseReadManifest } from '../lib/storageReadManifest.js';
 import { StorageReadBusyError } from './storageReadPriority.js';
 import { createHash } from 'node:crypto';
 import { normalizeAuctionItems } from '../lib/currency.js';
+import { getAuctionBidStep } from '../lib/auctionBidRules.js';
 import { parseStorageScope, storagePathWithin, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
 import { assembleStorageState, canonicalStorageJson, isStorageRecord, reconcileStorageResourceOrder, splitStorageState, type StorageHistoryRecord, type StorageResource, type StorageResourceValue, type StorageWallet, } from '../lib/storageV2Codec.js';
 export interface StorageConfiguration {
@@ -505,6 +506,7 @@ export const commitAuctionBidAndLoad = async (
         actorKey: mutation.actorKey, requestId: mutation.requestId,
         payloadHash: storagePayloadHash(mutation.action, mutation.payload), studentNumber,
         itemId: item.id, amount: payload.amount, activeItemIds: items.map(item => item.id), startPrice: item.startPrice,
+        bidStep: getAuctionBidStep(Date.parse(createdAt), mutation.snapshot.value.weeklySchedule, mutation.snapshot.value.scheduleClockOffsetSeconds),
         configRevision: mutation.snapshot.revisions['scope:auctionItems:all'] ?? 0,
         createdAt,
     } });
@@ -513,8 +515,16 @@ export const commitAuctionBidAndLoad = async (
         'DUPLICATE_BID_AMOUNT', 'INSUFFICIENT_FUNDS'].includes(body.rejected)) return { saved: false, rejected: body.rejected };
     if (typeof body.saved !== 'boolean') return invalid();
     return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
-        ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, mutation.snapshot.scope) } : {}) };
+        ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, auctionBidResultScope(studentNumber)) } : {}) };
 };
+
+/** The scope storage_place_auction_bid answers with; the command itself also reads the timetable. */
+const auctionBidResultScope = (studentNumber: number): StorageScope => parseStorageScope({
+    resources: ['/auctionItems', '/auctionBids', '/auctionAwards', '/auctionBidHistory'].map(path => ({ path })),
+    wallets: [studentNumber], history: [],
+    writeResources: [{ path: '/auctionBids' }, { path: '/auctionBidHistory' }], writeWallets: [],
+    revisionKeys: ['scope:auctionItems:all', 'scope:auctionBids:all', 'scope:auctionAwards:all', 'scope:auctionBidHistory:all', `wallet:${studentNumber}`],
+});
 
 /** Teacher grants and exact sets, decided against locked wallets in one database call. */
 export const commitTeacherCurrencyAndLoad = async (configuration: StorageConfiguration, command: {

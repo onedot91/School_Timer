@@ -19,6 +19,8 @@ interface AuctionItemCardProps {
   readonly item: AuctionItem;
   readonly currentBid: AuctionBid;
   readonly award: AuctionAward | null;
+  /** Set while bidding is sealed: the student's own bid, or null before they bid. */
+  readonly sealedOwnBid?: number | null;
   readonly accent: AuctionDayAccent;
   readonly isUnlocked: boolean;
   readonly isSelected: boolean;
@@ -30,6 +32,7 @@ export function AuctionItemCard({
   item,
   currentBid,
   award,
+  sealedOwnBid,
   accent,
   isUnlocked,
   isSelected,
@@ -43,6 +46,7 @@ export function AuctionItemCard({
     ? null
     : getFailureProfileImage(leadingStudentNumber, profileAssignments);
   const bidderLabel = award ? '낙찰자' : '최고 입찰';
+  const isSealed = sealedOwnBid !== undefined && !award;
 
   return (
     <button
@@ -53,7 +57,9 @@ export function AuctionItemCard({
       disabled={!isUnlocked}
       aria-pressed={isUnlocked ? isSelected : undefined}
       aria-label={isUnlocked
-        ? `${itemDisplayName}, 현재가 ${formatCurrency(currentAmount)}${leadingStudentNumber === null ? ', 입찰 전' : `, ${bidderLabel} ${leadingStudentNumber}번`}`
+        ? isSealed
+          ? `${itemDisplayName}, 비공개 입찰, ${sealedOwnBid === null ? '아직 입찰 안 함' : `내 입찰 ${formatCurrency(sealedOwnBid)}`}`
+          : `${itemDisplayName}, 현재가 ${formatCurrency(currentAmount)}${leadingStudentNumber === null ? ', 입찰 전' : `, ${bidderLabel} ${leadingStudentNumber}번`}`
         : '잠긴 물품, 해당 요일에 공개됩니다'}
       className={`auction-item-card group relative overflow-hidden border text-left ${
         isUnlocked
@@ -78,6 +84,18 @@ export function AuctionItemCard({
             </h3>
           </div>
 
+          {isSealed ? (
+            <>
+              <div className="auction-item-current-bid" style={{ color: accent.chip }}>
+                <span>내 입찰</span>
+                <strong>{sealedOwnBid === null ? '-' : formatCurrency(sealedOwnBid)}</strong>
+              </div>
+              <div className="auction-item-bidder">
+                <span className="auction-item-no-bid">비공개</span>
+              </div>
+            </>
+          ) : (
+          <>
           <div className="auction-item-current-bid" style={{ color: accent.chip }}>
             <span>현재가</span>
             <strong><span key={currentAmount} className="student-amount-settle">{formatCurrency(currentAmount)}</span></strong>
@@ -102,6 +120,8 @@ export function AuctionItemCard({
               <span className="auction-item-no-bid">입찰 전</span>
             )}
           </div>
+          </>
+          )}
         </div>
       ) : (
         <div className="auction-item-locked-content">

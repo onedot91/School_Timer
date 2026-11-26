@@ -200,6 +200,30 @@ test('real PostgreSQL: student change reads match full reads after shared, own, 
     query(await readFile(new URL('../../supabase/storage_student_history_window_rollback.sql', import.meta.url), 'utf8'));
     assert.ok(patchOf((await read(5)).body).history.some(row => row.entry_id === 'old-grant-5'));
 
+    // Sealed items: changing the list starts the read over, and other students' bids stay hidden.
+    const setSealed = (value: boolean) => {
+      for (const row of splitStorageState({ auctionSealedItemIds: value ? ['item-a'] : [] }).resources) {
+        if (row.resource_key.startsWith('/auctionSealedItemIds')) writeResource(row.resource_key, row.category, row.owner_number, row.value);
+      }
+      if (!value) query("update storage_resources set deleted=true, revision=revision+1 where resource_key like '/auctionSealedItemIds/%' and not deleted;");
+    };
+    manifest = Reflect.get((await read(5)).body, 'readManifest') as Record<string, string>;
+    setSealed(true);
+    const sealed = await read(5, manifest);
+    assert.equal(sealed.status, 200);
+    assert.equal(patchOf(sealed.body).complete, true);
+    assert.doesNotMatch(JSON.stringify(sealed.body), /"bidder":[37]/);
+    manifest = Reflect.get(sealed.body, 'readManifest') as Record<string, string>;
+    writeResource('/auctionBids/item-a', 'auctionBids', null, { kind: 'value', parentKey: '/auctionBids', member: 'item-a', data: { bidder: 8, amount: 40 } });
+    const hiddenBid = await read(5, manifest);
+    assert.equal(patchOf(hiddenBid.body).complete, false);
+    assert.doesNotMatch(JSON.stringify(hiddenBid.body), /"amount":40/);
+    manifest = Reflect.get(hiddenBid.body, 'readManifest') as Record<string, string>;
+    setSealed(false);
+    const opened = await read(5, manifest);
+    assert.equal(patchOf(opened.body).complete, true);
+    assert.match(JSON.stringify(opened.body), /"amount":40/);
+
     for (const role of ['anon', 'authenticated']) assert.equal(query(`select has_function_privilege('${role}','storage_load_scope_changes_student(jsonb,jsonb)','execute');`), 'f');
     assert.equal(query("select has_function_privilege('service_role','storage_load_scope_changes_student(jsonb,jsonb)','execute');"), 't');
   } finally {

@@ -116,6 +116,7 @@ export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
 export const DAILY_EMOTION_MISSION_REWARD = 5;
 export const WEEKLY_EMOTION_MISSION_REWARD = 25;
+/** Smallest stored bid unit. The raise between bids comes from auctionBidRules. */
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_MAX_COUNT = 4;
@@ -1346,10 +1347,9 @@ export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
   return normalizedMissions;
 };
 
-export const getMinimumAuctionBid = (item: AuctionItem, currentAmount: number) => {
-  const baseAmount = currentAmount > 0 ? currentAmount + AUCTION_BID_STEP : item.startPrice;
-  return Math.max(item.startPrice, Math.ceil(baseAmount / AUCTION_BID_STEP) * AUCTION_BID_STEP);
-};
+export const getMinimumAuctionBid = (item: AuctionItem, currentAmount: number, step = AUCTION_BID_STEP) => (
+  currentAmount > 0 ? Math.max(item.startPrice, currentAmount + step) : item.startPrice
+);
 
 export const hasAuctionBidAmount = (
   history: AuctionBidHistory,

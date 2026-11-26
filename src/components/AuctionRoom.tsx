@@ -21,6 +21,9 @@ interface AuctionRoomProps {
   auctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   auctionAwards?: AuctionAwards;
+  /** Sealed items hide the lead; their cards show only the student's own bid. */
+  sealedItemIds?: ReadonlySet<string>;
+  ownBidAmounts?: Readonly<Record<string, number>>;
   auctionMissions: AuctionMission[];
   weeklyMissionStatuses: WeeklyMissionStatuses;
   availableBalance: number;
@@ -41,6 +44,8 @@ export default function AuctionRoom({
   auctionItems,
   auctionBids,
   auctionAwards,
+  sealedItemIds,
+  ownBidAmounts,
   auctionMissions,
   weeklyMissionStatuses,
   availableBalance,
@@ -338,6 +343,7 @@ export default function AuctionRoom({
                       item={item}
                       currentBid={currentBid}
                       award={award}
+                      sealedOwnBid={sealedItemIds?.has(item.id) ? ownBidAmounts?.[item.id] ?? null : undefined}
                       accent={activeDayGroup.accent}
                       isUnlocked={isUnlocked}
                       isSelected={isSelected}

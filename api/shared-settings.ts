@@ -16,6 +16,7 @@ import {
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { AUCTION_ITEM_IDS } from '../src/lib/currency.js';
+import { AUCTION_SEALED_ITEMS_FIELD, redactSealedAuctionForStudent } from '../src/lib/auctionBidRules.js';
 import { STUDENT_MUTABLE_MAP_FIELDS, STUDENT_MUTABLE_PROGRESS_FIELDS, STUDENT_MUTABLE_SHARED_FIELDS } from '../src/lib/studentSettingsUpdate.js';
 import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
 import { placeCompetitionBook, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
@@ -55,6 +56,8 @@ const STUDENT_SHARED_FIELDS = [
   'auctionBidHistory',
   'auctionAwards',
   'auctionMissions',
+  // Read by projectStudentValue to withhold other students' sealed bids.
+  'auctionSealedItemIds',
   'classroomRoleMission',
   'studentMissionVisibility',
   'classDonation',
@@ -273,7 +276,7 @@ const projectStudentValue = (value: unknown, studentNumber: number): Record<stri
       Object.entries(asRecord(projected[field])).filter(([key]) => key.startsWith(`${studentNumber}:`)),
     );
   }
-  return projected;
+  return redactSealedAuctionForStudent(projected, studentNumber);
 };
 
 const saveValue = async (
@@ -383,8 +386,18 @@ const parseStudentReadManifest = (raw: unknown, studentNumber: number, bidItems:
   return Object.fromEntries(Object.entries(known).filter(([name]) => current.has(name)));
 };
 
+const SEALED_ITEMS_PART = `scope:/${AUCTION_SEALED_ITEMS_FIELD}`;
 const loadStudentChanges = async (url: string, key: string, studentNumber: number, known: Record<string, string> | null, bidItems: boolean) => {
-  const { manifest, snapshot, complete } = await loadScopedStorageChangesForRead({ url, key }, studentReadScope(studentNumber, bidItems), known);
+  const scope = studentReadScope(studentNumber, bidItems);
+  // The small sealed-item list is always re-read so every response can be redacted. Digests track
+  // stored rows, not what the student was shown, so when the list changed since the browser's copy
+  // the read starts over as a complete one: bids hidden before are sent, and bids now hidden are dropped.
+  const withoutSealed = known && Object.fromEntries(Object.entries(known).filter(([name]) => name !== SEALED_ITEMS_PART));
+  let changes = await loadScopedStorageChangesForRead({ url, key }, scope, withoutSealed);
+  if (known && known[SEALED_ITEMS_PART] !== changes.manifest[SEALED_ITEMS_PART]) {
+    changes = await loadScopedStorageChangesForRead({ url, key }, scope, null);
+  }
+  const { manifest, snapshot, complete } = changes;
   const value = projectStudentValue(snapshot.value, studentNumber);
   return { id: SETTINGS_ID, value, updated_at: snapshot.updated_at, scope: 'student' as const, readManifest: manifest,
     ...(snapshot.readVersion ? { readVersion: snapshot.readVersion } : {}),
@@ -395,7 +408,7 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number, o
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
     const fullScope = studentReadScope(studentNumber);
-    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments',
+    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', `/${AUCTION_SEALED_ITEMS_FIELD}`, '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments',
       '/weeklySchedule', '/weeklySubjects', '/scheduleClockOffsetSeconds', '/classPrepRelease']);
     const partial = overview && studentNumber !== TEST_STUDENT_NUMBER;
     const scope = partial ? { ...fullScope, resources: fullScope.resources.filter(selection => overviewFields.has(selection.path)), history: [] } : fullScope;
@@ -427,13 +440,13 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number, o
   const rows: unknown = await result.json();
   if (!Array.isArray(rows) || rows.length === 0 || !rows[0] || typeof rows[0] !== 'object') return null;
   const projectedRow = rows[0];
-  const value = Object.fromEntries([
+  const value = redactSealedAuctionForStudent(Object.fromEntries([
     ...STUDENT_SHARED_FIELDS.map((field) => [field, Reflect.get(projectedRow, field)]),
     ...STUDENT_SCOPED_MAP_FIELDS.map((field) => {
       const ownValue = Reflect.get(projectedRow, field);
       return [field, ownValue === null || ownValue === undefined ? {} : { [studentKey]: ownValue }];
     }),
-  ]);
+  ]), studentNumber);
   const updatedAt = Reflect.get(projectedRow, 'updated_at');
   return {
     id: SETTINGS_ID,

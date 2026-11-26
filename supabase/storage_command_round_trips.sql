@@ -80,7 +80,7 @@ language plpgsql volatile security definer set search_path=pg_catalog,public set
 declare
   actor text:=p_command->>'actorKey'; request_id_value text:=p_command->>'requestId';
   payload_hash_value text:=p_command->>'payloadHash'; item_id text:=p_command->>'itemId';
-  student integer; amount numeric; start_price numeric; config_revision bigint;
+  student integer; amount numeric; start_price numeric; bid_step numeric:=1; current_amount numeric; config_revision bigint;
   account public.wallet_accounts%rowtype; receipt public.storage_receipts%rowtype;
   bid jsonb; award jsonb; scope jsonb; changes jsonb:='[]'; expected jsonb;
   k text; key_value text; parent text; category_value text; member text;
@@ -100,8 +100,12 @@ begin
     or exists(select 1 from jsonb_array_elements(p_command->'activeItemIds') v where jsonb_typeof(v.value)<>'string' or v.value#>>'{}' !~ '^[a-zA-Z0-9_-]{1,100}$')
     or jsonb_typeof(p_command->'startPrice') is distinct from 'number' or p_command->>'startPrice' !~ '^[0-9]{1,6}$'
     or jsonb_typeof(p_command->'configRevision') is distinct from 'number' or p_command->>'configRevision' !~ '^[0-9]{1,18}$'
-    or created_at_value is null or created_at_value !~ '^\d{4}-\d{2}-\d{2}T' then raise exception 'STORAGE_INVALID_MUTATION'; end if;
+    or created_at_value is null or created_at_value !~ '^\d{4}-\d{2}-\d{2}T'
+    -- Optional raise step chosen by the server from the timetable; older callers omit it and keep 1.
+    or (p_command ? 'bidStep' and (jsonb_typeof(p_command->'bidStep') is distinct from 'number' or p_command->>'bidStep' !~ '^[1-9][0-9]{0,2}$'))
+    then raise exception 'STORAGE_INVALID_MUTATION'; end if;
   student:=(p_command->>'studentNumber')::integer;
+  if p_command ? 'bidStep' then bid_step:=(p_command->>'bidStep')::numeric; end if;
   if actor not in ('student:'||student,'teacher:0:student:'||student) then raise exception 'STORAGE_SCOPE_VIOLATION'; end if;
   amount:=(p_command->>'amount')::numeric; start_price:=(p_command->>'startPrice')::numeric;
   if amount<1 or start_price<1 then raise exception 'STORAGE_INVALID_MUTATION'; end if;
@@ -131,7 +135,8 @@ begin
   if public.storage_auction_student(award->'winner') is not null and public.storage_auction_amount(award->'amount')>0 then
     return jsonb_build_object('rejected','ALREADY_AWARDED'); end if;
   if public.storage_auction_student(bid->'bidder')=student then return jsonb_build_object('rejected','ALREADY_HIGHEST_BIDDER'); end if;
-  if amount<greatest(start_price,public.storage_auction_amount(bid->'amount')+1) then return jsonb_build_object('rejected','BID_TOO_LOW'); end if;
+  current_amount:=public.storage_auction_amount(bid->'amount');
+  if amount<greatest(start_price,case when current_amount>0 then current_amount+bid_step else 0 end) then return jsonb_build_object('rejected','BID_TOO_LOW'); end if;
   if exists(select 1 from public.storage_resources r where not r.deleted and r.value->>'parentKey'=history_path
     and public.storage_auction_student(r.value#>'{data,bidder}') is not null
     and public.storage_auction_amount(r.value#>'{data,amount}')=amount) then return jsonb_build_object('rejected','DUPLICATE_BID_AMOUNT'); end if;
