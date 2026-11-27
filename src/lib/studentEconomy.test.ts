@@ -3,7 +3,6 @@ import test from 'node:test';
 
 import {
   applyStudentEconomyAction,
-  boostInvestmentGainMultiplier,
   calculateInvestmentAmount,
   investmentMultiplierToPercent,
   investmentPercentToMultiplier,
@@ -217,13 +216,11 @@ test('날짜별로 고른 퍼센트가 해당 종목 투자금에 직접 적용�
   });
   const state = normalizeStudentEconomyState({ investments: { sunny: { investedAmount: 40, currentAmount: 40, lastSettledDateKey: '2026-08-13', lastChangeAmount: 0, lastStage: 'flat' } } });
   const settled = applyStudentEconomyAction({ state, action: { type: 'settle_investments', dateKey: '2026-08-14' }, wallet: 60, availableWallet: 60, requestId: 'percent-settle', stockMarket: market });
-  assert.equal(settled.state.investments.sunny?.currentAmount, 56);
+  assert.equal(settled.state.investments.sunny?.currentAmount, 48);
   assert.equal(settled.state.investments.sunny?.lastStage, 'rise');
 });
 
-test('이익은 등락률의 두 배로 반영하고 손실은 등락률 그대로 반영한다', () => {
-  assert.deepEqual([1.1, 1.2, 1.3, 1.5].map(boostInvestmentGainMultiplier), [1.2, 1.4, 1.6, 2]);
-  assert.deepEqual([1, 0.9, 0.5].map(boostInvestmentGainMultiplier), [1, 0.9, 0.5]);
+test('이익과 손실 모두 등락률 그대로 반영한다', () => {
   const state = normalizeStudentEconomyState({ investments: {
     sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-08-13', lastChangeAmount: 0, lastStage: 'flat' },
     sprout: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-08-13', lastChangeAmount: 0, lastStage: 'flat' },
@@ -231,8 +228,8 @@ test('이익은 등락률의 두 배로 반영하고 손실은 등락률 그대�
   let market = upsertStudentStockMarketEntry({}, 'sunny', { dateKey: '2026-08-14', stage: 'big_rise', returnPercent: 50, comment: '' });
   market = upsertStudentStockMarketEntry(market, 'sprout', { dateKey: '2026-08-14', stage: 'big_fall', returnPercent: -50, comment: '' });
   const settled = applyStudentEconomyAction({ state, action: { type: 'settle_investments', dateKey: '2026-08-14' }, wallet: 0, availableWallet: 0, requestId: 'boost-settle', stockMarket: market });
-  assert.equal(settled.state.investments.sunny?.currentAmount, 200);
-  assert.equal(settled.state.investments.sunny?.lastChangeAmount, 100);
+  assert.equal(settled.state.investments.sunny?.currentAmount, 150);
+  assert.equal(settled.state.investments.sunny?.lastChangeAmount, 50);
   assert.equal(settled.state.investments.sprout?.currentAmount, 50);
 });
 
@@ -241,10 +238,10 @@ test('평일 결과는 날짜마다 한 번만 적용되고 주말은 적용하�
   market = upsertStudentStockMarketEntry(market, 'sunny', { dateKey: '2026-08-15', stage: 'big_rise', comment: '토요일 소식' });
   const state = normalizeStudentEconomyState({ investments: { sunny: { investedAmount: 40, currentAmount: 40, lastSettledDateKey: '2026-08-13', lastChangeAmount: 0, lastStage: 'flat' } } });
   const settled = applyStudentEconomyAction({ state, action: { type: 'settle_investments', dateKey: '2026-08-16' }, wallet: 60, availableWallet: 60, requestId: 'settle-1', stockMarket: market });
-  assert.equal(settled.state.investments.sunny?.currentAmount, 48);
-  assert.equal(settled.state.investments.sunny?.lastChangeAmount, 8);
+  assert.equal(settled.state.investments.sunny?.currentAmount, 44);
+  assert.equal(settled.state.investments.sunny?.lastChangeAmount, 4);
   const repeated = applyStudentEconomyAction({ state: settled.state, action: { type: 'settle_investments', dateKey: '2026-08-16' }, wallet: 60, availableWallet: 60, requestId: 'settle-2', stockMarket: market });
-  assert.equal(repeated.state.investments.sunny?.currentAmount, 48);
+  assert.equal(repeated.state.investments.sunny?.currentAmount, 44);
   assert.equal(repeated.applied, false);
   assert.equal(repeated.state.processedRequestIds.includes('settle-2'), false);
 });

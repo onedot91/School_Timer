@@ -57,10 +57,10 @@ test('학생이 다시 접속하지 않아도 등록한 등락을 즉시 표시�
     states: { '1': state }, dateKey,
     market: { sunny: [{ dateKey: '2026-10-02', stage: returnPercent > 0 ? 'rise' : 'fall', returnPercent, comment: '' }] },
   }));
-  assert.match(render(20), /class="is-up is-participating" aria-label="1번, 1종목, 수익 40 고마"/);
+  assert.match(render(20), /class="is-up is-participating" aria-label="1번, 1종목, 수익 20 고마"/);
   assert.match(render(-20), /class="is-down is-participating" aria-label="1번, 1종목, 손실 20 고마"/);
   assert.match(render(20), /2026-10-02 반영/);
-  assert.match(render(20), /마지막 등락 \+40 고마/);
+  assert.match(render(20), /마지막 등락 \+20 고마/);
   assert.match(render(20, '2026-10-01'), /class="is-flat is-participating" aria-label="1번, 1종목, 변동 없음"/);
   assert.deepEqual(state, before);
 });
